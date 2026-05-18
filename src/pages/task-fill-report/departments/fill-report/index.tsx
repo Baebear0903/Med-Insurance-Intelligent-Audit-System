@@ -310,9 +310,10 @@ export function FillReportDetail() {
 
   // Dynamic Columns
   const dynamicCols = template.fields
+    .filter(f => f.isShow !== false)
     .map(f => ({
       key: `data.${f.name}`,
-      title: f.comment,
+      title: f.displayName || f.comment,
       width: f.length > 100 ? "200px" : "120px",
       render: (r: any) => {
         const val = r.data[f.name];
@@ -462,10 +463,10 @@ export function FillReportDetail() {
                 <div className="px-4 py-3 border-t border-slate-100 flex flex-wrap items-center gap-4 bg-slate-50/50">
                   {template.fields.filter(f => f.isQueryable).slice(0, 3).map(f => (
                     <div key={f.id} className="flex items-center gap-2">
-                      <span className="text-xs font-medium text-slate-500">{f.comment}</span>
+                      <span className="text-xs font-medium text-slate-500">{f.displayName || f.comment}</span>
                       <input 
                         type="text" 
-                        placeholder={`请输入${f.comment}`}
+                        placeholder={`请输入${f.displayName || f.comment}`}
                         className="px-3 py-1.5 bg-white border border-slate-200 rounded-md text-sm w-48 focus:ring-2 focus:ring-blue-500/20 focus:outline-none focus:border-blue-500"
                       />
                     </div>
@@ -525,28 +526,14 @@ export function FillReportDetail() {
                   <p className="text-xs text-slate-600 font-bold uppercase tracking-wider">数据摘要</p>
                 </div>
                 <div className="grid grid-cols-2 gap-x-4 gap-y-3 text-[13px]">
-                  <div className="flex flex-col gap-1">
-                    <span className="text-slate-400">住院号</span>
-                    <span className="text-slate-700 font-medium truncate" title={fillModal.record.data.HOSPITAL_NO}>{fillModal.record.data.HOSPITAL_NO || "-"}</span>
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <span className="text-slate-400">患者姓名</span>
-                    <span className="text-slate-700 font-medium truncate" title={fillModal.record.data.PATIENT_NAME}>{fillModal.record.data.PATIENT_NAME || "-"}</span>
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <span className="text-slate-400">开单科室</span>
-                    <span className="text-slate-700 font-medium truncate">-</span>
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <span className="text-slate-400">执行科室</span>
-                    <span className="text-slate-700 font-medium truncate" title={fillModal.record.data.DEPARTMENT_NAME}>{fillModal.record.data.DEPARTMENT_NAME || "-"}</span>
-                  </div>
-                  <div className="col-span-2 flex flex-col gap-1 mt-1">
-                    <span className="text-slate-400">违规描述</span>
-                    <div className="text-slate-700 font-medium text-xs leading-relaxed max-h-40 overflow-y-auto w-full break-words whitespace-pre-wrap">
-                      {fillModal.record.data.VIOLATION_DESC || "-"}
+                  {template.fields.filter(f => !f.isFeedback && f.isShow !== false).map(f => (
+                    <div className={cn("flex flex-col gap-1", f.length > 200 ? "col-span-2 mt-1" : "")} key={f.id}>
+                      <span className="text-slate-400">{f.displayName || f.comment || f.name}</span>
+                      <span className={cn("text-slate-700 font-medium", f.length > 200 ? "text-xs leading-relaxed max-h-40 overflow-y-auto w-full break-words whitespace-pre-wrap" : "truncate")} title={String(fillModal.record?.data[f.name] || "")}>
+                        {fillModal.record?.data[f.name] || "-"}
+                      </span>
                     </div>
-                  </div>
+                  ))}
                 </div>
               </div>
             )}

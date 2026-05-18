@@ -16,13 +16,14 @@ import { Table } from "@/src/components/ui/Table";
 import { Badge } from "@/src/components/ui/Badge";
 import { Pagination } from "@/src/components/ui/Pagination";
 import { toast } from "@/src/components/ui/Toast";
+import { Modal } from "@/src/components/ui/Modal";
 import {
   mockApi,
   Task,
   ReviewTemplate,
   TemplateField,
 } from "@/src/lib/mockData";
-import { TASK_STATUS } from "@/src/lib/constants";
+import { TASK_STATUS, DEPARTMENTS } from "@/src/lib/constants";
 
 // Mock data generator no longer used, removed
 
@@ -46,6 +47,8 @@ export default function DataQuery() {
   const [page, setPage] = useState(1);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [showFilters, setShowFilters] = useState(false);
+  const [showSwitchModal, setShowSwitchModal] = useState(false);
+  const [selectedDepartmentId, setSelectedDepartmentId] = useState<string>("");
   const pageSize = 20;
 
   const handleSwitchDepartment = () => {
@@ -53,26 +56,36 @@ export default function DataQuery() {
       toast("请先勾选记录");
       return;
     }
+    setShowSwitchModal(true);
+    setSelectedDepartmentId(""); // Reset selection
+  };
+
+  const confirmSwitchDepartment = () => {
+    if (!selectedDepartmentId) {
+      toast("请选择要切换到的科室");
+      return;
+    }
 
     const records = mockApi.getTaskDetailRecords(task!.id);
     let updatedCount = 0;
+    const targetDeptName = DEPARTMENTS[Number(selectedDepartmentId) as keyof typeof DEPARTMENTS];
+    
     records.forEach((r: any) => {
       if (selectedIds.includes(r.id)) {
-        if (r.data.EXECUTE_DEPT) {
-          r.data.DEPARTMENT_NAME = r.data.EXECUTE_DEPT;
-          mockApi.saveTaskDetailRecord(task!.id, r);
-          updatedCount++;
-        }
+        r.data.DEPARTMENT_NAME = targetDeptName;
+        mockApi.saveTaskDetailRecord(task!.id, r);
+        updatedCount++;
       }
     });
 
     if (updatedCount > 0) {
-      toast(`成功切换 ${updatedCount} 条记录的下发科室`, "success");
+      toast(`成功切换 ${updatedCount} 条记录的科室为 ${targetDeptName}`, "success");
       const updatedRecords = mockApi.getTaskDetailRecords(task!.id);
       setData(updatedRecords.map((rec: any) => ({ ...rec.data, id: rec.id })));
       setSelectedIds([]);
+      setShowSwitchModal(false);
     } else {
-      toast("未找到执行科室数据，无法切换");
+      toast("科室切换失败：未找到相关记录");
     }
   };
 
@@ -188,9 +201,9 @@ export default function DataQuery() {
         />
       ),
     },
-    ...template.fields.map((f) => ({
+    ...template.fields.filter(f => f.isShow !== false).map((f) => ({
       key: f.name,
-      title: f.comment || f.name,
+      title: f.displayName || f.comment || f.name,
       width: "15%",
       render: (r: any) => {
         const val = r[f.name];
@@ -340,7 +353,7 @@ export default function DataQuery() {
                   {queryFields.map((f) => (
                     <div key={f.id} className="flex items-center gap-3">
                       <span className="text-sm font-medium text-slate-600 whitespace-nowrap min-w-[70px]">
-                        {f.comment || f.name}
+                        {f.displayName || f.comment || f.name}
                       </span>
                       {renderSearchInput(f)}
                     </div>
@@ -409,6 +422,38 @@ export default function DataQuery() {
           </div>
         </div>
       </div>
+
+      <Modal
+        isOpen={showSwitchModal}
+        onClose={() => setShowSwitchModal(false)}
+        title="切换科室"
+      >
+        <div className="p-4">
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-slate-700 mb-2">选择要切换到的科室：</label>
+            <select
+              className="w-full h-9 px-3 border border-slate-300 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 text-sm"
+              value={selectedDepartmentId}
+              onChange={(e) => setSelectedDepartmentId(e.target.value)}
+            >
+              <option value="">请选择科室</option>
+              {Object.entries(DEPARTMENTS).map(([id, name]) => (
+                <option key={id} value={id}>
+                  {name}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="flex justify-end gap-3 mt-6">
+            <Button variant="outline" onClick={() => setShowSwitchModal(false)}>
+              取消
+            </Button>
+            <Button variant="primary" onClick={confirmSwitchDepartment}>
+              确认切换
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

@@ -111,9 +111,9 @@ export function Audit() {
   );
 
   const queryFields = template.fields.filter(f => f.isQueryable);
-  const dynamicCols = template.fields.map(f => ({
+  const dynamicCols = template.fields.filter(f => f.isShow !== false).map(f => ({
     key: `data.${f.name}`,
-    title: f.comment || f.name,
+    title: f.displayName || f.comment || f.name,
     width: f.length > 100 ? "200px" : "120px",
     render: (r: any) => {
       const val = r.data[f.name];
@@ -235,10 +235,10 @@ export function Audit() {
               <div className="px-4 py-3 border-t border-slate-100 flex flex-wrap items-center gap-4 bg-slate-50/50">
                 {queryFields.map(f => (
                   <div key={f.id} className="flex items-center gap-2">
-                    <span className="text-xs font-medium text-slate-500">{f.comment || f.name}</span>
+                    <span className="text-xs font-medium text-slate-500">{f.displayName || f.comment || f.name}</span>
                     <input 
                       type="text" 
-                      placeholder={`请输入${f.comment || f.name}`}
+                      placeholder={`请输入${f.displayName || f.comment || f.name}`}
                       className="px-3 py-1.5 bg-white border border-slate-200 rounded-md text-sm w-48 focus:ring-2 focus:ring-blue-500/20 focus:outline-none focus:border-blue-500"
                     />
                   </div>

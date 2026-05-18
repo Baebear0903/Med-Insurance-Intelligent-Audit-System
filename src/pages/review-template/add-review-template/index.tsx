@@ -56,6 +56,8 @@ export function AddReviewTemplate() {
       isPrimaryKey: false,
       isNotNull: false,
       isRequired: false,
+      isShow: true,
+      displayName: "",
       isQueryable: false,
       isFeedback: false,
       noUpdate: false
@@ -242,12 +244,14 @@ export function AddReviewTemplate() {
                   <th className="px-3 py-3 w-12 text-center">序号</th>
                   <th className="px-3 py-3 min-w-[120px]">字段名称<span className="text-red-500 ml-1">*</span></th>
                   <th className="px-3 py-3 min-w-[120px]">字段注释<span className="text-red-500 ml-1">*</span></th>
+                  <th className="px-3 py-3 min-w-[120px]">展示名称</th>
                   <th className="px-3 py-3 w-28">字段类型</th>
                   <th className="px-3 py-3 w-20">长度</th>
                   <th className="px-3 py-3 w-16">小数点</th>
                   <th className="px-2 py-3 w-12 text-center">主键</th>
                   <th className="px-2 py-3 w-12 text-center">非空</th>
                   <th className="px-2 py-3 w-12 text-center">必填</th>
+                  <th className="px-2 py-3 w-12 text-center">展示</th>
                   <th className="px-2 py-3 w-12 text-center text-blue-600">查询</th>
                   <th className="px-2 py-3 w-14 text-center text-blue-600">反馈</th>
                   <th className="px-2 py-3 w-14 text-center">不更新</th>
@@ -272,6 +276,15 @@ export function AddReviewTemplate() {
                         value={field.comment} 
                         onChange={(e) => handleUpdateField(idx, { comment: e.target.value })}
                         className="w-full h-8 px-2 border border-transparent focus:border-blue-300 focus:bg-white rounded outline-none bg-slate-50/10" 
+                      />
+                    </td>
+                    <td className="px-2 py-1.5">
+                      <input 
+                        type="text" 
+                        value={field.displayName || ""} 
+                        onChange={(e) => handleUpdateField(idx, { displayName: e.target.value })}
+                        className="w-full h-8 px-2 border border-transparent focus:border-blue-300 focus:bg-white rounded outline-none bg-slate-50/10 placeholder-slate-300"
+                        placeholder="非必填"
                       />
                     </td>
                     <td className="px-2 py-1.5">
@@ -310,6 +323,9 @@ export function AddReviewTemplate() {
                       <input type="checkbox" checked={field.isRequired} onChange={(e) => handleUpdateField(idx, { isRequired: e.target.checked })} />
                     </td>
                     <td className="px-2 py-2 text-center">
+                      <input type="checkbox" checked={field.isShow !== false} onChange={(e) => handleUpdateField(idx, { isShow: e.target.checked })} />
+                    </td>
+                    <td className="px-2 py-2 text-center">
                       <input type="checkbox" checked={field.isQueryable} onChange={(e) => handleUpdateField(idx, { isQueryable: e.target.checked })} />
                     </td>
                     <td className="px-2 py-2 text-center">
@@ -330,7 +346,7 @@ export function AddReviewTemplate() {
                 ))}
                 {(!formData.fields || formData.fields.length === 0) && (
                   <tr>
-                    <td colSpan={13} className="px-4 py-8 text-center text-slate-400 bg-slate-50/30">
+                    <td colSpan={15} className="px-4 py-8 text-center text-slate-400 bg-slate-50/30">
                       <div className="flex flex-col items-center gap-2">
                         <AlertCircle className="w-8 h-8 opacity-20" />
                         <span>未设计任何字段，请点击“新增字段”按钮</span>
