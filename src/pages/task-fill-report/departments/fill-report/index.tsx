@@ -526,14 +526,36 @@ export function FillReportDetail() {
                   <p className="text-xs text-slate-600 font-bold uppercase tracking-wider">数据摘要</p>
                 </div>
                 <div className="grid grid-cols-2 gap-x-4 gap-y-3 text-[13px]">
-                  {template.fields.filter(f => !f.isFeedback && f.isShow !== false).map(f => (
-                    <div className={cn("flex flex-col gap-1", f.length > 200 ? "col-span-2 mt-1" : "")} key={f.id}>
-                      <span className="text-slate-400">{f.displayName || f.comment || f.name}</span>
-                      <span className={cn("text-slate-700 font-medium", f.length > 200 ? "text-xs leading-relaxed max-h-40 overflow-y-auto w-full break-words whitespace-pre-wrap" : "truncate")} title={String(fillModal.record?.data[f.name] || "")}>
-                        {fillModal.record?.data[f.name] || "-"}
-                      </span>
-                    </div>
-                  ))}
+                  {[
+                    "HOSPITAL_NO",
+                    "PATIENT_NAME",
+                    "ADMIT_DATE",
+                    "DISCHARGE_DATE",
+                    "PROJECT_NAME",
+                    "VIOLATION_AMOUNT",
+                    "VIOLATION_DESC"
+                  ].map(fieldName => {
+                    const field = template.fields.find(f => f.name === fieldName);
+                    if (!field) return null;
+                    const isFullWidth = fieldName === "VIOLATION_DESC";
+                    const val = fillModal.record?.data[fieldName];
+                    const label = field.displayName || field.comment || field.name;
+                    
+                    return (
+                      <div className={cn("flex flex-col gap-1", isFullWidth ? "col-span-2 mt-1" : "")} key={field.id}>
+                        <span className="text-slate-400">{label}</span>
+                        <span 
+                          className={cn(
+                            "text-slate-700 font-medium", 
+                            isFullWidth ? "text-xs leading-relaxed max-h-40 overflow-y-auto w-full break-words whitespace-pre-wrap" : "truncate"
+                          )} 
+                          title={String(val || "")}
+                        >
+                          {fieldName === "VIOLATION_AMOUNT" ? (val ? `¥${Number(val).toFixed(2)}` : "-") : (val || "-")}
+                        </span>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             )}
@@ -589,31 +611,58 @@ export function FillReportDetail() {
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <label className="text-sm font-bold text-slate-700">申诉附件</label>
-                  <span className="text-xs text-slate-400">可多选，单个≤20MB</span>
+                  <span className="text-xs text-slate-400">支持 PDF, JPG, PNG, DOCX (≤20MB)</span>
                 </div>
-                <div className="grid grid-cols-4 gap-3">
-                  {fillForm.evidence.map((img, i) => (
-                    <div key={i} className="aspect-square bg-slate-100 rounded-lg relative group overflow-hidden border border-slate-200">
-                      <div className="w-full h-full flex items-center justify-center text-slate-400">
-                        <ImageIcon className="w-6 h-6 opacity-40" />
+                <div className="space-y-2">
+                  {fillForm.evidence.map((fileName, i) => {
+                    const isImg = /\.(jpg|jpeg|png)$/i.test(fileName);
+                    const isPdf = /\.pdf$/i.test(fileName);
+                    const isWord = /\.(doc|docx)$/i.test(fileName);
+                    
+                    return (
+                      <div key={i} className="flex items-center justify-between p-3 bg-slate-50 border border-slate-200/60 rounded-xl group transition-all hover:bg-white hover:border-blue-200 hover:shadow-sm">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className={cn(
+                            "w-10 h-10 rounded-lg flex items-center justify-center shrink-0 shadow-sm",
+                            isImg ? "bg-blue-50 text-blue-500" : 
+                            isPdf ? "bg-rose-50 text-rose-500" : 
+                            isWord ? "bg-indigo-50 text-indigo-500" : "bg-slate-100 text-slate-500"
+                          )}>
+                            {isImg ? <ImageIcon className="w-5 h-5" /> : <FileText className="w-5 h-5" />}
+                          </div>
+                          <div className="flex flex-col min-w-0">
+                            <span className="text-[13px] font-bold text-slate-700 truncate" title={fileName}>{fileName}</span>
+                            <span className="text-[11px] text-slate-400 font-medium">1.2 MB</span>
+                          </div>
+                        </div>
+                        {!isReadOnly && (
+                          <button 
+                            onClick={() => setFillForm({...fillForm, evidence: fillForm.evidence.filter((_, idx) => idx !== i)})}
+                            className="p-1.5 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-all opacity-0 group-hover:opacity-100"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        )}
                       </div>
-                      {!isReadOnly && (
-                        <button 
-                          onClick={() => setFillForm({...fillForm, evidence: fillForm.evidence.filter((_, idx) => idx !== i)})}
-                          className="absolute top-1 right-1 bg-black/50 hover:bg-black/70 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-all"
-                        >
-                          <X className="w-3 h-3" />
-                        </button>
-                      )}
-                    </div>
-                  ))}
-                  {!isReadOnly && fillForm.evidence.length < 4 && (
+                    );
+                  })}
+                  
+                  {!isReadOnly && fillForm.evidence.length < 5 && (
                     <button 
-                      onClick={() => setFillForm({...fillForm, evidence: [...fillForm.evidence, `mock_${Date.now()}`]})}
-                      className="aspect-square border-2 border-dashed border-slate-200 rounded-lg flex flex-col items-center justify-center gap-1.5 text-slate-400 hover:border-blue-400 hover:bg-blue-50 hover:text-blue-500 transition-all"
+                      onClick={() => {
+                        const mocks = ["手术报告单_复核.pdf", "住院病历摘要.docx", "检查图片_001.png", "医嘱明细.doc", "复核佐证材料.jpg"];
+                        const nextFile = mocks[fillForm.evidence.length % mocks.length];
+                        setFillForm({...fillForm, evidence: [...fillForm.evidence, nextFile]});
+                      }}
+                      className="w-full py-6 border-2 border-dashed border-slate-200 rounded-xl flex flex-col items-center justify-center gap-2 text-slate-400 hover:border-blue-400 hover:bg-blue-50 hover:text-blue-500 transition-all group mt-2"
                     >
-                      <Upload className="w-5 h-5" />
-                      <span className="text-[10px] font-medium leading-none">上传</span>
+                      <div className="w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center group-hover:bg-blue-100 transition-colors">
+                        <Upload className="w-5 h-5" />
+                      </div>
+                      <div className="text-center">
+                        <p className="text-sm font-bold">点击或拖拽上传</p>
+                        <p className="text-[11px] opacity-70">支持 pdf, jpg, png, doc, docx 格式</p>
+                      </div>
                     </button>
                   )}
                 </div>

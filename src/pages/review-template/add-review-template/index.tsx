@@ -252,8 +252,8 @@ export function AddReviewTemplate() {
                   <th className="px-2 py-3 w-12 text-center">非空</th>
                   <th className="px-2 py-3 w-12 text-center">必填</th>
                   <th className="px-2 py-3 w-12 text-center">展示</th>
-                  <th className="px-2 py-3 w-12 text-center text-blue-600">查询</th>
-                  <th className="px-2 py-3 w-14 text-center text-blue-600">反馈</th>
+                  <th className="px-2 py-3 w-12 text-center">查询</th>
+                  <th className="px-2 py-3 w-14 text-center">反馈</th>
                   <th className="px-2 py-3 w-14 text-center">不更新</th>
                   <th className="px-3 py-3 w-36 text-center sticky right-0 bg-slate-50 shadow-[-4px_0_4px_-4px_rgba(0,0,0,0.1)]">操作</th>
                 </tr>
