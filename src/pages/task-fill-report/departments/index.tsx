@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
+import { ColumnSettingsModal, ColumnItem } from "@/src/components/ColumnSettingsModal";
 import { 
   Search, 
   Filter, 
@@ -27,11 +28,22 @@ import { TASK_STATUS, DEPARTMENTS } from "@/src/lib/constants";
 import { Link, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "motion/react";
 import { cn } from "@/src/lib/utils";
+import { downloadZipWithExcel } from "@/src/lib/exportUtils";
 
 import { useUser } from "@/src/lib/userContext";
 
 // ... scroll down to TaskFillReport component
 export function TaskFillReport() {
+  const [isColumnSettingsOpen, setIsColumnSettingsOpen] = useState(false);
+  const [configurableColumns, setConfigurableColumns] = useState<ColumnItem[]>([
+    { key: "name", title: "任务名称", visible: true },
+    { key: "templateName", title: "模板名称", visible: true },
+    { key: "departmentId", title: "下发科室", visible: true },
+    { key: "status", title: "任务状态", visible: true },
+    { key: "creator", title: "任务创建人", visible: true },
+    { key: "dueDate", title: "截止时间", visible: true }
+  ]);
+
   const navigate = useNavigate();
   const { role } = useUser();
   const [loading, setLoading] = useState(false);
@@ -50,6 +62,7 @@ export function TaskFillReport() {
     type: "submit" | "withdraw" | null;
     taskId: string | null;
   }>({ show: false, type: null, taskId: null });
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const fetchData = () => {
     setLoading(true);
@@ -130,17 +143,114 @@ export function TaskFillReport() {
   };
 
   const handleUpload = () => {
-    // Simulated upload
-    const success = Math.random() > 0.3;
-    if (success) {
-      toast("上传成功", "success");
-    } else {
-      toast("上传失败，尚有必填项未填写", "error");
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      toast("正在解析文件并匹配数据...", "info");
+      setTimeout(() => {
+        const success = Math.random() > 0.3;
+        if (success) {
+          toast("成功匹配数据并上传", "success");
+        } else {
+          toast("上传失败，文件格式不正确或缺少必要字段", "error");
+        }
+      }, 1000);
+    }
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
     }
   };
 
-  const handleDownload = () => {
-    toast("正在开始下载...", "info");
+  const handleDownloadTask = async (t: Task) => {
+    toast("正在准备打包数据...", "info");
+    
+    // 获取该任务的所有记录
+    const allRecords = mockApi.getTaskDetailRecords(t.id);
+    if (!allRecords || allRecords.length === 0) {
+      toast("该任务暂无可用填报明细数据", "info");
+      return;
+    }
+
+    // 获取该任务关联的模板，用于组装字段名
+    const allTemplates = mockApi.getTemplates();
+    const tpl = allTemplates.find(tpl => tpl.id === t.templateId) || allTemplates[0];
+    
+    // 组装表头
+    const headers = [
+      "序号",
+      "填报状态",
+      "审核状态"
+    ];
+    if (tpl && tpl.fields) {
+      tpl.fields.forEach(f => {
+        headers.push(f.displayName || f.comment || f.name);
+      });
+    } else {
+      headers.push("数据明细内容");
+    }
+
+    // 组装行内容
+    const rows = allRecords.map((r: any, idx: number) => {
+      const getStatusLabel = (s: string) => {
+        if (s === "UNFILLED") return "待填报";
+        if (s === "FILLED") return "已提交";
+        if (s === "AI_FILLED") return "AI已填";
+        if (s === "AI_FILLING") return "AI填充中";
+        return s || "未开始";
+      };
+      
+      const getAuditStatusLabel = (ast: number) => {
+        if (ast === 0) return "已送审";
+        if (ast === 1) return "待审核";
+        if (ast === 2) return "审核通过";
+        if (ast === 3) return "审核驳回";
+        if (ast === 7) return "未作申诉填报";
+        if (ast === 8) return "已申诉";
+        return "-";
+      };
+
+      const baseCols = [
+        String(idx + 1),
+        getStatusLabel(r.fillStatus),
+        getAuditStatusLabel(r.auditStatus)
+      ];
+
+      if (tpl && tpl.fields) {
+        const templateCols = tpl.fields.map(f => {
+          const val = r.data[f.name];
+          return val === undefined || val === null ? "" : String(val);
+        });
+        return [...baseCols, ...templateCols];
+      } else {
+        return [...baseCols, JSON.stringify(r.data)];
+      }
+    });
+
+    // 收集附件列表
+    const attachments: { name: string; recordInfo?: string }[] = [];
+    allRecords.forEach((r: any) => {
+      const fileString = r.data.APPEAL_ATTACHMENT;
+      if (fileString) {
+        const patientName = r.data.PATIENT_NAME || "未名";
+        const disDate = r.data.DISCHARGE_DATE || r.data.ADMIT_DATE || "无出院日";
+        attachments.push({
+          name: fileString,
+          recordInfo: `患者姓名：${patientName}，出院时间：${disDate}`
+        });
+      }
+    });
+
+    try {
+      const zipName = `${t.name}_全部填报数据及附件.zip`;
+      const excelName = `${t.name}_填报数据表.xlsx`;
+      await downloadZipWithExcel(zipName, excelName, headers, rows, attachments);
+      toast("导出打包成功！开始下载...", "success");
+    } catch (e) {
+      toast("下载打包失败，请重试", "error");
+      console.error(e);
+    }
   };
 
   const statsGroups = [
@@ -201,7 +311,7 @@ export function TaskFillReport() {
       width: "240px",
       render: (t: Task) => {
         const common = (
-          <Button variant="ghost" size="sm" onClick={handleDownload} className="text-blue-600 h-7 px-2">
+          <Button variant="ghost" size="sm" onClick={() => handleDownloadTask(t)} className="text-blue-600 h-7 px-2">
             下载数据
           </Button>
         );
@@ -212,7 +322,7 @@ export function TaskFillReport() {
             {t.status === "PUBLISH" && (
               <>
                 <Button variant="ghost" size="sm" onClick={handleUpload} className="text-blue-600 h-7 px-2">上传申报</Button>
-                <Button variant="ghost" size="sm" onClick={() => handleAction("submit", t.id)} className="text-blue-600 h-7 px-2">提交</Button>
+                <Button variant="ghost" size="sm" onClick={() => handleAction("submit", t.id)} className="text-blue-600 h-7 px-2">提交审核</Button>
               </>
             )}
             {t.status === "SUBMITTED" && (
@@ -221,7 +331,7 @@ export function TaskFillReport() {
             {t.status === "WITHDRAWN" && (
               <>
                 <Button variant="ghost" size="sm" onClick={handleUpload} className="text-blue-600 h-7 px-2">上传申报</Button>
-                <Button variant="ghost" size="sm" onClick={() => handleAction("submit", t.id)} className="text-blue-600 h-7 px-2">提交</Button>
+                <Button variant="ghost" size="sm" onClick={() => handleAction("submit", t.id)} className="text-blue-600 h-7 px-2">提交审核</Button>
                 <Button variant="ghost" size="sm" onClick={() => setRejectModalId(t.id)} className="text-orange-600 h-7 px-2">驳回意见</Button>
               </>
             )}
@@ -231,8 +341,17 @@ export function TaskFillReport() {
     }
   ];
 
+  const computedColumns = [
+    columns.find(c => c.key === "index")!,
+    ...configurableColumns
+      .filter(item => item.visible)
+      .map(item => columns.find(c => c.key === item.key)!),
+    columns.find(c => c.key === "action")!
+  ].filter(Boolean);
+
   return (
     <div className="flex flex-col gap-4 h-full overflow-hidden p-4">
+      <input type="file" className="hidden" ref={fileInputRef} onChange={handleFileChange} />
       {/* Alarm Bar */}
       <motion.div 
         initial={{ opacity: 0, y: -20 }}
@@ -331,7 +450,7 @@ export function TaskFillReport() {
             </div>
 
             <div className="flex items-center gap-2">
-              <button className="p-2 border border-slate-200 rounded hover:bg-slate-100 text-slate-400 transition-colors shadow-sm" onClick={() => toast("设置已打开", "info")}>
+              <button className="p-2 border border-slate-200 rounded hover:bg-slate-100 text-slate-400 transition-colors shadow-sm" onClick={() => setIsColumnSettingsOpen(true)}>
                 <Settings className="w-4 h-4" />
               </button>
             </div>
@@ -405,7 +524,7 @@ export function TaskFillReport() {
         <div className="flex-1 overflow-auto bg-[#fafbfc]">
           <div className="p-4 h-full">
             <Table<Task>
-              columns={columns}
+              columns={computedColumns}
               data={tasks}
               rowKey={(t) => t.id}
               className="bg-white rounded-lg border border-slate-100"
@@ -423,6 +542,17 @@ export function TaskFillReport() {
           />
         </div>
       </div>
+
+      <ColumnSettingsModal
+        isOpen={isColumnSettingsOpen}
+        onClose={() => setIsColumnSettingsOpen(false)}
+        columns={configurableColumns}
+        onConfirm={(updated) => {
+          setConfigurableColumns(updated);
+          setIsColumnSettingsOpen(false);
+          toast("列表设置已保存", "success");
+        }}
+      />
 
       {/* Confirm Modal */}
       <Modal

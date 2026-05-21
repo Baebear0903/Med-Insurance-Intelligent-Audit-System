@@ -30,6 +30,7 @@ export const AUDIT_STATUS = {
 
 export const FILL_STATUS = {
   UNFILLED: "未填报",
+  AI_FILLED: "AI填报",
   SUBMITTED: "已提交",
   APPROVED: "审核通过",
   REJECTED: "驳回",
@@ -80,7 +81,7 @@ export const visibleMenuItems = [
     children: [
       {
         path: "/review-template/index",
-        label: "审核模板",
+        label: "模板配置",
         roles: ["ADMIN"],
       },
       {

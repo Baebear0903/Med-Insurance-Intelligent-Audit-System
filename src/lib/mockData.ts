@@ -49,6 +49,7 @@ export interface TemplateField {
 export interface ReviewTemplate {
   id: string;
   name: string;
+  templateType: "医保审核反馈" | "医保明细下发" | "医保院内扣减";
   status: "ENABLED" | "DISABLED";
   desc: string;
   creator: string;
@@ -106,6 +107,9 @@ const INITIAL_TASKS: Task[] = [
   { id: "T1003", name: "2024年第一季度广州医保线下反馈核查", year: "2024", departmentId: 1, templateId: "TPL_GZ_YB", templateName: "广州医保（线下）反馈", status: "SUBMITTED", creator: "管理员", createTime: "2024-05-01 11:00", updateTime: "2024-05-10 16:30", dueDate: "2024-05-31" },
   { id: "T1003_0", parentId: "T1003", name: "2024年第一季度广州医保线下反馈核查 - 外科", year: "2024", departmentId: 3, templateId: "TPL_GZ_YB", templateName: "广州医保（线下）反馈", status: "SUBMITTED", creator: "管理员", createTime: "2024-05-01 11:00", updateTime: "2024-05-10 16:30", dueDate: "2024-05-31" },
   { id: "T1003_1", parentId: "T1003", name: "2024年第一季度广州医保线下反馈核查 - 内科", year: "2024", departmentId: 4, templateId: "TPL_GZ_YB", templateName: "广州医保（线下）反馈", status: "SUBMITTED", creator: "管理员", createTime: "2024-05-01 11:00", updateTime: "2024-05-10 16:30", dueDate: "2024-05-31" },
+  { id: "T1004", name: "2023年第四季度广州医保线下反馈核查", year: "2023", departmentId: 1, templateId: "TPL_GZ_YB", templateName: "广州医保（线下）反馈", status: "END", creator: "管理员", createTime: "2023-11-01 09:00", updateTime: "2023-11-10 15:00", dueDate: "2023-11-25" },
+  { id: "T1004_0", parentId: "T1004", name: "2023年第四季度广州医保线下反馈核查 - 外科", year: "2023", departmentId: 3, templateId: "TPL_GZ_YB", templateName: "广州医保（线下）反馈", status: "END", creator: "管理员", createTime: "2023-11-01 09:00", updateTime: "2023-11-10 15:00", dueDate: "2023-11-25" },
+  { id: "T1004_1", parentId: "T1004", name: "2023年第四季度广州医保线下反馈核查 - 内科", year: "2023", departmentId: 4, templateId: "TPL_GZ_YB", templateName: "广州医保（线下）反馈", status: "END", creator: "管理员", createTime: "2023-11-01 09:00", updateTime: "2023-11-10 15:00", dueDate: "2023-11-25" },
 ];
 
 const INITIAL_REPORTS: ReviewRecord[] = [
@@ -115,12 +119,15 @@ const INITIAL_REPORTS: ReviewRecord[] = [
   { id: "R2004", taskId: "T1002_1", auditStatus: 0, fillStatus: "UNFILLED", submitter: "-", submitTime: "-", auditor: "-", auditTime: "-" },
   { id: "R2005", taskId: "T1003_0", auditStatus: 8, fillStatus: "SUBMITTED", submitter: "李四", submitTime: "2024-05-08 10:00", auditor: "-", auditTime: "-" },
   { id: "R2006", taskId: "T1003_1", auditStatus: 8, fillStatus: "SUBMITTED", submitter: "王五", submitTime: "2024-05-09 10:00", auditor: "-", auditTime: "-" },
+  { id: "R2007", taskId: "T1004_0", auditStatus: 1, fillStatus: "APPROVED", submitter: "李四", submitTime: "2023-11-08 10:00", auditor: "管理员", auditTime: "2023-11-10 15:00" },
+  { id: "R2008", taskId: "T1004_1", auditStatus: 1, fillStatus: "APPROVED", submitter: "王五", submitTime: "2023-11-09 10:00", auditor: "管理员", auditTime: "2023-11-10 15:00" },
 ];
 
 const INITIAL_TEMPLATES: ReviewTemplate[] = [
   {
     id: "TPL_GZ_YB",
     name: "广州医保（线下）反馈",
+    templateType: "医保审核反馈",
     status: "ENABLED",
     desc: "针对广州医保线下反馈的疑点数据进行核查与反馈。",
     creator: "管理员",
@@ -216,13 +223,21 @@ export const mockApi = {
              const isAppeal = Math.random() > 0.5; // Randomly decide if appeal
              currentAllData[rowDataIndex].data.IS_APPEAL = isAppeal ? "是" : "否";
              if (isAppeal) {
+                const patientName = currentAllData[rowDataIndex].data.PATIENT_NAME || "未知患者"; const projectName = currentAllData[rowDataIndex].data.PROJECT_NAME || "未指定项目";
+                const dischargeDate = currentAllData[rowDataIndex].data.DISCHARGE_DATE || currentAllData[rowDataIndex].data.ADMIT_DATE || "2024-03-10";
+                const filenames = [
+                  `${patientName}_${dischargeDate}_${projectName}_出院小结.pdf`,
+                  `${patientName}_${dischargeDate}_${projectName}_入院记录.docx`
+                ];
                 currentAllData[rowDataIndex].data.APPEAL_REASON = "系统自动填报诊断：数据符合预期规范，建议申诉复核。";
-                currentAllData[rowDataIndex].data.APPEAL_ATTACHMENT = "智能分析辅助证明.pdf";
+                currentAllData[rowDataIndex].data.APPEAL_ATTACHMENT = filenames.join(", ");
+                currentAllData[rowDataIndex].evidence = filenames;
              } else {
                 currentAllData[rowDataIndex].data.APPEAL_REASON = "";
                 currentAllData[rowDataIndex].data.APPEAL_ATTACHMENT = "";
+                currentAllData[rowDataIndex].evidence = [];
              }
-             currentAllData[rowDataIndex].fillStatus = "FILLED";
+             currentAllData[rowDataIndex].fillStatus = "AI_FILLED";
              localStorage.setItem(key, JSON.stringify(currentAllData));
           }
         }
@@ -263,7 +278,25 @@ export const mockApi = {
       if (allData) {
         allData = allData.map((d: any) => {
           if (!isSubtask || d.data.DEPARTMENT_NAME === currentDeptName || d.data.DEPARTMENT_NAME === currentDeptName?.replace("专管员", "")) {
-            return { ...d, fillStatus: "FILLED" };
+            const isAppeal = d.id !== "D3"; // D3 is outpatient type and has empty discharge date, so let's appeal for others
+            const patientName = d.data.PATIENT_NAME || "未知患者"; const projectName = d.data.PROJECT_NAME || "未指定项目";
+            const dischargeDate = d.data.DISCHARGE_DATE || d.data.ADMIT_DATE || "2024-03-10";
+            const filenames = [
+              `${patientName}_${dischargeDate}_${projectName}_出院小结.pdf`,
+              `${patientName}_${dischargeDate}_${projectName}_入院记录.docx`
+            ];
+            
+            return { 
+              ...d, 
+              fillStatus: "AI_FILLED",
+              evidence: isAppeal ? filenames : [],
+              data: {
+                ...d.data,
+                IS_APPEAL: isAppeal ? "是" : "否",
+                APPEAL_REASON: isAppeal ? "系统自动填报诊断：数据符合预期规范，建议申诉复核。" : "",
+                APPEAL_ATTACHMENT: isAppeal ? filenames.join(", ") : ""
+              }
+            };
           }
           return d;
         });
@@ -284,7 +317,7 @@ export const mockApi = {
     
     // 检查是否需要强制重置（当 INITIAL_TASKS 里的名称或数量发生变化时）
     const needsReset = !tasks || 
-                       !localStorage.getItem("v5_reset") ||
+                       !localStorage.getItem("v6_reset") ||
                        tasks.length !== INITIAL_TASKS.length || 
                        INITIAL_TASKS.some((it, idx) => {
                          const cached = tasks.find((t: any) => t.id === it.id);
@@ -296,7 +329,7 @@ export const mockApi = {
       localStorage.setItem("tasks", JSON.stringify(tasks));
       localStorage.setItem("records", JSON.stringify(INITIAL_REPORTS));
       localStorage.setItem("templates", JSON.stringify(INITIAL_TEMPLATES));
-      localStorage.setItem("v5_reset", "true");
+      localStorage.setItem("v6_reset", "true");
       // 清除明细记录，让它们重新生成
       Object.keys(localStorage).forEach(key => {
         if (key.startsWith("task_details_")) {
@@ -349,7 +382,7 @@ export const mockApi = {
     return records;
   },
 
-  getTemplates: (search = "", status?: string): ReviewTemplate[] => {
+  getTemplates: (search = "", status?: string, typeFilter?: string): ReviewTemplate[] => {
     let templates = JSON.parse(localStorage.getItem("templates") || "null");
     if (!templates) {
       templates = INITIAL_TEMPLATES;
@@ -366,6 +399,9 @@ export const mockApi = {
     }
     if (status) {
       filtered = filtered.filter((t: ReviewTemplate) => t.status === status);
+    }
+    if (typeFilter) {
+      filtered = filtered.filter((t: ReviewTemplate) => t.templateType === typeFilter);
     }
     return filtered;
   },
@@ -396,7 +432,7 @@ export const mockApi = {
       tasks[index].updateTime = new Date().toLocaleString();
       localStorage.setItem("tasks", JSON.stringify(tasks));
       
-      // If submitted, also update review record
+      // If submitted, also update review record and task details
       if (status === "SUBMITTED") {
         let records = JSON.parse(localStorage.getItem("records") || "null");
         if (!records) records = INITIAL_REPORTS;
@@ -406,6 +442,23 @@ export const mockApi = {
           records[rIndex].auditStatus = 8;
           records[rIndex].submitTime = new Date().toLocaleString();
           localStorage.setItem("records", JSON.stringify(records));
+        }
+
+        const isSubtask = !!tasks[index].parentId;
+        const realTaskId = isSubtask ? tasks[index].parentId : taskId;
+        const currentDeptName = isSubtask ? DEPARTMENTS[tasks[index].departmentId] : null;
+        const key = `task_details_${realTaskId}`;
+        let allData = JSON.parse(localStorage.getItem(key) || "null");
+        if (allData) {
+          allData = allData.map((d: any) => {
+            if (!isSubtask || d.data.DEPARTMENT_NAME === currentDeptName || d.data.DEPARTMENT_NAME === currentDeptName?.replace("专管员", "")) {
+              if (d.fillStatus === "AI_FILLED") {
+                return { ...d, fillStatus: "FILLED" };
+              }
+            }
+            return d;
+          });
+          localStorage.setItem(key, JSON.stringify(allData));
         }
       }
       
@@ -443,13 +496,20 @@ export const mockApi = {
     let data = JSON.parse(localStorage.getItem(key) || "null");
 
     if (!data) {
-      // Generate some mock data if not exists
-      data = [
-        { id: "D1", taskId: realTaskId, data: { HOSPITAL_NO: "ZY1001", PATIENT_NAME: "张三", ID_CARD: "440106199001011234", ADMIT_DATE: "2024-03-01", DISCHARGE_DATE: "2024-03-10", MEDICAL_CATEGORY: "住院", PROJECT_NAME: "血常规", VIOLATION_AMOUNT: 120, VIOLATION_DESC: "高频检查", ORDER_DEPT: "内科", EXECUTE_DEPT: "检验科", DEPARTMENT_NAME: "内科", DOCTOR_NAME: "赵医生", IS_APPEAL: "", APPEAL_REASON: "", APPEAL_ATTACHMENT: "", REMARK: "" }, evidence: [], fillStatus: "UNFILLED", auditStatus: 7, submitter: "-", updateTime: "2024-05-12 09:00", dispatchStatus: "未下发" },
-        { id: "D2", taskId: realTaskId, data: { HOSPITAL_NO: "ZY1002", PATIENT_NAME: "李四", ID_CARD: "440106198002022345", ADMIT_DATE: "2024-03-05", DISCHARGE_DATE: "2024-03-15", MEDICAL_CATEGORY: "住院", PROJECT_NAME: "MRI", VIOLATION_AMOUNT: 1200, VIOLATION_DESC: "重复检查", ORDER_DEPT: "外科", EXECUTE_DEPT: "放射科", DEPARTMENT_NAME: "外科", DOCTOR_NAME: "钱医生", IS_APPEAL: "", APPEAL_REASON: "", APPEAL_ATTACHMENT: "", REMARK: "" }, evidence: [], fillStatus: "UNFILLED", auditStatus: 7, submitter: "-", updateTime: "2024-05-12 10:30", dispatchStatus: "未下发" },
-        { id: "D3", taskId: realTaskId, data: { HOSPITAL_NO: "ZY1003", PATIENT_NAME: "王五", ID_CARD: "440106197003033456", ADMIT_DATE: "2024-03-10", DISCHARGE_DATE: "", MEDICAL_CATEGORY: "门诊", PROJECT_NAME: "阿司匹林", VIOLATION_AMOUNT: 45, VIOLATION_DESC: "超量开药", ORDER_DEPT: "内科", EXECUTE_DEPT: "药剂科", DEPARTMENT_NAME: "内科", DOCTOR_NAME: "孙医生", IS_APPEAL: "", APPEAL_REASON: "", APPEAL_ATTACHMENT: "", REMARK: "" }, evidence: [], fillStatus: "UNFILLED", auditStatus: 7, submitter: "-", updateTime: "2024-05-12 11:00", dispatchStatus: "未下发" },
-        { id: "D4", taskId: realTaskId, data: { HOSPITAL_NO: "ZY1004", PATIENT_NAME: "孙六", ID_CARD: "440106196004044567", ADMIT_DATE: "2024-03-12", DISCHARGE_DATE: "2024-03-20", MEDICAL_CATEGORY: "住院", PROJECT_NAME: "CT", VIOLATION_AMOUNT: 800, VIOLATION_DESC: "限频次审批", ORDER_DEPT: "外科", EXECUTE_DEPT: "放射科", DEPARTMENT_NAME: "外科", DOCTOR_NAME: "周医生", IS_APPEAL: "", APPEAL_REASON: "", APPEAL_ATTACHMENT: "", REMARK: "" }, evidence: [], fillStatus: "UNFILLED", auditStatus: 7, submitter: "-", updateTime: "2024-05-12 11:30", dispatchStatus: "未下发" },
-      ];
+      if (realTaskId === "T1004") {
+        data = [
+          { id: "D10", taskId: "T1004", data: { HOSPITAL_NO: "ZY2001", PATIENT_NAME: "陈八", ID_CARD: "440106199101011234", ADMIT_DATE: "2023-10-01", DISCHARGE_DATE: "2023-10-10", MEDICAL_CATEGORY: "住院", PROJECT_NAME: "血常规", VIOLATION_AMOUNT: 150, VIOLATION_DESC: "高频检查", ORDER_DEPT: "内科", EXECUTE_DEPT: "检验科", DEPARTMENT_NAME: "内科", DOCTOR_NAME: "赵医生", IS_APPEAL: "是", APPEAL_REASON: "患者情况特殊，符合规范，附件已上传。", APPEAL_ATTACHMENT: "陈八_2023-10-10_血常规_出院小结.pdf", REMARK: "" }, evidence: ["陈八_2023-10-10_血常规_出院小结.pdf"], fillStatus: "APPROVED", auditStatus: 1, submitter: "赵云", updateTime: "2023-11-10 14:00", dispatchStatus: "已下发" },
+          { id: "D11", taskId: "T1004", data: { HOSPITAL_NO: "ZY2002", PATIENT_NAME: "刘九", ID_CARD: "440106198102022345", ADMIT_DATE: "2023-10-05", DISCHARGE_DATE: "2023-10-15", MEDICAL_CATEGORY: "住院", PROJECT_NAME: "MRI", VIOLATION_AMOUNT: 1500, VIOLATION_DESC: "重复检查", ORDER_DEPT: "外科", EXECUTE_DEPT: "放射科", DEPARTMENT_NAME: "外科", DOCTOR_NAME: "钱医生", IS_APPEAL: "否", APPEAL_REASON: "", APPEAL_ATTACHMENT: "", REMARK: "医生核对承认，不申诉。" }, evidence: [], fillStatus: "APPROVED", auditStatus: 1, submitter: "李飞", updateTime: "2023-11-10 14:30", dispatchStatus: "已下发" }
+        ];
+      } else {
+        // Generate some mock data if not exists
+        data = [
+          { id: "D1", taskId: realTaskId, data: { HOSPITAL_NO: "ZY1001", PATIENT_NAME: "张三", ID_CARD: "440106199001011234", ADMIT_DATE: "2024-03-01", DISCHARGE_DATE: "2024-03-10", MEDICAL_CATEGORY: "住院", PROJECT_NAME: "血常规", VIOLATION_AMOUNT: 120, VIOLATION_DESC: "高频检查", ORDER_DEPT: "内科", EXECUTE_DEPT: "检验科", DEPARTMENT_NAME: "内科", DOCTOR_NAME: "赵医生", IS_APPEAL: "", APPEAL_REASON: "", APPEAL_ATTACHMENT: "", REMARK: "" }, evidence: [], fillStatus: "UNFILLED", auditStatus: 7, submitter: "-", updateTime: "2024-05-12 09:00", dispatchStatus: "未下发" },
+          { id: "D2", taskId: realTaskId, data: { HOSPITAL_NO: "ZY1002", PATIENT_NAME: "李四", ID_CARD: "440106198002022345", ADMIT_DATE: "2024-03-05", DISCHARGE_DATE: "2024-03-15", MEDICAL_CATEGORY: "住院", PROJECT_NAME: "MRI", VIOLATION_AMOUNT: 1200, VIOLATION_DESC: "重复检查", ORDER_DEPT: "外科", EXECUTE_DEPT: "放射科", DEPARTMENT_NAME: "外科", DOCTOR_NAME: "钱医生", IS_APPEAL: "", APPEAL_REASON: "", APPEAL_ATTACHMENT: "", REMARK: "" }, evidence: [], fillStatus: "UNFILLED", auditStatus: 7, submitter: "-", updateTime: "2024-05-12 10:30", dispatchStatus: "未下发" },
+          { id: "D3", taskId: realTaskId, data: { HOSPITAL_NO: "ZY1003", PATIENT_NAME: "王五", ID_CARD: "440106197003033456", ADMIT_DATE: "2024-03-10", DISCHARGE_DATE: "", MEDICAL_CATEGORY: "门诊", PROJECT_NAME: "阿司匹林", VIOLATION_AMOUNT: 45, VIOLATION_DESC: "超量开药", ORDER_DEPT: "内科", EXECUTE_DEPT: "药剂科", DEPARTMENT_NAME: "内科", DOCTOR_NAME: "孙医生", IS_APPEAL: "", APPEAL_REASON: "", APPEAL_ATTACHMENT: "", REMARK: "" }, evidence: [], fillStatus: "UNFILLED", auditStatus: 7, submitter: "-", updateTime: "2024-05-12 11:00", dispatchStatus: "未下发" },
+          { id: "D4", taskId: realTaskId, data: { HOSPITAL_NO: "ZY1004", PATIENT_NAME: "孙六", ID_CARD: "440106196004044567", ADMIT_DATE: "2024-03-12", DISCHARGE_DATE: "2024-03-20", MEDICAL_CATEGORY: "住院", PROJECT_NAME: "CT", VIOLATION_AMOUNT: 800, VIOLATION_DESC: "限频次审批", ORDER_DEPT: "外科", EXECUTE_DEPT: "放射科", DEPARTMENT_NAME: "外科", DOCTOR_NAME: "周医生", IS_APPEAL: "", APPEAL_REASON: "", APPEAL_ATTACHMENT: "", REMARK: "" }, evidence: [], fillStatus: "UNFILLED", auditStatus: 7, submitter: "-", updateTime: "2024-05-12 11:30", dispatchStatus: "未下发" },
+        ];
+      }
       localStorage.setItem(key, JSON.stringify(data));
     }
 

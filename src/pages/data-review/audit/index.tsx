@@ -1,16 +1,22 @@
 import React, { useState, useEffect } from "react";
-import { ArrowLeft, Search, CheckCircle2, XCircle, Info, Filter } from "lucide-react";
+import { ArrowLeft, Search, CheckCircle2, XCircle, Info, Filter, Settings, FileText, X, Image as ImageIcon, Upload, AlertCircle } from "lucide-react";
+import { ColumnSettingsModal, ColumnItem } from "@/src/components/ColumnSettingsModal";
 import { Link, useSearchParams, useNavigate } from "react-router-dom";
 import { Button } from "@/src/components/ui/Button";
 import { Table } from "@/src/components/ui/Table";
 import { Badge } from "@/src/components/ui/Badge";
+import { Drawer } from "@/src/components/ui/Drawer";
 import { Modal } from "@/src/components/ui/Modal";
 import { toast } from "@/src/components/ui/Toast";
 import { mockApi, Task, ReviewTemplate } from "@/src/lib/mockData";
 import { DEPARTMENTS, TASK_STATUS } from "@/src/lib/constants";
 import { motion, AnimatePresence } from "motion/react";
+import { cn } from "@/src/lib/utils";
 
 export function Audit() {
+  const [isColumnSettingsOpen, setIsColumnSettingsOpen] = useState(false);
+  const [configurableColumns, setConfigurableColumns] = useState<ColumnItem[]>([]);
+
   const [searchParams] = useSearchParams();
   const taskId = searchParams.get("taskId");
   const deptId = searchParams.get("deptId");
@@ -22,9 +28,22 @@ export function Audit() {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
 
+  // Active review record for modal
+  const [activeRecord, setActiveRecord] = useState<any | null>(null);
+
   // Modal states
   const [auditModal, setAuditModal] = useState(false);
-  const [auditComment, setAuditComment] = useState("");
+  const [batchAuditModal, setBatchAuditModal] = useState(false);
+  const [auditForm, setAuditForm] = useState<{
+    confirm: "APPEAL" | "NO_APPEAL" | "";
+    opinion: string;
+    evidence: string[];
+  }>({
+    confirm: "",
+    opinion: "",
+    evidence: []
+  });
+
   const [filterStatus, setFilterStatus] = useState("全部");
   const [showFilter, setShowFilter] = useState(false);
 
@@ -55,7 +74,6 @@ export function Audit() {
           }
         }
 
-        // No flattening needed, we will use r.data[f.name] directly
         setRecords(detailRecords);
       } else {
         toast("未找到该任务信息", "error");
@@ -66,30 +84,177 @@ export function Audit() {
     } finally {
       setTimeout(() => setLoading(false), 100);
     }
-  }, [taskId]);
+  }, [taskId, deptId]);
 
   useEffect(() => {
     fetchData();
   }, [fetchData]);
 
+  useEffect(() => {
+    if (template && template.fields) {
+      const items = template.fields
+        .filter(f => f.isShow !== false)
+        .map(f => ({
+          key: `data.${f.name}`,
+          title: f.displayName || f.comment || f.name,
+          visible: true
+        }));
+      setConfigurableColumns(items);
+    }
+  }, [template]);
+
   const handleBack = () => navigate("/data-review/index");
 
-  const submitAudit = (status: 1 | 2) => {
-    if (!selectedIds.length) {
-      toast("请选择要审核的数据", "info");
-      return;
-    }
-    // Update local state for mock
-    setRecords(prev => prev.map(r => {
-      if (selectedIds.includes(r.id)) {
-        return { ...r, auditStatus: status }; // 1=Approval, 2=Rejected
+  const handlePreviewFile = (fileName: string) => {
+    const content = `=========================================
+【国家医保自查与合规审核系统 - 演示附件电子凭证】
+=========================================
+
+文件名: ${fileName}
+文件大小: 1.2 MB
+预览状态: 加载成功 (沙箱演示模式)
+归属患者: ${activeRecord?.data?.PATIENT_NAME || "张三"}
+住院号/登记号: ${activeRecord?.data?.HOSPITAL_NO || "ZY1002"}
+经办/病区: ${activeRecord?.data?.DEPARTMENT_NAME || "专管科室"}
+对应项目: ${activeRecord?.data?.PROJECT_NAME || "关联诊疗项目"}
+涉及违规金额: ¥${activeRecord?.data?.VIOLATION_AMOUNT ? Number(activeRecord?.data?.VIOLATION_AMOUNT).toFixed(2) : "0.00"}
+
+-----------------------------------------
+【申诉补充佐证材料摘要】
+-----------------------------------------
+该报告/申诉件已加载到临时沙箱，文件底层编码无损。
+此文档作为对医保检查结果的正式申诉说明凭证。
+
+此文件可用于配合完成本次【${task?.name || "医保数据排查"}】的审核流转。 
+
+[医保智能平台] 技术支持
+=========================================`;
+    
+    const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    window.open(url, "_blank");
+  };
+
+  const checkAndCompleteTaskStatus = (tId: string, dId?: string | null) => {
+    let tasksList = JSON.parse(localStorage.getItem("tasks") || "null") as Task[];
+    if (!tasksList) return;
+    
+    const deptRef = dId && dId !== "all" ? parseInt(dId) : null;
+    const deptName = deptRef ? DEPARTMENTS[deptRef as keyof typeof DEPARTMENTS] : null;
+    
+    const subtask = deptRef ? tasksList.find(t => t.parentId === tId && t.departmentId === deptRef) : null;
+    
+    // Fetch all detail records under the parent task from database
+    const allDetails = mockApi.getTaskDetailRecords(tId);
+    
+    // Check subtask
+    if (subtask && deptName) {
+      const subtaskDetails = allDetails.filter(r => r.data.DEPARTMENT_NAME === deptName || r.data.DEPARTMENT_NAME === deptName + "专管员");
+      const subtaskAllAudited = subtaskDetails.every(r => r.auditStatus === 1 || r.auditStatus === 2);
+      if (subtaskAllAudited && subtaskDetails.length > 0) {
+        const idx = tasksList.findIndex(t => t.id === subtask.id);
+        if (idx > -1) {
+          tasksList[idx].status = "COMPLETE";
+          tasksList[idx].updateTime = new Date().toLocaleString();
+        }
       }
-      return r;
-    }));
-    toast(status === 1 ? "已通过审核" : "已驳回审核", status === 1 ? "success" : "error");
+    }
+    
+    // Check parent task
+    const allAudited = allDetails.every(r => r.auditStatus === 1 || r.auditStatus === 2);
+    if (allAudited && allDetails.length > 0) {
+      const parentIdx = tasksList.findIndex(t => t.id === tId);
+      if (parentIdx > -1) {
+        tasksList[parentIdx].status = "COMPLETE";
+        tasksList[parentIdx].updateTime = new Date().toLocaleString();
+      }
+      
+      // Also update any sibling subtasks belonging to this parent
+      tasksList.forEach((t, i) => {
+        if (t.parentId === tId) {
+          tasksList[i].status = "COMPLETE";
+          tasksList[i].updateTime = new Date().toLocaleString();
+        }
+      });
+    }
+    
+    localStorage.setItem("tasks", JSON.stringify(tasksList));
+  };
+
+  const handleConfirmAudit = () => {
+    if (!activeRecord) return;
+    
+    // Check if same or changed
+    const origConfirm = activeRecord.data.IS_APPEAL === "否" ? "NO_APPEAL" : (activeRecord.data.IS_APPEAL === "是" ? "APPEAL" : "");
+    const origOpinion = activeRecord.data.APPEAL_REASON || "";
+    const origEvidence = Array.isArray(activeRecord.evidence) 
+      ? activeRecord.evidence 
+      : (activeRecord.data.APPEAL_ATTACHMENT ? activeRecord.data.APPEAL_ATTACHMENT.split(", ") : []);
+      
+    const isSame = 
+      origConfirm === auditForm.confirm &&
+      origOpinion === auditForm.opinion &&
+      origEvidence.length === auditForm.evidence.length &&
+      origEvidence.every((val, i) => val === auditForm.evidence[i]);
+      
+    let newFillStatus = activeRecord.fillStatus;
+    let newAuditStatus = activeRecord.auditStatus;
+    
+    if (isSame) {
+      newFillStatus = "APPROVED"; // 审核通过
+      newAuditStatus = 1; // 审批通过
+    } else {
+      newFillStatus = "REJECTED"; // 驳回
+      newAuditStatus = 2; // 已驳回
+    }
+    
+    const updatedRecord = {
+      ...activeRecord,
+      fillStatus: newFillStatus,
+      auditStatus: newAuditStatus,
+      evidence: auditForm.evidence,
+      data: {
+        ...activeRecord.data,
+        IS_APPEAL: auditForm.confirm === "APPEAL" ? "是" : "否",
+        APPEAL_REASON: auditForm.opinion,
+        APPEAL_ATTACHMENT: auditForm.evidence.join(", ")
+      }
+    };
+    
+    // Save to mock database
+    mockApi.saveTaskDetailRecord(taskId!, updatedRecord);
+    
+    toast(
+      isSame 
+        ? `审核完成！内容未修改，已标记为“审核通过”` 
+        : `审核完成！由于内容已被修改，已标记为“已驳回”`, 
+      "success"
+    );
+    
+    // Trigger task_updated event to notify other screens
+    window.dispatchEvent(new Event("task_updated"));
+    
+    // Close modal & reload lists
     setAuditModal(false);
-    setSelectedIds([]);
-    setAuditComment("");
+    fetchData(); // reload records
+    
+    // Sync completion status of tasks
+    checkAndCompleteTaskStatus(taskId!, deptId);
+  };
+
+  const handleConfirmChange = (val: "APPEAL" | "NO_APPEAL") => {
+    if (val === "NO_APPEAL") {
+      setAuditForm({
+        confirm: "NO_APPEAL",
+        opinion: "",
+        evidence: []
+      });
+    } else {
+      setAuditForm(prev => ({
+        ...prev,
+        confirm: "APPEAL"
+      }));
+    }
   };
 
   if (loading) return (
@@ -126,21 +291,24 @@ export function Audit() {
   }));
 
   const getStatusBadge = (r: any) => {
-    if (r.auditStatus === 1) return <Badge status="success">已通过</Badge>;
+    if (r.auditStatus === 1) return <Badge status="success">审批通过</Badge>;
     if (r.auditStatus === 2) return <Badge status="error">已驳回</Badge>;
     if (r.fillStatus === "AI_FILLING") return <Badge status="info">填报中</Badge>;
     return <Badge status="warning">待审核</Badge>;
   };
 
-  const columns = [
+  const computedColumns = template ? [
     { key: "index", title: "序号", width: "50px", render: (_: any, idx: number) => idx + 1 },
-    ...dynamicCols,
+    ...configurableColumns
+      .filter(item => item.visible)
+      .map(item => dynamicCols.find(d => d.key === item.key)!)
+      .filter(Boolean),
     {
       key: "status_col",
-      title: "状态",
+      title: "审核状态",
       fixed: "right" as const,
       fixedOffset: "100px",
-      width: "100px",
+      width: "120px",
       render: (r: any) => getStatusBadge(r)
     },
     { key: "action", title: "操作", fixed: "right" as const, width: "100px", render: (r: any) => (
@@ -148,7 +316,12 @@ export function Audit() {
         variant="ghost" 
         size="sm" 
         onClick={() => {
-          setSelectedIds([r.id]);
+          setActiveRecord(r);
+          setAuditForm({
+            confirm: r.data.IS_APPEAL === "否" ? "NO_APPEAL" : (r.data.IS_APPEAL === "是" ? "APPEAL" : ""),
+            opinion: r.data.APPEAL_REASON || "",
+            evidence: r.data.IS_APPEAL === "是" ? (Array.isArray(r.evidence) ? [...r.evidence] : (r.data.APPEAL_ATTACHMENT ? r.data.APPEAL_ATTACHMENT.split(", ") : [])) : []
+          });
           setAuditModal(true);
         }}
         className="text-blue-600 font-medium"
@@ -156,7 +329,7 @@ export function Audit() {
         审核
       </Button>
     )}
-  ];
+  ] : [];
 
   const filteredRecords = records.filter(r => {
     const isUnchecked = r.auditStatus === 0 || r.auditStatus === 7 || r.auditStatus === 8 || !r.auditStatus;
@@ -166,6 +339,41 @@ export function Audit() {
     if (filterStatus === "已驳回") return r.auditStatus === 2;
     return true;
   });
+
+  const handleBulkAuditClick = () => {
+    if (selectedIds.length > 0) {
+      setBatchAuditModal(true);
+    }
+  };
+
+  const handleConfirmBatchAudit = () => {
+    if (selectedIds.length === 0) return;
+    
+    selectedIds.forEach(id => {
+      const rec = records.find(r => r.id === id);
+      if (rec) {
+        const updatedRecord = {
+          ...rec,
+          fillStatus: "APPROVED",
+          auditStatus: 1, // 审批通过
+        };
+        mockApi.saveTaskDetailRecord(taskId!, updatedRecord);
+      }
+    });
+
+    toast(`已批量通过已选的 ${selectedIds.length} 项数据审核！`, "success");
+    
+    // Trigger task_updated event to notify other screens
+    window.dispatchEvent(new Event("task_updated"));
+    
+    // Close modal & reload lists
+    setBatchAuditModal(false);
+    setSelectedIds([]);
+    fetchData(); // reload records
+    
+    // Sync completion status of tasks
+    checkAndCompleteTaskStatus(taskId!, deptId);
+  };
 
   return (
     <div className="flex flex-col h-full bg-[#f8fafc] p-5">
@@ -179,11 +387,11 @@ export function Audit() {
         <div className="flex items-center gap-3">
           <Button 
             variant="primary" 
-            onClick={() => setAuditModal(true)} 
+            onClick={handleBulkAuditClick} 
             disabled={selectedIds.length === 0}
             className={selectedIds.length === 0 ? "opacity-50 cursor-not-allowed" : ""}
           >
-            审核
+            批量审核
           </Button>
           <Button variant="outline" onClick={handleBack}>
             <ArrowLeft className="w-4 h-4 mr-1.5" />返回
@@ -221,6 +429,9 @@ export function Audit() {
             <Button variant="outline" size="sm" onClick={() => setShowFilter(!showFilter)} className={`text-slate-600 ${showFilter ? 'bg-slate-50 ring-2 ring-blue-500/20 border-blue-500' : ''}`}>
               <Filter className="w-4 h-4 mr-1.5" /> 筛选
             </Button>
+            <Button variant="outline" size="sm" onClick={() => setIsColumnSettingsOpen(true)} className="text-slate-500 shadow-sm border-slate-200 hover:bg-slate-50 h-8 w-8 p-0 flex items-center justify-center rounded" title="列表设置">
+              <Settings className="w-4 h-4" />
+            </Button>
           </div>
         </div>
 
@@ -257,7 +468,7 @@ export function Audit() {
       {/* Table */}
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 flex-1 flex flex-col min-h-0 overflow-hidden relative">
         <Table<any>
-          columns={columns}
+          columns={computedColumns}
           data={filteredRecords}
           rowKey={(r) => r.id}
           selectable
@@ -267,31 +478,245 @@ export function Audit() {
         />
       </div>
 
-      <Modal isOpen={auditModal} onClose={() => setAuditModal(false)} title="审核" width="max-w-[500px]">
-        <div className="py-4">
-          <div className="mb-4 text-sm text-slate-600 bg-blue-50 p-3 rounded-lg border border-blue-100 flex items-start gap-2">
-            <Info className="w-5 h-5 text-blue-500 shrink-0" />
-            <span>已选中 <span className="font-bold text-blue-700">{selectedIds.length}</span> 条数据，其中 0 条申诉，{selectedIds.length} 条不申诉</span>
-          </div>
-          
-          <div className="space-y-2">
-            <label className="text-sm font-bold text-slate-700 block">审核意见 (批量)</label>
-            <textarea 
-              value={auditComment}
-              onChange={(e) => setAuditComment(e.target.value)}
-              placeholder="请输入审核意见..."
-              className="w-full border border-slate-200 rounded-lg p-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 bg-slate-50 hover:bg-white transition-colors"
-              rows={4}
-            />
+      <ColumnSettingsModal
+        isOpen={isColumnSettingsOpen}
+        onClose={() => setIsColumnSettingsOpen(false)}
+        columns={configurableColumns}
+        onConfirm={(updated) => {
+          setConfigurableColumns(updated);
+          setIsColumnSettingsOpen(false);
+          toast("列表设置已保存", "success");
+        }}
+      />
+
+      <Drawer
+        isOpen={auditModal}
+        onClose={() => setAuditModal(false)}
+        title="数据审核"
+        width="max-w-[500px]"
+        placement="left"
+      >
+        <div className="flex flex-col h-full bg-white">
+          <div className="flex-1 overflow-y-auto px-6 py-5 space-y-6">
+            {activeRecord && (
+              <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 space-y-4">
+                <div className="flex items-center gap-2 mb-2 border-b border-slate-200 pb-2">
+                  <FileText className="w-4 h-4 text-slate-400" />
+                  <p className="text-xs text-slate-600 font-bold uppercase tracking-wider">数据摘要</p>
+                </div>
+                <div className="grid grid-cols-2 gap-x-4 gap-y-3 text-[13px]">
+                  {[
+                    "HOSPITAL_NO",
+                    "PATIENT_NAME",
+                    "ADMIT_DATE",
+                    "DISCHARGE_DATE",
+                    "PROJECT_NAME",
+                    "VIOLATION_AMOUNT",
+                    "VIOLATION_DESC"
+                  ].map(fieldName => {
+                    const field = template.fields.find(f => f.name === fieldName);
+                    if (!field) return null;
+                    const isFullWidth = fieldName === "VIOLATION_DESC";
+                    const val = activeRecord?.data[fieldName];
+                    const label = field.displayName || field.comment || field.name;
+                    
+                    return (
+                      <div className={cn("flex flex-col gap-1", isFullWidth ? "col-span-2 mt-1" : "")} key={field.id}>
+                        <span className="text-slate-400 text-xs">{label}</span>
+                        <span 
+                          className={cn(
+                            "text-slate-700 font-medium", 
+                            isFullWidth ? "text-xs leading-relaxed max-h-32 overflow-y-auto w-full break-words whitespace-pre-wrap" : "truncate"
+                          )} 
+                          title={String(val || "")}
+                        >
+                          {fieldName === "VIOLATION_AMOUNT" ? (val !== undefined ? `¥${Number(val).toFixed(2)}` : "-") : (val || "-")}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-sm font-bold text-slate-700 flex items-center gap-1">
+                  是否申诉 <span className="text-rose-500">*</span>
+                </label>
+                <div className="flex gap-4">
+                  <button 
+                    onClick={() => handleConfirmChange("APPEAL")}
+                    className={cn(
+                      "flex-1 py-2 px-4 rounded-lg border transition-all flex items-center justify-center gap-2",
+                      auditForm.confirm === "APPEAL" 
+                        ? "border-blue-500 bg-blue-50/50 text-blue-700 shadow-sm" 
+                        : "border-slate-200 bg-white text-slate-500 hover:border-slate-300 hover:bg-slate-50"
+                    )}
+                  >
+                    <CheckCircle2 className="w-4 h-4" />
+                    <span className="font-bold text-sm">申诉</span>
+                  </button>
+                  <button 
+                    onClick={() => handleConfirmChange("NO_APPEAL")}
+                    className={cn(
+                      "flex-1 py-2 px-4 rounded-lg border transition-all flex items-center justify-center gap-2",
+                      auditForm.confirm === "NO_APPEAL" 
+                        ? "border-slate-600 bg-slate-600 text-white shadow-md font-bold" 
+                        : "border-slate-200 bg-white text-slate-500 hover:border-slate-300 hover:bg-slate-50"
+                    )}
+                  >
+                    <X className="w-4 h-4" />
+                    <span className="font-bold text-sm">不申诉</span>
+                  </button>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-bold text-slate-700">
+                  申诉原因 {auditForm.confirm === "APPEAL" && <span className="text-rose-500">*</span>}
+                </label>
+                <textarea 
+                  className="w-full h-24 px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500/20 focus:outline-none focus:border-blue-500 transition-all placeholder:text-slate-300 resize-none animate-none"
+                  placeholder={auditForm.confirm === "APPEAL" ? "请详细叙述申诉理由..." : "可选填..."}
+                  value={auditForm.opinion}
+                  onChange={(e) => setAuditForm({...auditForm, opinion: e.target.value})}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-sm font-bold text-slate-700">申诉附件</label>
+                  <span className="text-[10px] text-slate-400">支持 PDF, JPG, PNG, DOCX (≤20MB)</span>
+                </div>
+                <div className="space-y-2">
+                  {auditForm.evidence.map((fileName, i) => {
+                    const isImg = /\.(jpg|jpeg|png)$/i.test(fileName);
+                    const isPdf = /\.pdf$/i.test(fileName);
+                    const isWord = /\.(doc|docx)$/i.test(fileName);
+                    
+                    return (
+                      <div key={i} className="flex items-center justify-between p-2.5 bg-slate-50 border border-slate-200/60 rounded-xl group transition-all hover:bg-white hover:border-blue-200 hover:shadow-sm">
+                        <div 
+                          className="flex items-center gap-3 min-w-0 flex-1 cursor-pointer" 
+                          onClick={() => handlePreviewFile(fileName)}
+                          title="点击在浏览器新标签页中打开预览"
+                        >
+                          <div className={cn(
+                            "w-8 h-8 rounded-lg flex items-center justify-center shrink-0 shadow-sm transition-colors",
+                            isImg ? "bg-blue-50 text-blue-500 group-hover:bg-blue-100" : 
+                            isPdf ? "bg-rose-50 text-rose-500 group-hover:bg-rose-100" : 
+                            isWord ? "bg-indigo-50 text-indigo-500 group-hover:bg-indigo-100" : "bg-slate-100 text-slate-500 group-hover:bg-slate-200"
+                          )}>
+                            {isImg ? <ImageIcon className="w-4 h-4" /> : <FileText className="w-4 h-4" />}
+                          </div>
+                          <div className="flex flex-col min-w-0">
+                            <span className="text-xs font-bold text-slate-700 truncate group-hover:text-blue-600 group-hover:underline" title={fileName}>{fileName}</span>
+                            <span className="text-[10px] text-slate-400 font-medium">1.2 MB • 点击预览</span>
+                          </div>
+                        </div>
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setAuditForm({...auditForm, evidence: auditForm.evidence.filter((_, idx) => idx !== i)});
+                          }}
+                          className="p-1 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-all opacity-0 group-hover:opacity-100"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                    );
+                  })}
+                  
+                  {auditForm.confirm === "APPEAL" && auditForm.evidence.length < 5 && (
+                    <button 
+                      onClick={() => {
+                        const patientName = activeRecord?.data.PATIENT_NAME || "张三";
+                        const dischargeDate = activeRecord?.data.DISCHARGE_DATE || activeRecord?.data.ADMIT_DATE || "2024-03-10";
+                        const projectName = activeRecord?.data.PROJECT_NAME || "项目";
+                        const sources = ["出院小结", "入院记录", "手术记录", "检查报告", "医嘱单"];
+                        const exts = [".pdf", ".docx", ".png", ".jpg", ".doc"];
+                        const index = auditForm.evidence.length;
+                        const src = sources[index % sources.length];
+                        const ext = exts[index % exts.length];
+                        const nextFile = `${patientName}_${dischargeDate}_${projectName}_${src}${ext}`;
+                        setAuditForm({...auditForm, evidence: [...auditForm.evidence, nextFile]});
+                      }}
+                      className="w-full py-4 border-2 border-dashed border-slate-200 rounded-xl flex flex-col items-center justify-center gap-1 text-slate-400 hover:border-blue-400 hover:bg-blue-50 hover:text-blue-500 transition-all group mt-2"
+                    >
+                      <Upload className="w-4 h-4 text-slate-400 group-hover:text-blue-500" />
+                      <div className="text-center">
+                        <p className="text-xs font-bold">点击上传新附件</p>
+                      </div>
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
           </div>
 
-          <div className="flex justify-end gap-3 pt-6 mt-2">
-            <Button variant="ghost" onClick={() => setAuditModal(false)}>取消</Button>
-            <Button variant="outline" className="text-red-500 border-red-200 hover:bg-red-50" onClick={() => submitAudit(2)}>
-              驳回
-            </Button>
-            <Button variant="primary" onClick={() => submitAudit(1)}>
-              同意
+          <div className="flex justify-end gap-3 p-5 border-t border-slate-100 bg-slate-50 shrink-0">
+            <Button variant="ghost" onClick={() => setAuditModal(false)} className="px-6">取消</Button>
+            <Button variant="primary" onClick={handleConfirmAudit} className="bg-blue-600 hover:bg-blue-700 shadow-sm px-8 border-0 text-white">确定</Button>
+          </div>
+        </div>
+      </Drawer>
+
+      <Modal 
+        isOpen={batchAuditModal} 
+        onClose={() => setBatchAuditModal(false)} 
+        title="批量数据审核" 
+        width="max-w-[540px]"
+      >
+        <div className="flex flex-col bg-white space-y-4">
+          <div className="p-1">
+            <div className="flex items-start gap-3 bg-blue-50/70 border border-blue-100 p-4 rounded-xl text-blue-800">
+              <Info className="w-5 h-5 text-blue-500 shrink-0 mt-0.5" />
+              <div className="text-sm">
+                <p className="font-bold mb-1">批量通过确认</p>
+                <p className="text-blue-700/90 leading-relaxed">
+                  您已勾选了 <span className="font-bold text-blue-900 text-base">{selectedIds.length}</span> 条申诉报表记录。
+                  选中记录将直接执行【<span className="font-bold text-emerald-600">批量审核通过</span>】。
+                </p>
+                <div className="text-xs text-amber-700 font-medium mt-2 bg-amber-50 border border-amber-100/60 px-3 py-2 rounded-lg flex items-start gap-1.5 leading-relaxed">
+                  <AlertCircle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+                  <span>提示：系统仅支持批量通过，不支持批量驳回。若有申诉证据不足或内容错误的项，请点击明细列表操作列中的【审核】进行单个驳回。</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-4">
+              <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">待审核记录清单 ({selectedIds.length})</p>
+              <div className="max-h-[220px] overflow-y-auto border border-slate-200/60 rounded-xl divide-y divide-slate-100 bg-slate-50/30 pr-1">
+                {records.filter(r => selectedIds.includes(r.id)).map((item, idx) => (
+                  <div key={item.id} className="p-3 flex items-center justify-between text-[13px] hover:bg-slate-50 transition-colors">
+                    <div className="min-w-0 pr-4">
+                      <div className="flex items-center gap-2">
+                        <span className="text-slate-400 font-mono text-xs">{idx + 1}.</span>
+                        <span className="font-bold text-slate-800">{item.data.PATIENT_NAME || "张三"}</span>
+                        <span className="text-xs text-slate-400 font-mono bg-slate-100 px-1 rounded">住院号: {item.data.HOSPITAL_NO || item.id}</span>
+                      </div>
+                      <p className="text-slate-500 text-xs truncate mt-1">项目: {item.data.PROJECT_NAME || "-"}</p>
+                    </div>
+                    <div className="shrink-0 text-right">
+                      <span className="font-mono font-semibold text-rose-600">
+                        {item.data.VIOLATION_AMOUNT ? `¥${Number(item.data.VIOLATION_AMOUNT).toFixed(2)}` : "-"}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
+            <Button variant="ghost" onClick={() => setBatchAuditModal(false)}>取消</Button>
+            <Button 
+              variant="primary" 
+              onClick={handleConfirmBatchAudit}
+              className="bg-blue-600 hover:bg-blue-700 shadow-sm border-0 text-white"
+            >
+              确认批量通过
             </Button>
           </div>
         </div>

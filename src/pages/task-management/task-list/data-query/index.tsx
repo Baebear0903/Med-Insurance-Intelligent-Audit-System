@@ -24,19 +24,9 @@ import {
   TemplateField,
 } from "@/src/lib/mockData";
 import { TASK_STATUS, DEPARTMENTS } from "@/src/lib/constants";
+import { downloadZipWithExcel } from "@/src/lib/exportUtils";
 
 // Mock data generator no longer used, removed
-
-const handleDownload = (filename: string) => {
-  const blob = new Blob(["mock data"], { type: "text/csv" });
-  const url = window.URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `${filename}.csv`;
-  a.click();
-  window.URL.revokeObjectURL(url);
-  toast(`成功导出 ${filename}`);
-};
 
 export default function DataQuery() {
   const [searchParams] = useSearchParams();
@@ -47,45 +37,146 @@ export default function DataQuery() {
   const [page, setPage] = useState(1);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [showFilters, setShowFilters] = useState(false);
-  const [showSwitchModal, setShowSwitchModal] = useState(false);
-  const [selectedDepartmentId, setSelectedDepartmentId] = useState<string>("");
   const pageSize = 20;
+
+  const handleDownload = async (type: "部分数据" | "所有数据") => {
+    if (!task || !template) return;
+    toast("正在准备打包数据...", "info");
+
+    const allRecords = mockApi.getTaskDetailRecords(task.id);
+    let targetRecords = allRecords;
+
+    if (type === "部分数据") {
+      targetRecords = allRecords.filter((r: any) => selectedIds.includes(r.id));
+      if (targetRecords.length === 0) {
+        toast("没有勾选任何数据！", "error");
+        return;
+      }
+    }
+
+    // 拼装表头
+    const headers = [
+      "序号",
+      "填报状态",
+      "审核状态",
+      ...template.fields.map(f => f.displayName || f.comment || f.name)
+    ];
+
+    // 拼装数据行
+    const rows = targetRecords.map((r: any, idx: number) => {
+      const getStatusLabel = (s: string) => {
+        if (s === "UNFILLED") return "待填报";
+        if (s === "FILLED") return "已提交";
+        if (s === "AI_FILLED") return "AI已填";
+        if (s === "AI_FILLING") return "AI填充中";
+        return s || "未开始";
+      };
+      
+      const getAuditStatusLabel = (ast: number) => {
+        if (ast === 0) return "已送审";
+        if (ast === 1) return "待审核";
+        if (ast === 2) return "审核通过";
+        if (ast === 3) return "审核驳回";
+        if (ast === 7) return "未作申诉填报";
+        if (ast === 8) return "已申诉";
+        return "-";
+      };
+
+      const baseCols = [
+        String(idx + 1),
+        getStatusLabel(r.fillStatus),
+        getAuditStatusLabel(r.auditStatus)
+      ];
+
+      const templateCols = template.fields.map(f => {
+        const val = r.data[f.name];
+        return val === undefined || val === null ? "" : String(val);
+      });
+
+      return [...baseCols, ...templateCols];
+    });
+
+    // 收集附件列表
+    const attachments: { name: string; recordInfo?: string }[] = [];
+    targetRecords.forEach((r: any) => {
+      const fileString = r.data.APPEAL_ATTACHMENT;
+      if (fileString) {
+        const patientName = r.data.PATIENT_NAME || "未名";
+        const disDate = r.data.DISCHARGE_DATE || r.data.ADMIT_DATE || "无出院日";
+        attachments.push({
+          name: fileString,
+          recordInfo: `患者姓名：${patientName}，出院时间：${disDate}`
+        });
+      }
+    });
+
+    try {
+      const zipName = `${task.name}_${type === "部分数据" ? "部分" : "全部"}数据导出.zip`;
+      const excelName = `${task.name}_明细表.xlsx`;
+      await downloadZipWithExcel(zipName, excelName, headers, rows, attachments);
+      toast("导出打包成功！开始下载...", "success");
+    } catch (e) {
+      toast("导出过程发生错误，请重试", "error");
+      console.error(e);
+    }
+  };
 
   const handleSwitchDepartment = () => {
     if (selectedIds.length === 0) {
       toast("请先勾选记录");
       return;
     }
-    setShowSwitchModal(true);
-    setSelectedDepartmentId(""); // Reset selection
-  };
-
-  const confirmSwitchDepartment = () => {
-    if (!selectedDepartmentId) {
-      toast("请选择要切换到的科室");
-      return;
-    }
 
     const records = mockApi.getTaskDetailRecords(task!.id);
     let updatedCount = 0;
-    const targetDeptName = DEPARTMENTS[Number(selectedDepartmentId) as keyof typeof DEPARTMENTS];
     
     records.forEach((r: any) => {
       if (selectedIds.includes(r.id)) {
-        r.data.DEPARTMENT_NAME = targetDeptName;
+        const orderDept = r.data.ORDER_DEPT;
+        const executeDept = r.data.EXECUTE_DEPT;
+        const currentDept = r.data.DEPARTMENT_NAME;
+
+        if (currentDept === orderDept) {
+          r.data.DEPARTMENT_NAME = executeDept || "";
+        } else if (currentDept === executeDept) {
+          r.data.DEPARTMENT_NAME = orderDept || "";
+        } else {
+          r.data.DEPARTMENT_NAME = orderDept || "";
+        }
+        
         mockApi.saveTaskDetailRecord(task!.id, r);
         updatedCount++;
       }
     });
 
     if (updatedCount > 0) {
-      toast(`成功切换 ${updatedCount} 条记录的科室为 ${targetDeptName}`, "success");
+      toast(`成功切换 ${updatedCount} 条记录的科室`, "success");
       const updatedRecords = mockApi.getTaskDetailRecords(task!.id);
       setData(updatedRecords.map((rec: any) => ({ ...rec.data, id: rec.id })));
-      setSelectedIds([]);
-      setShowSwitchModal(false);
-    } else {
-      toast("科室切换失败：未找到相关记录");
+    }
+  };
+
+  const handleNoDistribution = () => {
+    if (selectedIds.length === 0) {
+      toast("请先勾选记录");
+      return;
+    }
+
+    const records = mockApi.getTaskDetailRecords(task!.id);
+    let updatedCount = 0;
+    
+    records.forEach((r: any) => {
+      if (selectedIds.includes(r.id)) {
+        r.data.DEPARTMENT_NAME = "医保办";
+        mockApi.saveTaskDetailRecord(task!.id, r);
+        updatedCount++;
+      }
+    });
+
+    if (updatedCount > 0) {
+      toast(`成功将 ${updatedCount} 条记录科室变更为“医保办”`, "success");
+      const updatedRecords = mockApi.getTaskDetailRecords(task!.id);
+      setData(updatedRecords.map((rec: any) => ({ ...rec.data, id: rec.id })));
     }
   };
 
@@ -104,6 +195,7 @@ export default function DataQuery() {
       const tableData = details.map((rec: any) => ({
         ...rec.data,
         id: rec.id,
+        fillStatus: rec.fillStatus,
       }));
       setData(tableData);
     }
@@ -132,6 +224,16 @@ export default function DataQuery() {
     return <div className="p-6">加载中或任务未找到...</div>;
 
   const queryFields = template.fields.filter((f) => f.isQueryable);
+
+  const calculatedAiTotal = data.length;
+  const calculatedAiProgress = data.filter(d => d.fillStatus === "AI_FILLED" || d.fillStatus === "FILLED" || d.fillStatus === "SUBMITTED").length;
+  // Fallback to task properties if calculated values are missing but we use calculated values for accurate UI tracking. Wait, AI status is AI_FILLED or AI_FILLING.
+  // Actually, the requirements say "进度计算方法为 当前任务状态为“AI填报”的明细条数/当前任务所有明细条数"
+  const aiProgressCount = data.filter(d => d.fillStatus === "AI_FILLED").length;
+  const aiTotalCount = data.length;
+  
+  const showAiProgress = task?.aiFillTotal !== undefined && aiTotalCount > 0;
+
 
   const renderSearchInput = (field: TemplateField) => {
     const isSpecialSelect = [
@@ -249,7 +351,7 @@ export default function DataQuery() {
           <h2 className="text-lg text-slate-700 font-medium">{task.name}</h2>
           <Badge status="info">{TASK_STATUS[task.status]}</Badge>
           
-          {task.aiFillTotal !== undefined && task.aiFillProgress !== undefined && (
+          {showAiProgress && (
             <div className="flex items-center gap-3 ml-4 bg-slate-50 px-3 py-1.5 rounded-full border border-slate-200">
               <span className="text-sm text-slate-600 font-medium whitespace-nowrap">
                 智能填报
@@ -258,14 +360,14 @@ export default function DataQuery() {
                 <motion.div 
                   className="h-full bg-blue-500 rounded-full"
                   initial={{ width: 0 }}
-                  animate={{ width: `${(task.aiFillProgress / task.aiFillTotal) * 100}%` }}
+                  animate={{ width: `${(aiProgressCount / aiTotalCount) * 100}%` }}
                   transition={{ duration: 0.5 }}
                 />
               </div>
               <span className="text-sm text-slate-500 font-mono">
-                {task.aiFillProgress}/{task.aiFillTotal} ({Math.round((task.aiFillProgress / task.aiFillTotal) * 100)}%)
+                {aiProgressCount}/{aiTotalCount} ({Math.round((aiProgressCount / aiTotalCount) * 100)}%)
               </span>
-              {task.aiFillProgress === task.aiFillTotal && (
+              {aiProgressCount === aiTotalCount && (
                 <button 
                   onClick={handleRestartAIFill}
                   className="flex items-center justify-center p-1 hover:bg-slate-200 rounded text-blue-600 transition-colors ml-1"
@@ -305,6 +407,19 @@ export default function DataQuery() {
             >
               <RefreshCw className="w-4 h-4 mr-1.5" />
               切换科室
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleNoDistribution}
+              disabled={selectedIds.length === 0}
+              className={
+                selectedIds.length === 0
+                  ? "opacity-50 cursor-not-allowed bg-slate-50 text-slate-400 border-slate-200"
+                  : "text-rose-600 border-rose-200 hover:bg-rose-50"
+              }
+            >
+              不下发
             </Button>
             <Button
               variant="outline"
@@ -422,38 +537,6 @@ export default function DataQuery() {
           </div>
         </div>
       </div>
-
-      <Modal
-        isOpen={showSwitchModal}
-        onClose={() => setShowSwitchModal(false)}
-        title="切换科室"
-      >
-        <div className="p-4">
-          <div className="mb-4">
-            <label className="block text-sm font-medium text-slate-700 mb-2">选择要切换到的科室：</label>
-            <select
-              className="w-full h-9 px-3 border border-slate-300 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 text-sm"
-              value={selectedDepartmentId}
-              onChange={(e) => setSelectedDepartmentId(e.target.value)}
-            >
-              <option value="">请选择科室</option>
-              {Object.entries(DEPARTMENTS).map(([id, name]) => (
-                <option key={id} value={id}>
-                  {name}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="flex justify-end gap-3 mt-6">
-            <Button variant="outline" onClick={() => setShowSwitchModal(false)}>
-              取消
-            </Button>
-            <Button variant="primary" onClick={confirmSwitchDepartment}>
-              确认切换
-            </Button>
-          </div>
-        </div>
-      </Modal>
     </div>
   );
 }

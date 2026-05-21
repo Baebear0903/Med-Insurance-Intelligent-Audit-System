@@ -13,16 +13,17 @@ export function ReviewTemplate() {
   const [templates, setTemplates] = useState<ReviewTemplate[]>([]);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
+  const [typeFilter, setTypeFilter] = useState("");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
   const loadData = () => {
-    const data = mockApi.getTemplates(search, statusFilter);
+    const data = mockApi.getTemplates(search, statusFilter, typeFilter);
     setTemplates(data);
   };
 
   useEffect(() => {
     loadData();
-  }, [statusFilter]);
+  }, [statusFilter, typeFilter]);
 
   const handleSearch = () => {
     loadData();
@@ -31,7 +32,8 @@ export function ReviewTemplate() {
   const handleReset = () => {
     setSearch("");
     setStatusFilter("");
-    const data = mockApi.getTemplates("", "");
+    setTypeFilter("");
+    const data = mockApi.getTemplates("", "", "");
     setTemplates(data);
   };
 
@@ -81,6 +83,20 @@ export function ReviewTemplate() {
             />
             <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
           </div>
+          <select
+            value={typeFilter}
+            onChange={(e) => setTypeFilter(e.target.value)}
+            className={cn(
+              "w-40 h-9 px-3 rounded border border-slate-300 bg-white text-sm outline-none transition-all focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none cursor-pointer",
+              typeFilter === "" ? "text-slate-400" : "text-slate-700"
+            )}
+            style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2394a3b8' stroke-width='2'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 0.75rem center', backgroundSize: '1rem' }}
+          >
+            <option value="" className="text-slate-400">全部类型</option>
+            <option value="医保审核反馈" className="text-slate-700">医保审核反馈</option>
+            <option value="医保明细下发" className="text-slate-700">医保明细下发</option>
+            <option value="医保院内扣减" className="text-slate-700">医保院内扣减</option>
+          </select>
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
@@ -156,7 +172,10 @@ export function ReviewTemplate() {
                 </div>
                 <div>
                   <h3 className="font-bold text-slate-800 text-base group-hover:text-blue-600 transition-colors">{tpl.name}</h3>
-                  <div className="flex items-center gap-3 mt-1.5 text-xs text-slate-500">
+                  <div className="flex items-center gap-2 mt-1.5 text-[11px] text-slate-500 flex-wrap">
+                    <span className="flex items-center gap-1 bg-slate-200/50 px-2 py-0.5 rounded text-slate-600">
+                      {tpl.templateType || "医保审核反馈"}
+                    </span>
                     <span className="flex items-center gap-1">
                       <User className="w-3 h-3 text-slate-300" />
                       {tpl.creator}

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { ColumnSettingsModal, ColumnItem } from "@/src/components/ColumnSettingsModal";
 import { Info, LayoutList, XCircle, Search, Filter, Settings, ChevronRight, ChevronDown, CheckCircle2, Clock, AlertCircle, Bell, ChevronLeft } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/src/components/ui/Button";
@@ -17,6 +18,16 @@ const PROGRESS_DATA = [
 ];
 
 export function DataReview() {
+  const [isColumnSettingsOpen, setIsColumnSettingsOpen] = useState(false);
+  const [configurableColumns, setConfigurableColumns] = useState<ColumnItem[]>([
+    { key: "name", title: "任务名称", visible: true },
+    { key: "department", title: "下发科室", visible: true },
+    { key: "manager", title: "专管员", visible: true },
+    { key: "status", title: "任务状态", visible: true },
+    { key: "creator", title: "任务创建人", visible: true },
+    { key: "dueDate", title: "截止时间", visible: true }
+  ]);
+
   const [tasks, setTasks] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [progressModalOpen, setProgressModalOpen] = useState(false);
@@ -54,7 +65,7 @@ export function DataReview() {
         name: pt.name,
         department: DEPARTMENTS[pt.departmentId] || "医保办",
         manager: pt.creator,
-        status: pt.status === "CREATE" ? "待发布" : (pt.status === "PUBLISH" ? "填报中" : "待审核"),
+        status: pt.status,
         creator: pt.creator,
         dueDate: pt.dueDate,
         children
@@ -64,6 +75,12 @@ export function DataReview() {
     setTasks(treeData);
     setLoading(false);
   }, []);
+
+  const filteredTasks = tasks.filter(t => {
+    const matchesName = !filterTaskName || t.name.toLowerCase().includes(filterTaskName.toLowerCase());
+    const matchesStatus = !filterStatus || t.status === filterStatus;
+    return matchesName && matchesStatus;
+  });
 
   const filteredProgressData = progressFilter 
     ? PROGRESS_DATA.filter(item => item.progress === progressFilter)
@@ -116,6 +133,49 @@ export function DataReview() {
     if (progress === "未填报") return "error";
     return "warning";
   };
+
+  const colHeaderMap: Record<string, React.ReactNode> = {
+    name: <th key="name" className="font-medium p-3">任务名称</th>,
+    department: <th key="department" className="font-medium p-3">下发科室</th>,
+    manager: <th key="manager" className="font-medium p-3">专管员</th>,
+    status: <th key="status" className="font-medium p-3">任务状态</th>,
+    creator: <th key="creator" className="font-medium p-3">任务创建人</th>,
+    dueDate: <th key="dueDate" className="font-medium p-3">截止时间</th>,
+  };
+
+  const colCellMap = (row: any): Record<string, React.ReactNode> => ({
+    name: <td key="name" className="p-3 font-medium text-slate-800">{row.name}</td>,
+    department: <td key="department" className="p-3 text-slate-600">{row.department}</td>,
+    manager: <td key="manager" className="p-3 text-slate-600">{row.manager}</td>,
+    status: (
+      <td key="status" className="p-3">
+        <Badge status={
+          row.status === "COMPLETE" || row.status === "END" ? "success" : 
+          row.status === "PUBLISH" ? "info" : 
+          row.status === "SUBMITTED" ? "warning" : 
+          row.status === "WITHDRAWN" ? "error" : "default"
+        }>
+          {TASK_STATUS[row.status as keyof typeof TASK_STATUS] || row.status}
+        </Badge>
+      </td>
+    ),
+    creator: <td key="creator" className="p-3 text-slate-600">{row.creator}</td>,
+    dueDate: <td key="dueDate" className="p-3 text-slate-600">{row.dueDate}</td>,
+  });
+
+  const colChildCellMap = (child: any, row: any): Record<string, React.ReactNode> => ({
+    name: (
+      <td key="name" className="p-3 text-slate-600 pl-10 flex items-center gap-2 relative">
+        <div className="absolute left-5 top-0 w-3 h-1/2 border-l-2 border-b-2 border-slate-200 rounded-bl"></div>
+        {child.deptName}
+      </td>
+    ),
+    department: <td key="department" className="p-3 text-slate-600">{child.deptName}</td>,
+    manager: <td key="manager" className="p-3 text-slate-600">{child.manager}</td>,
+    status: <td key="status" className="p-3 text-slate-500">-</td>,
+    creator: <td key="creator" className="p-3 text-slate-500">-</td>,
+    dueDate: <td key="dueDate" className="p-3 text-slate-500">-</td>,
+  });
 
   return (
     <div className="p-5 flex flex-col space-y-4 h-full relative bg-[#f8fafc]">
@@ -217,7 +277,7 @@ export function DataReview() {
             </div>
 
             <div className="flex items-center gap-2">
-              <button className="p-2 border border-slate-200 rounded hover:bg-slate-100 text-slate-400 transition-colors shadow-sm" onClick={() => toast("暂无设置")}>
+              <button className="p-2 border border-slate-200 rounded hover:bg-slate-100 text-slate-400 transition-colors shadow-sm" onClick={() => setIsColumnSettingsOpen(true)}>
                 <Settings className="w-4 h-4" />
               </button>
             </div>
@@ -294,17 +354,12 @@ export function DataReview() {
               <tr>
                 <th className="font-medium p-3 w-10"></th>
                 <th className="font-medium p-3 w-16">序号</th>
-                <th className="font-medium p-3">任务名称</th>
-                <th className="font-medium p-3">下发科室</th>
-                <th className="font-medium p-3">专管员</th>
-                <th className="font-medium p-3">任务状态</th>
-                <th className="font-medium p-3">任务创建人</th>
-                <th className="font-medium p-3">截止时间</th>
+                {configurableColumns.filter(c => c.visible).map(c => colHeaderMap[c.key])}
                 <th className="font-medium p-3 sticky right-0 bg-slate-50/80 z-10 shadow-[-1px_0_0_#e2e8f0]">操作</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {tasks.map((row) => (
+              {filteredTasks.map((row) => (
                 <React.Fragment key={row.id}>
                   {/* Master Row */}
                   <tr className="hover:bg-slate-50/50 transition-colors group bg-white">
@@ -317,14 +372,7 @@ export function DataReview() {
                       </button>
                     </td>
                     <td className="p-3 text-slate-600">{row.index}</td>
-                    <td className="p-3 font-medium text-slate-800">{row.name}</td>
-                    <td className="p-3 text-slate-600">{row.department}</td>
-                    <td className="p-3 text-slate-600">{row.manager}</td>
-                    <td className="p-3">
-                      <Badge status={row.status === "待审核" ? "warning" : "info"}>{row.status}</Badge>
-                    </td>
-                    <td className="p-3 text-slate-600">{row.creator}</td>
-                    <td className="p-3 text-slate-600">{row.dueDate}</td>
+                    {configurableColumns.filter(c => c.visible).map(c => colCellMap(row)[c.key])}
                     <td className="p-3 sticky right-0 bg-inherit z-10 shadow-[-1px_0_0_#e2e8f0]">
                       <button 
                         onClick={openProgressModal} 
@@ -347,15 +395,7 @@ export function DataReview() {
                       >
                         <td className="p-3 border-l-2 border-blue-500/20"></td>
                         <td className="p-3"></td>
-                        <td className="p-3 text-slate-600 pl-10 flex items-center gap-2 relative">
-                          <div className="absolute left-5 top-0 w-3 h-1/2 border-l-2 border-b-2 border-slate-200 rounded-bl"></div>
-                          {child.deptName}
-                        </td>
-                        <td className="p-3 text-slate-600">{child.deptName}</td>
-                        <td className="p-3 text-slate-600">{child.manager}</td>
-                        <td className="p-3 text-slate-500">-</td>
-                        <td className="p-3 text-slate-500">-</td>
-                        <td className="p-3 text-slate-500">-</td>
+                        {configurableColumns.filter(c => c.visible).map(c => colChildCellMap(child, row)[c.key])}
                         <td className="p-3 sticky right-0 bg-slate-50 z-10 shadow-[-1px_0_0_#e2e8f0]">
                           <Button 
                             variant="primary" 
@@ -526,6 +566,17 @@ export function DataReview() {
           </div>
         </div>
       </Modal>
+
+      <ColumnSettingsModal
+        isOpen={isColumnSettingsOpen}
+        onClose={() => setIsColumnSettingsOpen(false)}
+        columns={configurableColumns}
+        onConfirm={(updated) => {
+          setConfigurableColumns(updated);
+          setIsColumnSettingsOpen(false);
+          toast("列表设置已保存", "success");
+        }}
+      />
     </div>
   );
 }

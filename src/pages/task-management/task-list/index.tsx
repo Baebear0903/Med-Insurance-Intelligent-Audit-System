@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { ColumnSettingsModal, ColumnItem } from "@/src/components/ColumnSettingsModal";
 import { Table, Column } from "@/src/components/ui/Table";
 import { Button } from "@/src/components/ui/Button";
 import { Badge } from "@/src/components/ui/Badge";
@@ -12,6 +13,16 @@ import { Modal } from "@/src/components/ui/Modal";
 import { cn } from "@/src/lib/utils";
 
 export function TaskList() {
+  const [isColumnSettingsOpen, setIsColumnSettingsOpen] = useState(false);
+  const [configurableColumns, setConfigurableColumns] = useState<ColumnItem[]>([
+    { key: "name", title: "任务名称", visible: true },
+    { key: "departmentId", title: "下发科室", visible: true },
+    { key: "templateName", title: "数据模板", visible: true },
+    { key: "status", title: "任务状态", visible: true },
+    { key: "creator", title: "任务创建人", visible: true },
+    { key: "createTime", title: "创建时间", visible: true }
+  ]);
+
   const [data, setData] = useState<Task[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -182,6 +193,15 @@ export function TaskList() {
     { key: "action", title: "操作", width: "25%", fixed: "right", render: (r: Task) => renderActions(r) },
   ];
 
+  const computedColumns = [
+    columns.find(c => c.key === "checkbox")!,
+    columns.find(c => c.key === "index")!,
+    ...configurableColumns
+      .filter(item => item.visible)
+      .map(item => columns.find(c => c.key === item.key)!),
+    columns.find(c => c.key === "action")!
+  ].filter(Boolean);
+
   // Logic handlers
   const handleCreateTask = () => {
     if (!newTaskForm.name || !newTaskForm.dueDate || !newTaskForm.templateId || !newTaskForm.departmentId) {
@@ -328,7 +348,7 @@ export function TaskList() {
               )}
             </div>
 
-            <button className="text-slate-500 hover:text-slate-800 p-1.5 border border-transparent hover:bg-slate-50 rounded transition-colors" title="设置" onClick={() => toast("设置已打开", "info")}>
+            <button className="text-slate-500 hover:text-slate-800 p-1.5 border border-transparent hover:bg-slate-50 rounded transition-colors" title="设置" onClick={() => setIsColumnSettingsOpen(true)}>
               <Settings className="w-4 h-4" />
             </button>
           </div>
@@ -389,7 +409,7 @@ export function TaskList() {
         <div className="flex-1 flex flex-col min-h-0">
           <div className="flex-1 overflow-auto border border-slate-100 rounded-md mb-4 shadow-inner">
             <Table<Task>
-              columns={columns}
+              columns={computedColumns}
               data={data}
               rowKey={(r) => r.id}
             />
@@ -402,6 +422,17 @@ export function TaskList() {
       </div>
 
       {/* --- Modals --- */}
+      
+      <ColumnSettingsModal
+        isOpen={isColumnSettingsOpen}
+        onClose={() => setIsColumnSettingsOpen(false)}
+        columns={configurableColumns}
+        onConfirm={(updated) => {
+          setConfigurableColumns(updated);
+          setIsColumnSettingsOpen(false);
+          toast("列表设置已保存", "success");
+        }}
+      />
       
       {/* 新建任务 */}
       <Modal isOpen={isNewTaskModalOpen} onClose={() => setIsNewTaskModalOpen(false)} title="新建任务" width="max-w-xl"
@@ -483,7 +514,7 @@ export function TaskList() {
         footer={<><Button variant="outline" onClick={() => setIsMatchVisitModalOpen(false)}>取消</Button><Button variant="primary" onClick={handleMatchVisit}>确认</Button></>}
       >
         <div className="text-sm text-slate-700 py-4 text-center">
-          是否匹配就诊记录更新数据？
+          是否匹配院内就诊记录，并更新任务数据？
         </div>
       </Modal>
 

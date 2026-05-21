@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { 
   ChevronLeft, 
@@ -18,8 +18,10 @@ import {
   History,
   Image as ImageIcon,
   X,
-  ChevronDown
+  ChevronDown,
+  Settings
 } from "lucide-react";
+import { ColumnSettingsModal, ColumnItem } from "@/src/components/ColumnSettingsModal";
 import { Button } from "@/src/components/ui/Button";
 import { Table } from "@/src/components/ui/Table";
 import { Badge } from "@/src/components/ui/Badge";
@@ -30,6 +32,7 @@ import { mockApi, Task, ReviewTemplate, TemplateField } from "@/src/lib/mockData
 import { TASK_STATUS, AUDIT_STATUS, FILL_STATUS, DEPARTMENTS } from "@/src/lib/constants";
 import { motion, AnimatePresence } from "motion/react";
 import { cn } from "@/src/lib/utils";
+import { downloadZipWithExcel, parseUploadFile } from "@/src/lib/exportUtils";
 
 import { useUser } from "@/src/lib/userContext";
 
@@ -48,6 +51,23 @@ export function FillReportDetail() {
   const [assignTarget, setAssignTarget] = useState("");
   const [loading, setLoading] = useState(false);
 
+  // 列表配置状态
+  const [isColumnSettingsOpen, setIsColumnSettingsOpen] = useState(false);
+  const [configurableColumns, setConfigurableColumns] = useState<ColumnItem[]>([]);
+
+  useEffect(() => {
+    if (template && template.fields) {
+      const items = template.fields
+        .filter(f => f.isShow !== false)
+        .map(f => ({
+          key: `data.${f.name}`,
+          title: f.displayName || f.comment || f.name,
+          visible: true
+        }));
+      setConfigurableColumns(items);
+    }
+  }, [template]);
+
   // Modals
   const [fillModal, setFillModal] = useState<{ show: boolean, record: any | null, isBatch: boolean }>({ show: false, record: null, isBatch: false });
   const [assignModal, setAssignModal] = useState(false);
@@ -57,6 +77,8 @@ export function FillReportDetail() {
   const [patient360Modal, setPatient360Modal] = useState<{ show: boolean, record: any | null }>({ show: false, record: null });
   const [showFilter, setShowFilter] = useState(false);
   const [filterStatus, setFilterStatus] = useState("全部"); // 全部, 已填报, 未填报
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [parsedResults, setParsedResults] = useState<any[]>([]);
 
   // Form states
   const [fillForm, setFillForm] = useState({
@@ -68,9 +90,11 @@ export function FillReportDetail() {
 
   const filteredRecords = React.useMemo(() => {
     return records.filter(r => {
-      if (filterStatus === "待填报") return r.fillStatus === "UNFILLED";
-      if (filterStatus === "填报中") return r.fillStatus === "AI_FILLING";
+      if (filterStatus === "未填报") return r.fillStatus === "UNFILLED";
+      if (filterStatus === "AI填报") return r.fillStatus === "AI_FILLED" || r.fillStatus === "AI_FILLING";
       if (filterStatus === "已填报") return r.fillStatus === "FILLED" || r.fillStatus === "SUBMITTED";
+      if (filterStatus === "审核通过") return r.fillStatus === "APPROVED";
+      if (filterStatus === "已驳回") return r.fillStatus === "REJECTED";
       return true;
     });
   }, [records, filterStatus]);
@@ -133,6 +157,15 @@ export function FillReportDetail() {
 
   const handleBack = () => navigate("/task-fill-report/departments/index");
 
+  const handleSubmitTask = () => {
+    if (!taskId) return;
+    mockApi.updateTaskStatus(taskId, "SUBMITTED");
+    toast("提交成功", "success");
+    fetchData();
+    // Trigger task_updated event to sync database and sidebar
+    window.dispatchEvent(new Event("task_updated"));
+  };
+
   const handleRowFill = (record: any) => {
     const data = record?.data || {};
     let evidence = [];
@@ -150,6 +183,136 @@ export function FillReportDetail() {
       remark: data.REMARK || ""
     });
     setFillModal({ show: true, record, isBatch: false });
+  };
+
+  const handleDownload = async () => {
+    if (!template) return;
+    toast("正在准备打包数据...", "info");
+
+    let targetRecords = records;
+    let modeLabel = "全部";
+
+    if (selectedIds.length > 0) {
+      targetRecords = records.filter(r => selectedIds.includes(r.id));
+      modeLabel = "勾选";
+    } else {
+      targetRecords = filteredRecords;
+      modeLabel = "筛选";
+    }
+
+    if (targetRecords.length === 0) {
+      toast("当前无可导出数据", "error");
+      return;
+    }
+
+    // 拼装表头
+    const headers = [
+      "序号",
+      "反馈状态",
+      "审核状态",
+      ...template.fields.map(f => f.displayName || f.comment || f.name)
+    ];
+
+    // 拼装行
+    const rows = targetRecords.map((r: any, idx: number) => {
+      const getStatusLabel = (s: string) => {
+        if (s === "UNFILLED") return "待填报";
+        if (s === "FILLED") return "已提交";
+        if (s === "AI_FILLED") return "AI已填";
+        if (s === "AI_FILLING") return "AI填充中";
+        return s || "未开始";
+      };
+      
+      const getAuditStatusLabel = (ast: number) => {
+        if (ast === 0) return "已送审";
+        if (ast === 1) return "待审核";
+        if (ast === 2) return "审核通过";
+        if (ast === 3) return "审核驳回";
+        if (ast === 7) return "未作申诉填报";
+        if (ast === 8) return "已申诉";
+        return "-";
+      };
+
+      const baseCols = [
+        String(idx + 1),
+        getStatusLabel(r.fillStatus),
+        getAuditStatusLabel(r.auditStatus)
+      ];
+
+      const templateCols = template.fields.map(f => {
+        const val = r.data[f.name];
+        return val === undefined || val === null ? "" : String(val);
+      });
+
+      return [...baseCols, ...templateCols];
+    });
+
+    // 收集附件列表
+    const attachments: { name: string; recordInfo?: string }[] = [];
+    targetRecords.forEach((r: any) => {
+      const fileString = r.data.APPEAL_ATTACHMENT;
+      if (fileString) {
+        const fileNames = fileString.split(", ");
+        fileNames.forEach((file: string) => {
+          if (file.trim()) {
+            const patientName = r.data.PATIENT_NAME || "未名";
+            const disDate = r.data.DISCHARGE_DATE || r.data.ADMIT_DATE || "无出院日";
+            attachments.push({
+              name: file.trim(),
+              recordInfo: `患者姓名：${patientName}，出院时间：${disDate}`
+            });
+          }
+        });
+      }
+    });
+
+    try {
+      const title = (task ? task.name : "填报明细");
+      const zipName = `${title}_${modeLabel}数据导出.zip`;
+      const excelName = `${title}_明细表.xlsx`;
+      await downloadZipWithExcel(zipName, excelName, headers, rows, attachments);
+      toast("导出打包成功！开始下载...", "success");
+    } catch (e) {
+      toast("压缩打包导出失败，请重试", "error");
+      console.error(e);
+    }
+  };
+
+  const handleUpload = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      const file = e.target.files[0];
+      toast("正在读取并解析上传的申报文件...", "info");
+      
+      try {
+        const result = await parseUploadFile(file, template?.fields || [], records);
+        if (result.success) {
+          setParsedResults(result.list);
+          setConfirmModal({
+            show: true,
+            type: "upload_success",
+            title: "解析及匹配成功",
+            content: `${result.message} 是否立即将这 ${result.list.length} 条数据保存并覆盖至当前任务填报库中？`
+          });
+        } else {
+          setConfirmModal({
+            show: true,
+            type: "upload_fail",
+            title: "匹配重组失败",
+            content: result.message
+          });
+        }
+      } catch (err) {
+        console.error(err);
+        toast("解析导入文件发生非预期错误", "error");
+      }
+    }
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
   };
 
   const handleBatchFill = () => {
@@ -181,7 +344,7 @@ export function FillReportDetail() {
         APPEAL_ATTACHMENT: fillForm.evidence.join(", "),
         REMARK: fillForm.remark,
       },
-      fillStatus: "SUBMITTED",
+      fillStatus: "FILLED",
       auditStatus: 8,
       submitter: "当前用户"
     });
@@ -250,7 +413,7 @@ export function FillReportDetail() {
           mockApi.saveTaskDetailRecord(taskId!, {
             ...record,
             hospitalConfirm: "NO_APPEAL",
-            fillStatus: "SUBMITTED",
+            fillStatus: "FILLED",
             auditStatus: 8,
             submitter: "当前用户"
           });
@@ -262,6 +425,16 @@ export function FillReportDetail() {
       toast("删除成功", "success");
     } else if (confirmModal.type === "remind") {
       toast("催办通知已发送", "success");
+    } else if (confirmModal.type === "upload_success") {
+      if (parsedResults && parsedResults.length > 0) {
+        parsedResults.forEach(r => {
+          mockApi.saveTaskDetailRecord(taskId!, r);
+        });
+        toast(`成功批量覆盖并保存了 ${parsedResults.length} 条数据明细及附件关联！`, "success");
+      } else {
+        toast("未发现任何符合可更新匹配条件的数据内容", "info");
+      }
+      setParsedResults([]);
     }
     
     setConfirmModal({ show: false, type: "", title: "", content: "" });
@@ -327,11 +500,14 @@ export function FillReportDetail() {
 
   const getStatusBadge = (status: string) => {
     switch (status) {
-      case "UNFILLED": return <Badge status="default">待填报</Badge>;
+      case "UNFILLED": return <Badge status="default">未填报</Badge>;
+      case "AI_FILLED": return <Badge status="info">AI填报</Badge>;
       case "AI_FILLING": return <Badge status="info">填报中</Badge>;
-      case "SUBMITTED": return <Badge status="warning">待审核</Badge>;
+      case "SUBMITTED": return <Badge status="success">已填报</Badge>;
       case "FILLED": return <Badge status="success">已填报</Badge>;
-      default: return <Badge status="default">待填报</Badge>;
+      case "APPROVED": return <Badge status="success">审核通过</Badge>;
+      case "REJECTED": return <Badge status="error">已驳回</Badge>;
+      default: return <Badge status="default">未填报</Badge>;
     }
   };
 
@@ -349,42 +525,52 @@ export function FillReportDetail() {
       title: "操作",
       fixed: "right" as const,
       width: "160px",
-      render: (r: any) => (
-        <div className="flex items-center gap-1">
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            disabled={r.fillStatus === "AI_FILLING"}
-            onClick={() => handleRowFill(r)}
-            className={cn("font-medium px-2", r.fillStatus === "AI_FILLING" ? "text-slate-400" : "text-blue-600")}
-          >
-            {isReadOnly ? "查看" : "填报"}
-          </Button>
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            onClick={() => setPatient360Modal({ show: true, record: r })}
-            className="text-blue-600 font-medium px-2"
-          >
-            患者360
-          </Button>
-        </div>
-      )
+      render: (r: any) => {
+        const isDisabled = isReadOnly || r.fillStatus === "AI_FILLING";
+        return (
+          <div className="flex items-center gap-1">
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              disabled={isDisabled}
+              onClick={() => {
+                if (!isDisabled) {
+                  handleRowFill(r);
+                }
+              }}
+              className={cn(
+                "font-medium px-2", 
+                isDisabled ? "text-slate-400 opacity-50 cursor-not-allowed" : "text-blue-600 hover:text-blue-700"
+              )}
+            >
+              填报
+            </Button>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={() => setPatient360Modal({ show: true, record: r })}
+              className="text-blue-600 font-medium px-2"
+            >
+              患者360
+            </Button>
+          </div>
+        );
+      }
     }
   ];
 
-  const columns = [
+  const computedColumns = template ? [
     { key: "index", title: "序号", width: "50px", render: (_:any, index: number) => index + 1 },
-    ...dynamicCols,
+    ...configurableColumns
+      .filter(item => item.visible)
+      .map(item => dynamicCols.find(d => d.key === item.key)!)
+      .filter(Boolean),
     ...fixedCols
-  ];
-
-  const filledCount = records.filter(r => r.fillStatus === "FILLED" || r.fillStatus === "SUBMITTED").length;
-  const totalCount = records.length;
-  const progressPercent = totalCount > 0 ? Math.round((filledCount / totalCount) * 100) : 0;
+  ] : [];
 
   return (
     <div className="flex flex-col h-full bg-[#f8fafc] overflow-hidden">
+      <input type="file" className="hidden" ref={fileInputRef} onChange={handleFileChange} accept=".xlsx,.zip" />
       {/* Header */}
       <div className="bg-white border-b border-slate-200 px-6 py-4 shrink-0 shadow-sm z-10">
         <div className="flex items-center justify-between mb-2">
@@ -408,20 +594,8 @@ export function FillReportDetail() {
           </div>
           
           <div className="flex items-center gap-4">
-            <div className="flex flex-col items-end mr-2">
-              <span className="text-[11px] text-slate-400 font-bold uppercase tracking-wider mb-1">填报进度</span>
-              <div className="w-48 h-2 bg-slate-100 rounded-full overflow-hidden border border-slate-200">
-                <div 
-                  className="h-full bg-gradient-to-r from-blue-500 to-indigo-600 transition-all duration-300" 
-                  style={{ width: `${progressPercent}%` }}
-                />
-              </div>
-              <span className="text-[11px] text-slate-600 font-mono mt-1">
-                {filledCount} / {totalCount} {totalCount > 0 ? `(${progressPercent}%)` : ''}
-              </span>
-            </div>
             {!isReadOnly && (
-              <Button onClick={() => toast("提交成功", "success")} className="bg-blue-600 hover:bg-blue-700 shadow-md">
+              <Button onClick={handleSubmitTask} className="bg-blue-600 hover:bg-blue-700 shadow-md">
                 <Send className="w-4 h-4 mr-2" /> 提交审核
               </Button>
             )}
@@ -445,10 +619,21 @@ export function FillReportDetail() {
                 <Filter className="w-4 h-4 mr-1.5" /> 筛选
               </Button>
               {!isReadOnly && (
-                <Button variant="primary" size="sm" onClick={handleBatchFill} className="shadow-sm">
-                  <CheckCircle2 className="w-4 h-4 mr-1.5" /> 批量填报
-                </Button>
+                <>
+                  <Button variant="primary" size="sm" onClick={handleBatchFill} className="shadow-sm">
+                    <CheckCircle2 className="w-4 h-4 mr-1.5" /> 批量填报
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={handleDownload} className="text-blue-600 shadow-sm border-blue-200 hover:bg-blue-50 h-8 px-3">
+                    下载数据
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={handleUpload} className="text-blue-600 shadow-sm border-blue-200 hover:bg-blue-50 h-8 px-3">
+                    上传申报
+                  </Button>
+                </>
               )}
+              <Button variant="outline" size="sm" onClick={() => setIsColumnSettingsOpen(true)} className="text-slate-500 shadow-sm border-slate-200 hover:bg-slate-50 h-8 w-8 p-0 flex items-center justify-center rounded" title="列表设置">
+                <Settings className="w-4 h-4" />
+              </Button>
             </div>
           </div>
 
@@ -479,9 +664,11 @@ export function FillReportDetail() {
                       onChange={(e) => setFilterStatus(e.target.value)}
                     >
                       <option value="全部">全部</option>
-                      <option value="待填报">待填报</option>
-                      <option value="填报中">填报中</option>
+                      <option value="未填报">未填报</option>
+                      <option value="AI填报">AI填报</option>
                       <option value="已填报">已填报</option>
+                      <option value="审核通过">审核通过</option>
+                      <option value="已驳回">已驳回</option>
                     </select>
                   </div>
                   <div className="flex items-center gap-2 ml-auto">
@@ -498,7 +685,7 @@ export function FillReportDetail() {
         <div className="flex-1 bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden flex flex-col">
           <div className="flex-1 overflow-auto">
             <Table<any>
-              columns={columns}
+              columns={computedColumns}
               data={filteredRecords}
               rowKey={(r) => r.id}
               selectable={!isReadOnly}
@@ -650,8 +837,27 @@ export function FillReportDetail() {
                   {!isReadOnly && fillForm.evidence.length < 5 && (
                     <button 
                       onClick={() => {
-                        const mocks = ["手术报告单_复核.pdf", "住院病历摘要.docx", "检查图片_001.png", "医嘱明细.doc", "复核佐证材料.jpg"];
-                        const nextFile = mocks[fillForm.evidence.length % mocks.length];
+                        let patientName = "张三";
+                        let dischargeDate = "2024-03-10";
+                        let projectName = "血常规";
+                        if (!fillModal.isBatch && fillModal.record?.data) {
+                          patientName = fillModal.record.data.PATIENT_NAME || "张三";
+                          dischargeDate = fillModal.record.data.DISCHARGE_DATE || fillModal.record.data.ADMIT_DATE || "2024-03-10";
+                          projectName = fillModal.record.data.PROJECT_NAME || "项目";
+                        } else if (fillModal.isBatch && selectedIds.length > 0) {
+                          const firstRec = records.find(r => r.id === selectedIds[0]);
+                          if (firstRec && firstRec.data) {
+                            patientName = firstRec.data.PATIENT_NAME || "张三";
+                            dischargeDate = firstRec.data.DISCHARGE_DATE || firstRec.data.ADMIT_DATE || "2024-03-10";
+                            projectName = firstRec.data.PROJECT_NAME || "项目";
+                          }
+                        }
+                        const sources = ["出院小结", "入院记录", "手术记录", "检查报告", "医嘱单"];
+                        const exts = [".pdf", ".docx", ".png", ".jpg", ".doc"];
+                        const index = fillForm.evidence.length;
+                        const src = sources[index % sources.length];
+                        const ext = exts[index % exts.length];
+                        const nextFile = `${patientName}_${dischargeDate}_${projectName}_${src}${ext}`;
                         setFillForm({...fillForm, evidence: [...fillForm.evidence, nextFile]});
                       }}
                       className="w-full py-6 border-2 border-dashed border-slate-200 rounded-xl flex flex-col items-center justify-center gap-2 text-slate-400 hover:border-blue-400 hover:bg-blue-50 hover:text-blue-500 transition-all group mt-2"
@@ -859,6 +1065,17 @@ export function FillReportDetail() {
           </div>
         </div>
       </Modal>
+
+      <ColumnSettingsModal
+        isOpen={isColumnSettingsOpen}
+        onClose={() => setIsColumnSettingsOpen(false)}
+        columns={configurableColumns}
+        onConfirm={(updated) => {
+          setConfigurableColumns(updated);
+          setIsColumnSettingsOpen(false);
+          toast("列表设置已保存", "success");
+        }}
+      />
     </div>
   );
 }
