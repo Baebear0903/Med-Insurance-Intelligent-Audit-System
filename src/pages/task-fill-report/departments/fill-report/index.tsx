@@ -435,6 +435,18 @@ export function FillReportDetail() {
         toast("未发现任何符合可更新匹配条件的数据内容", "info");
       }
       setParsedResults([]);
+    } else if (confirmModal.type === "read") {
+      if (!taskId) return;
+      records.forEach(r => {
+        mockApi.saveTaskDetailRecord(taskId!, {
+          ...r,
+          fillStatus: "FILLED",
+          auditStatus: 8
+        });
+      });
+      mockApi.updateTaskStatus(taskId, "END");
+      toast("确认已读成功", "success");
+      window.dispatchEvent(new Event("task_updated"));
     }
     
     setConfirmModal({ show: false, type: "", title: "", content: "" });
@@ -481,6 +493,8 @@ export function FillReportDetail() {
     </div>
   );
 
+  const isDeductionTask = task?.templateId === "TPL_DED";
+
   // Dynamic Columns
   const dynamicCols = template.fields
     .filter(f => f.isShow !== false)
@@ -511,7 +525,7 @@ export function FillReportDetail() {
     }
   };
 
-  const fixedCols = [
+  const fixedCols = isDeductionTask ? [] : [
     {
       key: "status_col",
       title: "状态",
@@ -594,9 +608,19 @@ export function FillReportDetail() {
           </div>
           
           <div className="flex items-center gap-4">
-            {!isReadOnly && (
+            {!isReadOnly && !isDeductionTask && (
               <Button onClick={handleSubmitTask} className="bg-blue-600 hover:bg-blue-700 shadow-md">
                 <Send className="w-4 h-4 mr-2" /> 提交审核
+              </Button>
+            )}
+            {!isReadOnly && isDeductionTask && (
+              <Button onClick={() => setConfirmModal({
+                show: true,
+                type: "read",
+                title: "确认已读",
+                content: "确认后表示已阅读本次院内扣减明细并接受扣减结果，是否继续？"
+              })} className="bg-blue-600 hover:bg-blue-700 shadow-md">
+                <CheckCircle2 className="w-4 h-4 mr-2" /> 确认已读
               </Button>
             )}
           </div>
@@ -609,16 +633,18 @@ export function FillReportDetail() {
         <div className="flex flex-col gap-0 bg-white rounded-xl shadow-sm border border-slate-200">
           <div className="flex items-center justify-between px-4 py-3">
             <div className="flex items-center gap-2">
-              <div className="bg-blue-50 px-3 py-1.5 rounded-lg border border-blue-100 mr-2">
-                <span className="text-blue-600 text-xs font-bold">已选 {selectedIds.length} 项</span>
-              </div>
+              {!isDeductionTask && (
+                <div className="bg-blue-50 px-3 py-1.5 rounded-lg border border-blue-100 mr-2">
+                  <span className="text-blue-600 text-xs font-bold">已选 {selectedIds.length} 项</span>
+                </div>
+              )}
             </div>
             
             <div className="flex items-center gap-3">
               <Button variant="outline" size="sm" onClick={() => setShowFilter(!showFilter)} className={`text-slate-600 ${showFilter ? 'bg-slate-50 ring-2 ring-blue-500/20 border-blue-500' : ''}`}>
                 <Filter className="w-4 h-4 mr-1.5" /> 筛选
               </Button>
-              {!isReadOnly && (
+              {!isReadOnly && !isDeductionTask && (
                 <>
                   <Button variant="primary" size="sm" onClick={handleBatchFill} className="shadow-sm">
                     <CheckCircle2 className="w-4 h-4 mr-1.5" /> 批量填报
@@ -630,6 +656,11 @@ export function FillReportDetail() {
                     上传申报
                   </Button>
                 </>
+              )}
+              {isDeductionTask && (
+                <Button variant="outline" size="sm" onClick={handleDownload} className="text-blue-600 shadow-sm border-blue-200 hover:bg-blue-50 h-8 px-3">
+                  下载数据
+                </Button>
               )}
               <Button variant="outline" size="sm" onClick={() => setIsColumnSettingsOpen(true)} className="text-slate-500 shadow-sm border-slate-200 hover:bg-slate-50 h-8 w-8 p-0 flex items-center justify-center rounded" title="列表设置">
                 <Settings className="w-4 h-4" />
@@ -688,7 +719,7 @@ export function FillReportDetail() {
               columns={computedColumns}
               data={filteredRecords}
               rowKey={(r) => r.id}
-              selectable={!isReadOnly}
+              selectable={!isReadOnly && !isDeductionTask}
               selectedRowKeys={selectedIds}
               onSelectChange={(keys) => setSelectedIds(keys as string[])}
             />

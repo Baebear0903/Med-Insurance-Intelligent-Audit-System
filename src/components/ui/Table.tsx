@@ -9,6 +9,7 @@ export interface Column<T> {
   align?: "left" | "center" | "right";
   fixed?: "left" | "right";
   fixedOffset?: string;
+  className?: string;
 }
 
 interface TableProps<T> {
@@ -16,6 +17,7 @@ interface TableProps<T> {
   data: T[];
   rowKey: (record: T) => string;
   className?: string;
+  headerClassName?: string;
   emptyText?: string;
   selectable?: boolean;
   selectedRowKeys?: string[];
@@ -27,6 +29,7 @@ export function Table<T>({
   data, 
   rowKey, 
   className, 
+  headerClassName,
   emptyText = "暂无数据",
   selectable,
   selectedRowKeys = [],
@@ -50,13 +53,21 @@ export function Table<T>({
     }
   };
 
+  // Find background-related class in headerClassName to apply to sticky cells so they match the header background perfectly
+  const getHeaderBgClass = () => {
+    if (!headerClassName) return "bg-slate-50";
+    const bgClass = headerClassName.split(' ').find(c => c.startsWith('bg-'));
+    return bgClass || "bg-slate-50";
+  };
+  const headerBgClass = getHeaderBgClass();
+
   return (
     <div className={cn("overflow-x-auto rounded-md border border-slate-200", className)}>
       <table className="w-full text-sm text-left whitespace-nowrap">
-        <thead className="bg-slate-50 text-slate-600 font-medium border-b border-slate-200">
+        <thead className={cn("bg-slate-50 text-slate-600 font-medium border-b border-slate-200", headerClassName)}>
           <tr>
             {selectable && (
-              <th className="px-4 py-3 w-10 sticky left-0 bg-slate-50 z-20 shadow-[1px_0_0_#e2e8f0]">
+              <th className={cn("px-4 py-3 w-10 sticky left-0 z-20 shadow-[1px_0_0_#e2e8f0]", headerBgClass)}>
                 <input 
                   type="checkbox" 
                   className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
@@ -70,10 +81,11 @@ export function Table<T>({
                 key={c.key}
                 className={cn(
                   "px-4 py-3",
+                  (c.fixed === "right" || c.fixed === "left") ? headerBgClass : "bg-inherit",
                   c.align === "center" && "text-center",
                   c.align === "right" && "text-right",
-                  c.fixed === "right" && "sticky right-0 bg-slate-50 z-10 shadow-[-1px_0_0_#e2e8f0]",
-                  c.fixed === "left" && "sticky left-0 bg-slate-50 z-10 shadow-[1px_0_0_#e2e8f0]"
+                  c.fixed === "right" && "sticky right-0 z-10 shadow-[-1px_0_0_#e2e8f0]",
+                  c.fixed === "left" && "sticky left-0 z-10 shadow-[1px_0_0_#e2e8f0]"
                 )}
                 style={{ 
                   width: c.width,
@@ -100,16 +112,20 @@ export function Table<T>({
             data.map((row, rowIndex) => {
               const key = rowKey(row);
               const isSelected = selectedRowKeys.includes(key);
+              const cellBgClass = isSelected 
+                ? "bg-blue-50" 
+                : "bg-white group-hover:bg-slate-50 transition-colors";
+
               return (
                 <tr 
                   key={key} 
                   className={cn(
-                    "bg-white hover:bg-slate-50 transition-colors",
+                    "group bg-white hover:bg-slate-50 transition-colors",
                     isSelected && "bg-blue-50 hover:bg-blue-50"
                   )}
                 >
                   {selectable && (
-                    <td className="px-4 py-3 sticky left-0 bg-inherit z-10 shadow-[1px_0_0_#e2e8f0]">
+                    <td className={cn("px-4 py-3 sticky left-0 z-10 shadow-[1px_0_0_#e2e8f0]", cellBgClass)}>
                       <input 
                         type="checkbox" 
                         className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
@@ -122,11 +138,13 @@ export function Table<T>({
                     <td
                       key={c.key}
                       className={cn(
-                        "px-4 py-3 text-slate-700 bg-inherit",
+                        "px-4 py-3 text-slate-700",
+                        (c.fixed === "right" || c.fixed === "left") ? cellBgClass : "bg-inherit",
                         c.align === "center" && "text-center",
                         c.align === "right" && "text-right",
                         c.fixed === "right" && "sticky right-0 z-10 shadow-[-1px_0_0_#e2e8f0]",
-                        c.fixed === "left" && "sticky left-0 z-10 shadow-[1px_0_0_#e2e8f0]"
+                        c.fixed === "left" && "sticky left-0 z-10 shadow-[1px_0_0_#e2e8f0]",
+                        c.className
                       )}
                       style={{ 
                         width: c.width,

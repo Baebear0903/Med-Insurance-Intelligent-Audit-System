@@ -297,13 +297,15 @@ export function Audit() {
     return <Badge status="warning">待审核</Badge>;
   };
 
+  const isDeductionTask = task?.templateId === "TPL_DED";
+
   const computedColumns = template ? [
     { key: "index", title: "序号", width: "50px", render: (_: any, idx: number) => idx + 1 },
     ...configurableColumns
       .filter(item => item.visible)
       .map(item => dynamicCols.find(d => d.key === item.key)!)
       .filter(Boolean),
-    {
+    ...(!isDeductionTask ? [{
       key: "status_col",
       title: "审核状态",
       fixed: "right" as const,
@@ -328,7 +330,7 @@ export function Audit() {
       >
         审核
       </Button>
-    )}
+    )}] : [])
   ] : [];
 
   const filteredRecords = records.filter(r => {
@@ -385,14 +387,16 @@ export function Audit() {
           </h2>
         </div>
         <div className="flex items-center gap-3">
-          <Button 
-            variant="primary" 
-            onClick={handleBulkAuditClick} 
-            disabled={selectedIds.length === 0}
-            className={selectedIds.length === 0 ? "opacity-50 cursor-not-allowed" : ""}
-          >
-            批量审核
-          </Button>
+          {!isDeductionTask && (
+            <Button 
+              variant="primary" 
+              onClick={handleBulkAuditClick} 
+              disabled={selectedIds.length === 0}
+              className={selectedIds.length === 0 ? "opacity-50 cursor-not-allowed" : ""}
+            >
+              批量审核
+            </Button>
+          )}
           <Button variant="outline" onClick={handleBack}>
             <ArrowLeft className="w-4 h-4 mr-1.5" />返回
           </Button>
@@ -403,26 +407,30 @@ export function Audit() {
       <div className="flex flex-col gap-0 bg-white rounded-xl shadow-sm border border-slate-200 mb-4 flex-shrink-0">
         <div className="flex items-center justify-between px-4 py-3">
           <div className="flex items-center gap-6">
-            <div className="flex items-center gap-2">
-              <div className="bg-blue-50 px-3 py-1.5 rounded-lg border border-blue-100 mr-2">
-                <span className="text-blue-600 text-xs font-bold">已选 {selectedIds.length} 项</span>
-              </div>
-            </div>
-            
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-medium text-slate-600 whitespace-nowrap">审核状态</span>
-              <select 
-                className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded min-w-[120px] text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
-                value={filterStatus}
-                onChange={(e) => setFilterStatus(e.target.value)}
-              >
-                <option value="全部">全部</option>
-                <option value="待审核">待审核</option>
-                <option value="填报中">填报中</option>
-                <option value="已通过">已通过</option>
-                <option value="已驳回">已驳回</option>
-              </select>
-            </div>
+            {!isDeductionTask && (
+              <>
+                <div className="flex items-center gap-2">
+                  <div className="bg-blue-50 px-3 py-1.5 rounded-lg border border-blue-100 mr-2">
+                    <span className="text-blue-600 text-xs font-bold">已选 {selectedIds.length} 项</span>
+                  </div>
+                </div>
+                
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium text-slate-600 whitespace-nowrap">审核状态</span>
+                  <select 
+                    className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded min-w-[120px] text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    value={filterStatus}
+                    onChange={(e) => setFilterStatus(e.target.value)}
+                  >
+                    <option value="全部">全部</option>
+                    <option value="待审核">待审核</option>
+                    <option value="填报中">填报中</option>
+                    <option value="已通过">已通过</option>
+                    <option value="已驳回">已驳回</option>
+                  </select>
+                </div>
+              </>
+            )}
           </div>
           
           <div className="flex items-center gap-3">
@@ -471,7 +479,7 @@ export function Audit() {
           columns={computedColumns}
           data={filteredRecords}
           rowKey={(r) => r.id}
-          selectable
+          selectable={!isDeductionTask}
           selectedRowKeys={selectedIds}
           onSelectChange={setSelectedIds}
           className="h-full border-0 rounded-none absolute inset-0 pb-12"

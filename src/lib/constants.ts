@@ -67,6 +67,13 @@ export const visibleMenuItems = [
     roles: ["ADMIN"],
   },
   {
+    path: "/deduction-management/index",
+    label: "院内扣减管理",
+    icon: "Calculator",
+    iconColor: "text-red-500",
+    roles: ["ADMIN"],
+  },
+  {
     path: "/operateIns/index",
     label: "操作指引",
     icon: "BookOpen",
@@ -106,6 +113,7 @@ export const hiddenRoutes = [
   "/data-review/audit/index",
   "/data-review/historical-data/index",
   "/review-template/add-review-template/index",
+  "/deduction-management/task-details/index",
 ];
 
 // Mapping hidden routes to their parent active menu
@@ -116,4 +124,5 @@ export const activeMenuMap: Record<string, string> = {
   "/data-review/audit/index": "/data-review/index",
   "/data-review/historical-data/index": "/data-review/index",
   "/review-template/add-review-template/index": "/review-template/index",
+  "/deduction-management/task-details/index": "/deduction-management/index",
 };

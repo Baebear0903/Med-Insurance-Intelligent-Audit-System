@@ -56,6 +56,27 @@ export async function downloadZipWithExcel(
   URL.revokeObjectURL(url);
 }
 
+export function exportToExcel(data: any[], filename: string) {
+  if (data.length === 0) return;
+
+  const ws = XLSX.utils.json_to_sheet(data);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "数据明细");
+  
+  const xlsxBuffer = XLSX.write(wb, { bookType: "xlsx", type: "array" });
+  const blob = new Blob([xlsxBuffer], { type: "application/octet-stream" });
+
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.setAttribute("href", url);
+  const finalFilename = filename.endsWith(".xlsx") ? filename : filename.replace(/\.csv$/, "") + ".xlsx";
+  link.setAttribute("download", finalFilename);
+  link.style.visibility = "hidden";
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+}
+
 /**
  * 核心：解析导入文件（电子表格或含有表格+附件附件内容文件夹的 ZIP）
  */

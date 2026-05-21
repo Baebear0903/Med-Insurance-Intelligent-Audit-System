@@ -59,7 +59,7 @@ export function TaskFillReport() {
   const [rejectModalId, setRejectModalId] = useState<string | null>(null);
   const [confirmModal, setConfirmModal] = useState<{
     show: boolean;
-    type: "submit" | "withdraw" | null;
+    type: "submit" | "withdraw" | "read" | null;
     taskId: string | null;
   }>({ show: false, type: null, taskId: null });
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -117,7 +117,7 @@ export function TaskFillReport() {
     setTimeout(fetchData, 0);
   };
 
-  const handleAction = (type: "submit" | "withdraw", taskId: string) => {
+  const handleAction = (type: "submit" | "withdraw" | "read", taskId: string) => {
     setConfirmModal({ show: true, type, taskId });
   };
 
@@ -127,9 +127,10 @@ export function TaskFillReport() {
     if (confirmModal.type === "submit") {
       mockApi.updateTaskStatus(confirmModal.taskId, "SUBMITTED");
       toast("提交成功", "success");
+    } else if (confirmModal.type === "read") {
+      mockApi.updateTaskStatus(confirmModal.taskId, "END");
+      toast("确认已读成功", "success");
     } else if (confirmModal.type === "withdraw") {
-      // Logic from prompt: "如果无可撤回数据，提示'当前任务无可撤回数据'；有数据则状态回到可填报"
-      // Generic check for demo
       if (confirmModal.taskId === "T1003") { // Special case for mock
         toast("当前任务无可撤回数据", "info");
       } else {
@@ -319,16 +320,19 @@ export function TaskFillReport() {
         return (
           <div className="flex items-center gap-1">
             {common}
-            {t.status === "PUBLISH" && (
+            {t.status === "PUBLISH" && t.templateId !== "TPL_DED" && (
               <>
                 <Button variant="ghost" size="sm" onClick={handleUpload} className="text-blue-600 h-7 px-2">上传申报</Button>
                 <Button variant="ghost" size="sm" onClick={() => handleAction("submit", t.id)} className="text-blue-600 h-7 px-2">提交审核</Button>
               </>
             )}
-            {t.status === "SUBMITTED" && (
+            {t.status === "PUBLISH" && t.templateId === "TPL_DED" && (
+              <Button variant="ghost" size="sm" onClick={() => handleAction("read", t.id)} className="text-blue-600 h-7 px-2">确认已读</Button>
+            )}
+            {t.status === "SUBMITTED" && t.templateId !== "TPL_DED" && (
               <Button variant="ghost" size="sm" onClick={() => handleAction("withdraw", t.id)} className="text-blue-600 h-7 px-2">撤回</Button>
             )}
-            {t.status === "WITHDRAWN" && (
+            {t.status === "WITHDRAWN" && t.templateId !== "TPL_DED" && (
               <>
                 <Button variant="ghost" size="sm" onClick={handleUpload} className="text-blue-600 h-7 px-2">上传申报</Button>
                 <Button variant="ghost" size="sm" onClick={() => handleAction("submit", t.id)} className="text-blue-600 h-7 px-2">提交审核</Button>
@@ -558,23 +562,27 @@ export function TaskFillReport() {
       <Modal
         isOpen={confirmModal.show}
         onClose={() => setConfirmModal({ show: false, type: null, taskId: null })}
-        title={confirmModal.type === "submit" ? "确认提交" : "确认撤回"}
+        title={confirmModal.type === "submit" ? "确认提交" : confirmModal.type === "read" ? "确认已读" : "确认撤回"}
       >
         <div className="py-4">
           <div className="flex items-center gap-3 mb-4">
             <div className={cn(
               "w-10 h-10 rounded-full flex items-center justify-center",
-              confirmModal.type === "submit" ? "bg-blue-50 text-blue-600" : "bg-orange-50 text-orange-600"
+              confirmModal.type === "submit" || confirmModal.type === "read" ? "bg-blue-50 text-blue-600" : "bg-orange-50 text-orange-600"
             )}>
               <RotateCcw className="w-5 h-5" />
             </div>
             <p className="text-slate-700 font-medium whitespace-pre-wrap">
-              {confirmModal.type === "submit" ? "确认提交该任务吗？提交后将无法修改申报数据。" : "确认撤回该任务吗？撤回后任务状态将由“已提交”变为“填报中”。"}
+              {confirmModal.type === "submit" 
+                ? "确认提交该任务吗？提交后将无法修改申报数据。" 
+                : confirmModal.type === "read"
+                  ? "确认后表示已阅读本次院内扣减明细并接受扣减结果，是否继续？"
+                  : "确认撤回该任务吗？撤回后任务状态将由“已提交”变为“填报中”。"}
             </p>
           </div>
           <div className="flex justify-end gap-3 mt-6">
             <Button variant="ghost" onClick={() => setConfirmModal({ show: false, type: null, taskId: null })}>取消</Button>
-            <Button onClick={executeAction} variant={confirmModal.type === "submit" ? "primary" : "secondary"}>确认</Button>
+            <Button onClick={executeAction} variant={confirmModal.type === "submit" || confirmModal.type === "read" ? "primary" : "secondary"}>确认</Button>
           </div>
         </div>
       </Modal>

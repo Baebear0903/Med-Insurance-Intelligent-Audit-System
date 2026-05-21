@@ -312,7 +312,7 @@ export function AddReviewTemplate() {
               </thead>
               <tbody className="divide-y divide-slate-100 divide-x divide-slate-100">
                 {(formData.fields || []).map((field, idx) => (
-                  <tr key={field.id} className="hover:bg-blue-50/20 transition-colors">
+                  <tr key={field.id} className="group hover:bg-blue-50/20 transition-colors">
                     <td className="px-3 py-2 text-center text-slate-400 font-mono italic">{idx + 1}</td>
                     <td className="px-2 py-1.5">
                       <input 

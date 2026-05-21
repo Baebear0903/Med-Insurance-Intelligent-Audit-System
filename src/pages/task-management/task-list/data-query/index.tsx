@@ -38,6 +38,8 @@ export default function DataQuery() {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [showFilters, setShowFilters] = useState(false);
   const pageSize = 20;
+  const [isSwitchDeptOpen, setIsSwitchDeptOpen] = useState(false);
+  const [selectedDept, setSelectedDept] = useState("内科");
 
   const handleDownload = async (type: "部分数据" | "所有数据") => {
     if (!task || !template) return;
@@ -121,63 +123,33 @@ export default function DataQuery() {
     }
   };
 
-  const handleSwitchDepartment = () => {
+  const handleOpenSwitchDeptModal = () => {
     if (selectedIds.length === 0) {
       toast("请先勾选记录");
       return;
     }
-
-    const records = mockApi.getTaskDetailRecords(task!.id);
-    let updatedCount = 0;
-    
-    records.forEach((r: any) => {
-      if (selectedIds.includes(r.id)) {
-        const orderDept = r.data.ORDER_DEPT;
-        const executeDept = r.data.EXECUTE_DEPT;
-        const currentDept = r.data.DEPARTMENT_NAME;
-
-        if (currentDept === orderDept) {
-          r.data.DEPARTMENT_NAME = executeDept || "";
-        } else if (currentDept === executeDept) {
-          r.data.DEPARTMENT_NAME = orderDept || "";
-        } else {
-          r.data.DEPARTMENT_NAME = orderDept || "";
-        }
-        
-        mockApi.saveTaskDetailRecord(task!.id, r);
-        updatedCount++;
-      }
-    });
-
-    if (updatedCount > 0) {
-      toast(`成功切换 ${updatedCount} 条记录的科室`, "success");
-      const updatedRecords = mockApi.getTaskDetailRecords(task!.id);
-      setData(updatedRecords.map((rec: any) => ({ ...rec.data, id: rec.id })));
-    }
+    setSelectedDept("内科");
+    setIsSwitchDeptOpen(true);
   };
 
-  const handleNoDistribution = () => {
-    if (selectedIds.length === 0) {
-      toast("请先勾选记录");
-      return;
-    }
-
+  const handleConfirmSwitchDept = () => {
     const records = mockApi.getTaskDetailRecords(task!.id);
     let updatedCount = 0;
     
     records.forEach((r: any) => {
       if (selectedIds.includes(r.id)) {
-        r.data.DEPARTMENT_NAME = "医保办";
+        r.data.DEPARTMENT_NAME = selectedDept;
         mockApi.saveTaskDetailRecord(task!.id, r);
         updatedCount++;
       }
     });
 
     if (updatedCount > 0) {
-      toast(`成功将 ${updatedCount} 条记录科室变更为“医保办”`, "success");
+      toast(`已成功将 ${updatedCount} 条记录的科室切换为“${selectedDept}”`, "success");
       const updatedRecords = mockApi.getTaskDetailRecords(task!.id);
       setData(updatedRecords.map((rec: any) => ({ ...rec.data, id: rec.id })));
     }
+    setIsSwitchDeptOpen(false);
   };
 
   const fetchTaskData = () => {
@@ -229,10 +201,10 @@ export default function DataQuery() {
   const calculatedAiProgress = data.filter(d => d.fillStatus === "AI_FILLED" || d.fillStatus === "FILLED" || d.fillStatus === "SUBMITTED").length;
   // Fallback to task properties if calculated values are missing but we use calculated values for accurate UI tracking. Wait, AI status is AI_FILLED or AI_FILLING.
   // Actually, the requirements say "进度计算方法为 当前任务状态为“AI填报”的明细条数/当前任务所有明细条数"
-  const aiProgressCount = data.filter(d => d.fillStatus === "AI_FILLED").length;
+  const aiProgressCount = data.filter((d) => d.fillStatus === "AI_FILLED").length;
   const aiTotalCount = data.length;
   
-  const showAiProgress = task?.aiFillTotal !== undefined && aiTotalCount > 0;
+  const showAiProgress = template.templateType === "医保审核反馈" && aiTotalCount > 0;
 
 
   const renderSearchInput = (field: TemplateField) => {
@@ -397,7 +369,7 @@ export default function DataQuery() {
             <Button
               variant="outline"
               size="sm"
-              onClick={handleSwitchDepartment}
+              onClick={handleOpenSwitchDeptModal}
               disabled={selectedIds.length === 0}
               className={
                 selectedIds.length === 0
@@ -407,19 +379,6 @@ export default function DataQuery() {
             >
               <RefreshCw className="w-4 h-4 mr-1.5" />
               切换科室
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleNoDistribution}
-              disabled={selectedIds.length === 0}
-              className={
-                selectedIds.length === 0
-                  ? "opacity-50 cursor-not-allowed bg-slate-50 text-slate-400 border-slate-200"
-                  : "text-rose-600 border-rose-200 hover:bg-rose-50"
-              }
-            >
-              不下发
             </Button>
             <Button
               variant="outline"
@@ -536,6 +495,41 @@ export default function DataQuery() {
             </div>
           </div>
         </div>
+
+        {/* 切换科室弹窗 */}
+        <Modal
+          isOpen={isSwitchDeptOpen}
+          onClose={() => setIsSwitchDeptOpen(false)}
+          title="选择切换科室"
+          footer={
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" onClick={() => setIsSwitchDeptOpen(false)}>
+                取消
+              </Button>
+              <Button variant="primary" size="sm" onClick={handleConfirmSwitchDept}>
+                确认切换
+              </Button>
+            </div>
+          }
+        >
+          <div className="space-y-4">
+            <div className="text-sm text-slate-600 leading-relaxed font-sans">
+              请选择所选明细数据的下发目标科室。
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-sm font-medium text-slate-700">切换目标科室</label>
+              <select
+                value={selectedDept}
+                onChange={(e) => setSelectedDept(e.target.value)}
+                className="w-full border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white"
+              >
+                <option value="内科">内科</option>
+                <option value="外科">外科</option>
+                <option value="医保办">医保办</option>
+              </select>
+            </div>
+          </div>
+        </Modal>
       </div>
     </div>
   );

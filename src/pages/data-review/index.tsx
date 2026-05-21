@@ -13,8 +13,7 @@ import { cn } from "@/src/lib/utils";
 
 const PROGRESS_DATA = [
   { id: "P1", index: 1, department: "外科", amount: "5,000.00", manager: "外科", progress: "审核通过" },
-  { id: "P2", index: 2, department: "神经外科(天河)", amount: "3,000.00", manager: "外科管理员", progress: "未填报" },
-  { id: "P3", index: 3, department: "内科", amount: "1,000.00", manager: "内科", progress: "填报中" },
+  { id: "P3", index: 2, department: "内科", amount: "1,000.00", manager: "内科", progress: "填报中" },
 ];
 
 export function DataReview() {
@@ -30,7 +29,10 @@ export function DataReview() {
 
   const [tasks, setTasks] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const allRawTasksRef = React.useRef<any[]>([]);
+  
   const [progressModalOpen, setProgressModalOpen] = useState(false);
+  const [progressModalStats, setProgressModalStats] = useState({ total: 0, filled: 0, unfilled: 0, amount: "0.00", isDeduction: false });
   const [confirmModalOpen, setConfirmModalOpen] = useState(false);
   const [selectedProgressIds, setSelectedProgressIds] = useState<string[]>([]);
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
@@ -41,39 +43,48 @@ export function DataReview() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Load from mockApi
-    setLoading(true);
-    const allTasksRes = mockApi.getTasks(1, 1000);
-    const allTasks = allTasksRes.data;
+    const loadTasks = () => {
+      setLoading(true);
+      const allTasksRes = mockApi.getTasks(1, 1000);
+      const allTasks = allTasksRes.data;
+      allRawTasksRef.current = allTasks;
 
-    // Build tree
-    const parentTasks = allTasks.filter(t => !t.parentId && t.status !== "CREATE");
-    
-    const treeData = parentTasks.map((pt, idx) => {
-      const childrenRaw = allTasks.filter(t => t.parentId === pt.id);
+      // Build tree
+      const parentTasks = allTasks.filter(t => !t.parentId && t.status !== "CREATE");
       
-      const children = childrenRaw.map(ct => ({
-        id: ct.id,
-        deptId: ct.departmentId,
-        deptName: DEPARTMENTS[ct.departmentId] || ct.name.split(" - ")[1],
-        manager: ct.departmentId === 3 ? "李飞" : (ct.departmentId === 4 ? "赵云" : "陈磊")
-      }));
+      const treeData = parentTasks.map((pt, idx) => {
+        const childrenRaw = allTasks.filter(t => t.parentId === pt.id);
+        
+        const children = childrenRaw.map(ct => ({
+          id: ct.id,
+          deptId: ct.departmentId,
+          deptName: DEPARTMENTS[ct.departmentId] || ct.name.split(" - ")[1],
+          manager: ct.departmentId === 3 ? "李飞" : (ct.departmentId === 4 ? "赵云" : "陈磊"),
+          status: ct.status
+        }));
 
-      return {
-        id: pt.id,
-        index: idx + 1,
-        name: pt.name,
-        department: DEPARTMENTS[pt.departmentId] || "医保办",
-        manager: pt.creator,
-        status: pt.status,
-        creator: pt.creator,
-        dueDate: pt.dueDate,
-        children
-      };
-    });
+        return {
+          id: pt.id,
+          index: idx + 1,
+          name: pt.name,
+          department: DEPARTMENTS[pt.departmentId] || "医保办",
+          manager: pt.creator,
+          status: pt.status,
+          creator: pt.creator,
+          dueDate: pt.dueDate,
+          children
+        };
+      });
 
-    setTasks(treeData);
-    setLoading(false);
+      setTasks(treeData);
+      setLoading(false);
+    };
+
+    loadTasks();
+
+    const handleUpdate = () => loadTasks();
+    window.addEventListener("task_updated", handleUpdate);
+    return () => window.removeEventListener("task_updated", handleUpdate);
   }, []);
 
   const filteredTasks = tasks.filter(t => {
@@ -82,16 +93,67 @@ export function DataReview() {
     return matchesName && matchesStatus;
   });
 
+  const [progressData, setProgressData] = useState<any[]>([]);
+
   const filteredProgressData = progressFilter 
-    ? PROGRESS_DATA.filter(item => item.progress === progressFilter)
-    : PROGRESS_DATA;
+    ? progressData.filter(item => item.progress === progressFilter)
+    : progressData;
 
   const toggleRow = (id: string) => {
     setExpandedRow(prev => prev === id ? null : id);
   };
 
-  const openProgressModal = () => {
+  const openProgressModal = (task: any) => {
     setSelectedProgressIds([]);
+
+    const children = allRawTasksRef.current?.filter((t: any) => t.parentId === task.id) || [];
+    const pData = children.map((c: any, index: number) => {
+      let progress = "未填报";
+      if (c.status === "END") progress = "审核通过";
+      else if (c.status === "SUBMITTED") progress = "审核中";
+      else if (c.status === "PUBLISH" || c.status === "CREATE") progress = "未填报";
+      
+      // Since it's a DED (扣减) task where there's no real "审核通过", 
+      // let's follow the wording in the prompt:
+      // "1月院内扣减任务在进度弹窗中展示所有科室已读确认。" "外科已读、内科未读"
+      const isDeduction = task.name.includes("扣减");
+      if (isDeduction) {
+        if (c.status === "END") progress = "已读确认";
+        else progress = "未读";
+      }
+
+      // calculate amounts just for demo, or mock it?
+      // "违规金额" in deduction tasks.
+      const details = mockApi.getTaskDetailRecords(c.id);
+      let total = 0;
+      details.forEach((d: any) => {
+        const val = parseFloat(d.data.TOTAL_AMOUNT || 0);
+        if (!isNaN(val)) total += val;
+      });
+      // Just mock amount if 0 for demo visual sake
+      if (total === 0) total = index === 0 ? 5000 : index === 1 ? 1000 : 3000;
+
+      return {
+        id: c.id,
+        index: index + 1,
+        department: DEPARTMENTS[c.departmentId] || c.name.split(" - ")[1],
+        amount: total.toFixed(2),
+        manager: c.departmentId === 3 ? "李飞" : (c.departmentId === 4 ? "赵云" : "陈磊"),
+        progress: progress
+      };
+    });
+
+    const isDeduction = task.name.includes("扣减");
+    const unfillCount = pData.filter((item: any) => item.progress === "未填报" || item.progress === "未读").length;
+    setProgressModalStats({
+      total: pData.length,
+      filled: pData.length - unfillCount,
+      unfilled: unfillCount,
+      amount: pData.reduce((acc: number, item: any) => acc + parseFloat(item.amount), 0).toFixed(2),
+      isDeduction
+    });
+
+    setProgressData(pData);
     setProgressModalOpen(true);
   };
 
@@ -129,8 +191,8 @@ export function DataReview() {
   };
 
   const getProgressBadgeStatus = (progress: string) => {
-    if (progress === "审核通过") return "success";
-    if (progress === "未填报") return "error";
+    if (progress === "审核通过" || progress === "已读确认") return "success";
+    if (progress === "未填报" || progress === "未读") return "error";
     return "warning";
   };
 
@@ -172,7 +234,20 @@ export function DataReview() {
     ),
     department: <td key="department" className="p-3 text-slate-600">{child.deptName}</td>,
     manager: <td key="manager" className="p-3 text-slate-600">{child.manager}</td>,
-    status: <td key="status" className="p-3 text-slate-500">-</td>,
+    status: (
+      <td key="status" className="p-3">
+        {child.status ? (
+          <Badge status={
+            child.status === "COMPLETE" || child.status === "END" ? "success" : 
+            child.status === "PUBLISH" ? "info" : 
+            child.status === "SUBMITTED" ? "warning" : 
+            child.status === "WITHDRAWN" ? "error" : "default"
+          }>
+            {TASK_STATUS[child.status as keyof typeof TASK_STATUS] || child.status}
+          </Badge>
+        ) : <span className="text-slate-500">-</span>}
+      </td>
+    ),
     creator: <td key="creator" className="p-3 text-slate-500">-</td>,
     dueDate: <td key="dueDate" className="p-3 text-slate-500">-</td>,
   });
@@ -350,12 +425,12 @@ export function DataReview() {
         {/* Tree Table */}
         <div className="flex-1 overflow-x-auto">
           <table className="w-full text-left text-sm whitespace-nowrap">
-            <thead className="bg-slate-50/80 text-slate-500 border-b border-slate-200">
+            <thead className="bg-slate-50 text-slate-500 border-b border-slate-200">
               <tr>
                 <th className="font-medium p-3 w-10"></th>
                 <th className="font-medium p-3 w-16">序号</th>
                 {configurableColumns.filter(c => c.visible).map(c => colHeaderMap[c.key])}
-                <th className="font-medium p-3 sticky right-0 bg-slate-50/80 z-10 shadow-[-1px_0_0_#e2e8f0]">操作</th>
+                <th className="font-medium p-3 sticky right-0 bg-slate-50 z-10 shadow-[-1px_0_0_#e2e8f0]">操作</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -373,9 +448,9 @@ export function DataReview() {
                     </td>
                     <td className="p-3 text-slate-600">{row.index}</td>
                     {configurableColumns.filter(c => c.visible).map(c => colCellMap(row)[c.key])}
-                    <td className="p-3 sticky right-0 bg-inherit z-10 shadow-[-1px_0_0_#e2e8f0]">
+                    <td className="p-3 sticky right-0 bg-white group-hover:bg-slate-50/50 transition-colors z-10 shadow-[-1px_0_0_#e2e8f0]">
                       <button 
-                        onClick={openProgressModal} 
+                        onClick={() => openProgressModal(row)} 
                         className="text-blue-600 hover:text-blue-800 font-medium transition-opacity"
                       >
                         查看进度
@@ -391,12 +466,12 @@ export function DataReview() {
                         initial={{ opacity: 0, height: 0 }}
                         animate={{ opacity: 1, height: "auto" }}
                         exit={{ opacity: 0, height: 0 }}
-                        className="bg-slate-50/30 hover:bg-slate-50 transition-colors"
+                        className="bg-slate-50 hover:bg-slate-100/80 transition-colors group"
                       >
                         <td className="p-3 border-l-2 border-blue-500/20"></td>
                         <td className="p-3"></td>
                         {configurableColumns.filter(c => c.visible).map(c => colChildCellMap(child, row)[c.key])}
-                        <td className="p-3 sticky right-0 bg-slate-50 z-10 shadow-[-1px_0_0_#e2e8f0]">
+                        <td className="p-3 sticky right-0 bg-slate-50 group-hover:bg-slate-100/80 transition-colors z-10 shadow-[-1px_0_0_#e2e8f0]">
                           <Button 
                             variant="primary" 
                             size="sm" 
@@ -424,40 +499,40 @@ export function DataReview() {
               {/* Left Group */}
               <div className="bg-slate-50 border border-slate-100 rounded-xl p-4 flex justify-between items-center shadow-sm">
                 <div className="text-center flex-1">
-                  <div className="text-2xl font-black text-slate-700 tracking-tight">20</div>
+                  <div className="text-2xl font-black text-slate-700 tracking-tight">{progressModalStats.total}</div>
                   <div className="text-xs text-slate-500 font-medium mt-1">数据总条目</div>
                 </div>
                 <div className="w-px h-8 bg-slate-200" />
                 <div className="text-center flex-1">
-                  <div className="text-2xl font-black text-emerald-600 tracking-tight">0</div>
-                  <div className="text-xs text-slate-500 font-medium mt-1">已填完</div>
+                  <div className="text-2xl font-black text-emerald-600 tracking-tight">{progressModalStats.filled}</div>
+                  <div className="text-xs text-slate-500 font-medium mt-1">已完结</div>
                 </div>
                 <div className="w-px h-8 bg-slate-200" />
                 <div className="text-center flex-1">
-                  <div className="text-2xl font-black text-rose-500 tracking-tight">20</div>
-                  <div className="text-xs text-slate-500 font-medium mt-1">未填完</div>
+                  <div className="text-2xl font-black text-rose-500 tracking-tight">{progressModalStats.unfilled}</div>
+                  <div className="text-xs text-slate-500 font-medium mt-1">未完结</div>
                 </div>
               </div>
 
               {/* Right Group */}
               <div className="bg-slate-50 border border-slate-100 rounded-xl p-4 flex justify-between items-center shadow-sm">
                 <div className="text-center flex-1">
-                  <div className="text-2xl font-black text-slate-700 tracking-tight">3</div>
+                  <div className="text-2xl font-black text-slate-700 tracking-tight">{progressModalStats.total}</div>
                   <div className="text-xs text-slate-500 font-medium mt-1">涉及科室</div>
                 </div>
                 <div className="w-px h-8 bg-slate-200" />
                 <div className="text-center flex-1">
-                  <div className="text-2xl font-black text-emerald-600 tracking-tight">0</div>
-                  <div className="text-xs text-slate-500 font-medium mt-1">已填完</div>
+                  <div className="text-2xl font-black text-emerald-600 tracking-tight">{progressModalStats.filled}</div>
+                  <div className="text-xs text-slate-500 font-medium mt-1">已完结</div>
                 </div>
                 <div className="w-px h-8 bg-slate-200" />
                 <div className="text-center flex-1">
-                  <div className="text-2xl font-black text-rose-500 tracking-tight">3</div>
-                  <div className="text-xs text-slate-500 font-medium mt-1">未填完</div>
+                  <div className="text-2xl font-black text-rose-500 tracking-tight">{progressModalStats.unfilled}</div>
+                  <div className="text-xs text-slate-500 font-medium mt-1">未完结</div>
                 </div>
                 <div className="w-px h-8 bg-slate-200" />
                 <div className="text-center flex-1">
-                  <div className="text-2xl font-black text-blue-600 tracking-tight">9000</div>
+                  <div className="text-2xl font-black text-blue-600 tracking-tight">{progressModalStats.amount}</div>
                   <div className="text-xs text-slate-500 font-medium mt-1">违规金额</div>
                 </div>
               </div>
@@ -472,9 +547,11 @@ export function DataReview() {
                   className="w-full px-4 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 appearance-none text-slate-600 cursor-pointer"
                 >
                   <option value="">全部进度</option>
-                  <option value="审核通过">审核通过</option>
-                  <option value="未填报">未填报</option>
-                  <option value="填报中">填报中</option>
+                  {!progressModalStats.isDeduction && <option value="审核通过">审核通过</option>}
+                  {!progressModalStats.isDeduction && <option value="填报中">填报中</option>}
+                  {!progressModalStats.isDeduction && <option value="未填报">未填报</option>}
+                  {progressModalStats.isDeduction && <option value="已读确认">已读确认</option>}
+                  {progressModalStats.isDeduction && <option value="未读">未读</option>}
                 </select>
                 <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
               </div>
@@ -507,7 +584,7 @@ export function DataReview() {
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {filteredProgressData.map((row) => {
-                    const isUnfilled = row.progress === "未填报";
+                    const isUnfilled = row.progress === "未填报" || row.progress === "未读";
                     return (
                       <tr key={row.id} className="bg-white hover:bg-slate-50/50 transition-colors group">
                         <td className="px-4 py-3 text-center">
@@ -526,7 +603,7 @@ export function DataReview() {
                         <td className="px-4 py-3">
                           <Badge status={getProgressBadgeStatus(row.progress)}>{row.progress}</Badge>
                         </td>
-                        <td className="px-4 py-3 sticky right-0 bg-inherit z-10 shadow-[-1px_0_0_#e2e8f0]">
+                        <td className="px-4 py-3 sticky right-0 bg-white group-hover:bg-slate-50/50 transition-colors z-10 shadow-[-1px_0_0_#e2e8f0]">
                           <button 
                             className={`text-sm font-medium transition-opacity ${isUnfilled ? 'text-blue-600 hover:text-blue-800' : 'text-slate-300 cursor-not-allowed'}`}
                             disabled={!isUnfilled}

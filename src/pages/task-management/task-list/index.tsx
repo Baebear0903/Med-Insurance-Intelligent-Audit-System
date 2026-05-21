@@ -119,6 +119,8 @@ export function TaskList() {
   // Action generators
   const renderActions = (r: Task) => {
     const actions: Array<{ label: string, onClick: () => void, isLink?: boolean, linkTo?: string, isDanger?: boolean }> = [];
+    
+    // Actions mapping
     const endTask = { label: "结束任务", onClick: () => { setActiveTask(r); setIsEndTaskModalOpen(true); }, isDanger: true };
     const issueData = { label: "问题数据", isLink: true, linkTo: `/task-management/task-list/issue-data/index?id=${r.id}`, onClick: () => {} };
     const matchVisit = { label: "匹配就诊", onClick: () => { setActiveTask(r); setIsMatchVisitModalOpen(true); } };
@@ -126,23 +128,44 @@ export function TaskList() {
     const intelligentFill = { label: "智能填报", onClick: () => { 
       toast("正在进行AI智能填报", "success"); 
       mockApi.startAIFill(r.id);
-      fetchData(); // to update status visually if needed
+      fetchData();
     } };
     const importAction = { label: "导入", onClick: () => { setActiveTask(r); setIsImportModalOpen(true); } };
     const dispatchAction = { label: "下发", onClick: () => { setActiveTask(r); setIsDispatchModalOpen(true); } };
+    const downloadDataAction = { label: "下载数据", onClick: () => { toast("数据已下载", "success"); } };
 
-    switch(r.status) {
-      case "CREATE":
-        actions.push(importAction, dispatchAction, issueData, matchVisit, intelligentFill, endTask); break;
-      case "PUBLISH":
-        actions.push(issueData, matchVisit, intelligentFill, endTask); break;
-      case "SUBMITTED":
-      case "WITHDRAWN":
-        actions.push(issueData, matchVisit, endTask); break;
-      case "COMPLETE":
-        actions.push(issueData, resultImport, matchVisit, endTask); break;
-      case "END":
-        actions.push(issueData, resultImport, matchVisit); break;
+    if (r.templateId === "TPL_DED") {
+      switch(r.status) {
+        case "CREATE": // 待下发
+          actions.push(importAction, dispatchAction, issueData, endTask); break;
+        case "PUBLISH": // 填报中
+          actions.push(issueData, endTask); break;
+        case "SUBMITTED": // 已提交
+          actions.push(issueData, endTask); break;
+        case "COMPLETE": // 审核完成
+          actions.push(issueData, downloadDataAction, endTask); break;
+        case "END": // 已结束
+          actions.push(issueData, downloadDataAction); break;
+        default: // 对于其他异常状态（已取消BACK、已撤回CANCELLATION、已驳回WITHDRAWN等），展示问题数据
+          actions.push(issueData); break;
+      }
+    } else {
+      // Normal logic for non-TPL_DED tasks
+      switch(r.status) {
+        case "CREATE":
+          actions.push(importAction, dispatchAction, issueData, matchVisit, intelligentFill, endTask); break;
+        case "PUBLISH":
+          actions.push(issueData, matchVisit, intelligentFill, endTask); break;
+        case "SUBMITTED":
+        case "WITHDRAWN":
+          actions.push(issueData, matchVisit, endTask); break;
+        case "COMPLETE":
+          actions.push(issueData, resultImport, matchVisit, endTask); break;
+        case "END":
+          actions.push(issueData, resultImport, matchVisit); break;
+        default:
+          actions.push(issueData); break;
+      }
     }
 
     return (
