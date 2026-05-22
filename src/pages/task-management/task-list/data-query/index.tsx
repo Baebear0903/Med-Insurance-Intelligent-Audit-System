@@ -177,6 +177,9 @@ export default function DataQuery() {
     }
   };
 
+  const [isColumnSettingsOpen, setIsColumnSettingsOpen] = useState(false);
+  const [hiddenColumns, setHiddenColumns] = useState<string[]>([]);
+
   useEffect(() => {
     fetchTaskData();
     const handleUpdate = () => {
@@ -210,8 +213,6 @@ export default function DataQuery() {
   
   const showAiProgress = template.templateType === "医保审核反馈" && aiTotalCount > 0;
 
-  const [isColumnSettingsOpen, setIsColumnSettingsOpen] = useState(false);
-  const [hiddenColumns, setHiddenColumns] = useState<string[]>([]);
   const configurableColumns: ColumnItem[] = template.fields
     .filter(f => f.isShow !== false)
     .map(f => ({

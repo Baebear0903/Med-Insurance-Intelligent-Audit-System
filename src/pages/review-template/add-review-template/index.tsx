@@ -342,7 +342,7 @@ export function AddReviewTemplate() {
               </thead>
               <tbody className="divide-y divide-slate-100 divide-x divide-slate-100">
                 {(formData.fields || []).map((field, idx) => (
-                  <tr key={field.id} className="group hover:bg-blue-50/20 transition-colors">
+                  <tr key={field.id} className="group hover:bg-blue-50 transition-colors">
                     <td className="px-3 py-2 text-center text-slate-400 font-mono italic">{idx + 1}</td>
                     <td className="px-2 py-1.5">
                       <input 
@@ -416,7 +416,7 @@ export function AddReviewTemplate() {
                     <td className="px-2 py-2 text-center">
                       <input type="checkbox" checked={field.noUpdate} onChange={(e) => handleUpdateField(idx, { noUpdate: e.target.checked })} />
                     </td>
-                    <td className="px-3 py-2 text-left sticky right-0 bg-white group-hover:bg-blue-50/20 shadow-[-4px_0_4px_-4px_rgba(0,0,0,0.1)]">
+                    <td className="px-3 py-2 text-left sticky right-0 bg-white group-hover:bg-blue-50 shadow-[-4px_0_4px_-4px_rgba(0,0,0,0.1)]">
                       <div className="flex items-center justify-start gap-1.5">
                         <button onClick={() => handleAction(idx, "copy")} className="p-1 text-blue-500 hover:bg-blue-50 rounded" title="复制一行"><Copy className="w-3.5 h-3.5"/></button>
                         {((formData.templateType || "医保审核反馈") !== "医保审核反馈" || !DEFAULT_FEEDBACK_FIELDS.map(f => f.name).includes(field.name)) && (

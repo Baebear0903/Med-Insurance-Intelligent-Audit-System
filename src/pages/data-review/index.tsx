@@ -437,7 +437,7 @@ export function DataReview() {
               {filteredTasks.map((row) => (
                 <React.Fragment key={row.id}>
                   {/* Master Row */}
-                  <tr className="hover:bg-slate-50/50 transition-colors group bg-white">
+                  <tr className="hover:bg-slate-50 transition-colors group bg-white">
                     <td className="p-3 text-center">
                       <button 
                         onClick={() => toggleRow(row.id)}
@@ -448,7 +448,7 @@ export function DataReview() {
                     </td>
                     <td className="p-3 text-slate-600">{row.index}</td>
                     {configurableColumns.filter(c => c.visible).map(c => colCellMap(row)[c.key])}
-                    <td className="p-3 sticky right-0 bg-white group-hover:bg-slate-50/50 transition-colors z-10 shadow-[-1px_0_0_#e2e8f0]">
+                    <td className="p-3 sticky right-0 bg-white group-hover:bg-slate-50 transition-colors z-10 shadow-[-1px_0_0_#e2e8f0]">
                       <button 
                         onClick={() => openProgressModal(row)} 
                         className="text-blue-600 hover:text-blue-800 font-medium transition-opacity"
@@ -466,12 +466,12 @@ export function DataReview() {
                         initial={{ opacity: 0, height: 0 }}
                         animate={{ opacity: 1, height: "auto" }}
                         exit={{ opacity: 0, height: 0 }}
-                        className="bg-slate-50 hover:bg-slate-100/80 transition-colors group"
+                        className="bg-slate-50 hover:bg-slate-100 transition-colors group"
                       >
                         <td className="p-3 border-l-2 border-blue-500/20"></td>
                         <td className="p-3"></td>
                         {configurableColumns.filter(c => c.visible).map(c => colChildCellMap(child, row)[c.key])}
-                        <td className="p-3 sticky right-0 bg-slate-50 group-hover:bg-slate-100/80 transition-colors z-10 shadow-[-1px_0_0_#e2e8f0]">
+                        <td className="p-3 sticky right-0 bg-slate-50 group-hover:bg-slate-100 transition-colors z-10 shadow-[-1px_0_0_#e2e8f0]">
                           <Button 
                             variant="primary" 
                             size="sm" 
@@ -586,7 +586,7 @@ export function DataReview() {
                   {filteredProgressData.map((row) => {
                     const isUnfilled = row.progress === "未填报" || row.progress === "未读";
                     return (
-                      <tr key={row.id} className="bg-white hover:bg-slate-50/50 transition-colors group">
+                      <tr key={row.id} className="bg-white hover:bg-slate-50 transition-colors group">
                         <td className="px-4 py-3 text-center">
                           <input 
                             type="checkbox"
@@ -603,7 +603,7 @@ export function DataReview() {
                         <td className="px-4 py-3">
                           <Badge status={getProgressBadgeStatus(row.progress)}>{row.progress}</Badge>
                         </td>
-                        <td className="px-4 py-3 sticky right-0 bg-white group-hover:bg-slate-50/50 transition-colors z-10 shadow-[-1px_0_0_#e2e8f0]">
+                        <td className="px-4 py-3 sticky right-0 bg-white group-hover:bg-slate-50 transition-colors z-10 shadow-[-1px_0_0_#e2e8f0]">
                           <button 
                             className={`text-sm font-medium transition-opacity ${isUnfilled ? 'text-blue-600 hover:text-blue-800' : 'text-slate-300 cursor-not-allowed'}`}
                             disabled={!isUnfilled}
