@@ -635,12 +635,27 @@ export function FillReportDetail() {
         {/* Toolbar & Filters */}
         <div className="flex flex-col gap-0 bg-white rounded-xl shadow-sm border border-slate-200">
           <div className="flex items-center justify-between px-4 py-3">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-4">
               {!isDeductionTask && (
-                <div className="bg-blue-50 px-3 py-1.5 rounded-lg border border-blue-100 mr-2">
+                <div className="bg-blue-50 px-3 py-1.5 rounded-lg border border-blue-100">
                   <span className="text-blue-600 text-xs font-bold">已选 {selectedIds.length} 项</span>
                 </div>
               )}
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-medium text-slate-500">填报状态</span>
+                <select 
+                  className="px-3 py-1.5 bg-white border border-slate-200 rounded-md text-sm w-36 focus:ring-2 focus:ring-blue-500/20 focus:outline-none focus:border-blue-500"
+                  value={filterStatus}
+                  onChange={(e) => setFilterStatus(e.target.value)}
+                >
+                  <option value="全部">全部</option>
+                  <option value="未填报">未填报</option>
+                  <option value="AI填报">AI填报</option>
+                  <option value="已填报">已填报</option>
+                  <option value="审核通过">审核通过</option>
+                  <option value="已驳回">已驳回</option>
+                </select>
+              </div>
             </div>
             
             <div className="flex items-center gap-3">
@@ -690,21 +705,6 @@ export function FillReportDetail() {
                       />
                     </div>
                   ))}
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-medium text-slate-500">填报状态</span>
-                    <select 
-                      className="px-3 py-1.5 bg-white border border-slate-200 rounded-md text-sm w-36 focus:ring-2 focus:ring-blue-500/20 focus:outline-none focus:border-blue-500"
-                      value={filterStatus}
-                      onChange={(e) => setFilterStatus(e.target.value)}
-                    >
-                      <option value="全部">全部</option>
-                      <option value="未填报">未填报</option>
-                      <option value="AI填报">AI填报</option>
-                      <option value="已填报">已填报</option>
-                      <option value="审核通过">审核通过</option>
-                      <option value="已驳回">已驳回</option>
-                    </select>
-                  </div>
                   <div className="flex items-center gap-2 ml-auto">
                     <Button variant="primary" size="sm" className="px-5" onClick={() => toast("查询成功", "success")}><Search className="w-4 h-4 mr-1.5"/>查询</Button>
                     <Button variant="outline" size="sm" className="px-5" onClick={() => { setFilterStatus("全部"); toast("重置成功", "success"); }}>重置</Button>
