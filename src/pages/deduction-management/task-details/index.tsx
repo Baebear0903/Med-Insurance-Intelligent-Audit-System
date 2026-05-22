@@ -18,7 +18,7 @@ const extractMonthFromTaskName = (name: string) => {
 interface TaskSummary {
   id: string;
   name: string;
-  month: string;
+  businessCategory: string;
   deductibleCount: number;
   totalViolationAmount: number;
   totalDeductionAmount: number;
@@ -83,6 +83,9 @@ export default function DeductionTaskDetails() {
       const validDetails = details.filter(d => d.data && d.data.IS_APPEAL === "否").map(d => ({...d.data, id: d.id})).sort((a,b) => (a.ADMIT_DATE > b.ADMIT_DATE ? -1 : 1));
       
       if (t) {
+        const allTemplates = mockApi.getTemplates();
+        const template = allTemplates.find(tpl => tpl.id === t.templateId);
+        
         let sumViolation = 0;
         let sumDeduction = 0;
         validDetails.forEach(d => {
@@ -93,7 +96,7 @@ export default function DeductionTaskDetails() {
         setTaskSummary({
           id: t.id,
           name: t.name,
-          month: extractMonthFromTaskName(t.name) || "",
+          businessCategory: template?.businessCategory || "广州医保（线下）",
           deductibleCount: validDetails.length,
           totalViolationAmount: sumViolation,
           totalDeductionAmount: sumDeduction,
@@ -117,7 +120,7 @@ export default function DeductionTaskDetails() {
       toast("没有可导出的数据", "info");
       return;
     }
-    exportToExcel(exportData, `${taskSummary?.month || ""}医保扣减明细.xlsx`);
+    exportToExcel(exportData, `${taskSummary?.businessCategory || ""}医保扣减明细.xlsx`);
     toast("院内扣减明细已下载", "success");
   };
 
@@ -170,8 +173,8 @@ export default function DeductionTaskDetails() {
          </div>
          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 px-10">
              <div>
-               <div className="text-xs text-slate-500 mb-1">数据时间</div>
-               <div className="font-semibold text-slate-800">{taskSummary?.month}</div>
+               <div className="text-xs text-slate-500 mb-1">医保业务分类</div>
+               <div className="font-semibold text-slate-800">{taskSummary?.businessCategory}</div>
              </div>
              <div>
                <div className="text-xs text-slate-500 mb-1">可扣减记录数</div>
@@ -196,7 +199,7 @@ export default function DeductionTaskDetails() {
 
       <div className="flex-1 overflow-hidden bg-white rounded-md shadow-sm border border-slate-200 flex flex-col">
         <div className="flex items-center justify-between p-4 border-b border-slate-100">
-           <h2 className="text-base font-semibold text-slate-800">{taskSummary?.month} 医保扣减明细</h2>
+           <h2 className="text-base font-semibold text-slate-800">{taskSummary?.businessCategory} 医保扣减明细</h2>
         </div>
         <div className="flex-1 overflow-hidden p-4">
           {isLoading ? (

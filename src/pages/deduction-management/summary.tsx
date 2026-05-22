@@ -5,6 +5,7 @@ import { Download, Settings, Search } from "lucide-react";
 import { mockApi } from "@/src/lib/mockData";
 import { toast } from "@/src/components/ui/Toast";
 import { exportToExcel } from "@/src/lib/exportUtils";
+import { ColumnSettingsModal, ColumnItem } from "@/src/components/ColumnSettingsModal";
 
 export default function DeductionSummary() {
   const [data, setData] = useState<any[]>([]);
@@ -116,6 +117,15 @@ export default function DeductionSummary() {
     };
   }, [filteredRecords]);
 
+  const [isColumnSettingsOpen, setIsColumnSettingsOpen] = useState(false);
+  const [configurableColumns, setConfigurableColumns] = useState([
+    { key: "target", title: "扣减科室或个人", visible: true },
+    { key: "totalViolation", title: "违规金额（单位：元）", visible: true },
+    { key: "totalDeduction", title: "扣减科室或个人金额", visible: true },
+    { key: "medComDeduction", title: "扣减金额（药费/耗材）", visible: true },
+    { key: "otherDeduction", title: "扣减金额（其它）", visible: true },
+  ]);
+
   const handleExport = () => {
     if (summaryResult.length === 0) {
       toast("没有可导出的数据", "info");
@@ -135,11 +145,20 @@ export default function DeductionSummary() {
 
   const columns: Column<any>[] = [
     { key: "index", title: "序号", width: "80px", align: "center", render: (_, idx) => idx + 1 },
-    { key: "target", title: "扣减科室或个人" },
-    { key: "totalViolation", title: "违规金额（单位：元）", width: "200px", align: "right", render: (r) => r.totalViolation.toFixed(2) },
-    { key: "totalDeduction", title: "扣减科室或个人金额", width: "220px", align: "right", render: (r) => r.totalDeduction.toFixed(2) },
-    { key: "medComDeduction", title: "扣减金额（药费/耗材）", width: "220px", align: "right", render: (r) => r.medComDeduction.toFixed(2) },
-    { key: "otherDeduction", title: "扣减金额（其它）", width: "200px", align: "right", render: (r) => r.otherDeduction.toFixed(2) },
+    ...configurableColumns.filter(c => c.visible).map(c => {
+      let align: "right" | "center" | "left" | undefined = undefined;
+      let width: string | undefined = undefined;
+      let render: ((r: any) => React.ReactNode) | undefined = undefined;
+
+      if (c.key === "target") {
+        align = "left";
+      } else {
+        align = "right";
+        width = c.key === "totalDeduction" || c.key === "medComDeduction" ? "220px" : "200px";
+        render = (r: any) => r[c.key].toFixed(2);
+      }
+      return { key: c.key, title: c.title, width, align, render };
+    })
   ];
 
   let displayTitle = "医保扣减总览";
@@ -182,7 +201,7 @@ export default function DeductionSummary() {
             <Download className="w-4 h-4" />
             导出数据
           </Button>
-          <Button variant="outline" size="sm" className="px-2" title="设置">
+          <Button variant="outline" size="sm" className="px-2" title="设置" onClick={() => setIsColumnSettingsOpen(true)}>
             <Settings className="w-4 h-4 text-slate-600" />
           </Button>
         </div>
@@ -241,6 +260,16 @@ export default function DeductionSummary() {
           )}
         </div>
       </div>
+
+      <ColumnSettingsModal
+        isOpen={isColumnSettingsOpen}
+        onClose={() => setIsColumnSettingsOpen(false)}
+        columns={configurableColumns as ColumnItem[]}
+        onSave={(newCols) => {
+          setConfigurableColumns(newCols);
+          setIsColumnSettingsOpen(false);
+        }}
+      />
     </div>
   );
 }

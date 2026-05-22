@@ -21,7 +21,7 @@ const DEFAULT_FEEDBACK_FIELDS: TemplateField[] = [
   { id: "DF_IS_APPEAL", name: "IS_APPEAL", comment: "是/否申诉", type: "VARCHAR", length: 10, decimal: 0, isPrimaryKey: false, isNotNull: false, isRequired: false, isShow: true, displayName: "", isQueryable: false, isFeedback: true, noUpdate: false },
   { id: "DF_APPEAL_REASON", name: "APPEAL_REASON", comment: "申诉原因", type: "VARCHAR", length: 500, decimal: 0, isPrimaryKey: false, isNotNull: false, isRequired: false, isShow: true, displayName: "", isQueryable: false, isFeedback: true, noUpdate: false },
   { id: "DF_APPEAL_ATTACHMENT", name: "APPEAL_ATTACHMENT", comment: "申诉附件", type: "VARCHAR", length: 500, decimal: 0, isPrimaryKey: false, isNotNull: false, isRequired: false, isShow: true, displayName: "", isQueryable: false, isFeedback: true, noUpdate: false },
-  { id: "DF_APPEAL_REMARK", name: "APPEAL_REMARK", comment: "申诉备注", type: "VARCHAR", length: 500, decimal: 0, isPrimaryKey: false, isNotNull: false, isRequired: false, isShow: true, displayName: "", isQueryable: false, isFeedback: true, noUpdate: false },
+  { id: "DF_APPEAL_REMARK", name: "APPEAL_REMARK", comment: "申诉备注", type: "VARCHAR", length: 500, decimal: 0, isPrimaryKey: false, isNotNull: false, isRequired: false, isShow: true, displayName: "", isQueryable: false, isFeedback: true, noUpdate: true },
 ];
 
 export function AddReviewTemplate() {

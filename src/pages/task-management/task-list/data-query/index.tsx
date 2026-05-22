@@ -25,6 +25,7 @@ import {
 } from "@/src/lib/mockData";
 import { TASK_STATUS, DEPARTMENTS } from "@/src/lib/constants";
 import { downloadZipWithExcel } from "@/src/lib/exportUtils";
+import { ColumnSettingsModal, ColumnItem } from "@/src/components/ColumnSettingsModal";
 
 // Mock data generator no longer used, removed
 
@@ -209,6 +210,21 @@ export default function DataQuery() {
   
   const showAiProgress = template.templateType === "医保审核反馈" && aiTotalCount > 0;
 
+  const [isColumnSettingsOpen, setIsColumnSettingsOpen] = useState(false);
+  const [hiddenColumns, setHiddenColumns] = useState<string[]>([]);
+  const configurableColumns: ColumnItem[] = template.fields
+    .filter(f => f.isShow !== false)
+    .map(f => ({
+      key: f.name,
+      title: f.displayName || f.comment || f.name,
+      visible: !hiddenColumns.includes(f.name)
+    }));
+
+  const handleSaveColumns = (newCols: ColumnItem[]) => {
+    const newHidden = newCols.filter(c => !c.visible).map(c => c.key);
+    setHiddenColumns(newHidden);
+    setIsColumnSettingsOpen(false);
+  };
 
   const renderSearchInput = (field: TemplateField) => {
     const isSpecialSelect = [
@@ -278,7 +294,7 @@ export default function DataQuery() {
         />
       ),
     },
-    ...template.fields.filter(f => f.isShow !== false).map((f) => ({
+    ...template.fields.filter(f => f.isShow !== false && !hiddenColumns.includes(f.name)).map((f) => ({
       key: f.name,
       title: f.displayName || f.comment || f.name,
       width: "15%",
@@ -413,7 +429,7 @@ export default function DataQuery() {
               <Download className="w-4 h-4 mr-1.5" />
               导出所有数据
             </Button>
-            <Button variant="outline" size="sm" className="px-2" onClick={() => toast("设置已打开")}>
+            <Button variant="outline" size="sm" className="px-2" onClick={() => setIsColumnSettingsOpen(true)} title="设置">
               <Settings className="w-4 h-4 text-slate-500" />
             </Button>
           </div>
@@ -533,6 +549,12 @@ export default function DataQuery() {
             </div>
           </div>
         </Modal>
+        <ColumnSettingsModal
+          isOpen={isColumnSettingsOpen}
+          onClose={() => setIsColumnSettingsOpen(false)}
+          columns={configurableColumns}
+          onSave={handleSaveColumns}
+        />
       </div>
     </div>
   );

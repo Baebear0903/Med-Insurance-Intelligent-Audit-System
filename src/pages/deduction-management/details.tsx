@@ -14,7 +14,7 @@ import { useNavigate } from "react-router-dom";
 interface TaskSummary {
   id: string;
   name: string;
-  month: string;
+  businessCategory: string;
   deductibleCount: number;
   totalViolationAmount: number;
   totalDeductionAmount: number;
@@ -50,6 +50,8 @@ export default function DeductionDetails() {
     setIsLoading(true);
     setTimeout(() => {
       const allTasks = mockApi.getTasks(1, 1000).data;
+      const allTemplates = mockApi.getTemplates();
+      // "扣减明细" lists tasks, maybe it uses TPL_GZ_YB as before.
       const validTasks = allTasks.filter(t => t.templateId === "TPL_GZ_YB" && t.status === "END" && !t.parentId);
       
       const viewedIds = JSON.parse(localStorage.getItem("viewed_deduction_tasks") || "[]");
@@ -57,6 +59,7 @@ export default function DeductionDetails() {
       const taskSummaries: TaskSummary[] = validTasks.map(t => {
         const details = mockApi.getTaskDetailRecords(t.id);
         const validDetails = details.filter(d => d.data && d.data.IS_APPEAL === "否").map(d => d.data);
+        const template = allTemplates.find(tpl => tpl.id === t.templateId);
         
         let sumViolation = 0;
         let sumDeduction = 0;
@@ -65,16 +68,18 @@ export default function DeductionDetails() {
           sumDeduction += (Number(d._DEDUCTION_MED_COM) || 0) + (Number(d._DEDUCTION_OTHER) || 0); // or _DEDUCTION_AMOUNT
         });
 
+        const bc = template?.businessCategory || "广州医保（线下）";
+
         return {
           id: t.id,
           name: t.name,
-          month: extractMonthFromTaskName(t.name) || (t.createTime.substring(0, 7).replace('-', '年') + '月'),
+          businessCategory: bc,
           deductibleCount: validDetails.length,
           totalViolationAmount: sumViolation,
           totalDeductionAmount: sumDeduction,
           isNew: !viewedIds.includes(t.id)
         };
-      }).sort((a,b) => (a.month > b.month ? -1 : 1));
+      });
 
       setTasks(taskSummaries);
       setIsLoading(false);
@@ -128,8 +133,16 @@ export default function DeductionDetails() {
     setSelectedRowKeys([]);
   };
 
+  const [isColumnSettingsOpen, setIsColumnSettingsOpen] = useState(false);
+  const [configurableColumns, setConfigurableColumns] = useState<ColumnItem[]>([
+    { key: "name", title: "任务名称", visible: true },
+    { key: "businessCategory", title: "医保业务分类", visible: true },
+    { key: "deductibleCount", title: "可扣减记录数", visible: true },
+    { key: "totalDeductionAmount", title: "扣减金额合计 (元)", visible: true }
+  ]);
+
   const filteredTasks = tasks.filter(t => 
-    (filterMonth ? t.month.includes(filterMonth) : true) &&
+    (filterMonth ? t.businessCategory.includes(filterMonth) : true) &&
     (filterName ? t.name.includes(filterName) : true)
   );
 
@@ -137,23 +150,40 @@ export default function DeductionDetails() {
   const mergeTotalRecords = selectedTaskObjects.reduce((acc, t) => acc + t.deductibleCount, 0);
   const mergeTotalViolation = selectedTaskObjects.reduce((acc, t) => acc + t.totalViolationAmount, 0);
   const mergeTotalDeduction = selectedTaskObjects.reduce((acc, t) => acc + t.totalDeductionAmount, 0);
-  const uniqueMonths = Array.from(new Set(selectedTaskObjects.map(t => t.month))).join("、");
+  const uniqueMonths = Array.from(new Set(selectedTaskObjects.map(t => t.businessCategory))).join("、");
 
   const columns: Column<TaskSummary>[] = [
     { key: "index", title: "序号", width: "70px", render: (_, idx) => idx + 1 },
-    { key: "name", title: "任务名称", width: "250px", render: (r) => (
-      <div className="flex items-center space-x-2">
-        <span className="truncate">{r.name}</span>
-        {r.isNew && (
-          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-green-100 text-green-700 select-none">
-            NEW
-          </span>
-        )}
-      </div>
-    )},
-    { key: "month", title: "数据时间", width: "120px" },
-    { key: "deductibleCount", title: "可扣减记录数", width: "130px", align: "center" },
-    { key: "totalDeductionAmount", title: "扣减金额合计 (元)", width: "160px", align: "right", render: (r) => r.totalDeductionAmount.toFixed(2) },
+    ...configurableColumns.filter(c => c.visible).map(c => {
+      let align: "right" | "center" | "left" | undefined = undefined;
+      let width: string | undefined = undefined;
+      let render: ((r: TaskSummary) => React.ReactNode) | undefined = undefined;
+
+      if (c.key === "name") {
+        width = "250px";
+        render = (r) => (
+          <div className="flex items-center space-x-2">
+            <span className="truncate">{r.name}</span>
+            {r.isNew && (
+              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-green-100 text-green-700 select-none">
+                NEW
+              </span>
+            )}
+          </div>
+        );
+      } else if (c.key === "businessCategory") {
+        width = "160px";
+        render = (r) => r.businessCategory;
+      } else if (c.key === "deductibleCount") {
+        width = "130px";
+        align = "center";
+      } else if (c.key === "totalDeductionAmount") {
+        width = "160px";
+        align = "right";
+        render = (r) => r.totalDeductionAmount.toFixed(2);
+      }
+      return { key: c.key, title: c.title, width, align, render };
+    }),
     { key: "action", title: "操作", width: "160px", align: "center", fixed: "right", render: (r) => (
       <div className="flex items-center justify-center space-x-3">
         <button onClick={() => handleView(r.id)} className="text-blue-600 hover:text-blue-800 text-sm font-medium">查看明细</button>
@@ -171,7 +201,7 @@ export default function DeductionDetails() {
               <Search className="w-4 h-4 text-slate-400 mr-2" />
               <input 
                 type="text" 
-                placeholder="查询年份/月份" 
+                placeholder="医保业务分类" 
                 value={filterMonth}
                 onChange={e => setFilterMonth(e.target.value)}
                 className="bg-transparent text-sm w-32 outline-none text-slate-700" 
@@ -205,7 +235,7 @@ export default function DeductionDetails() {
                 <ArrowDownToLine className="w-4 h-4" />
                 合并下载
               </Button>
-              <button className="text-slate-400 hover:text-slate-600 p-1 rounded-md hover:bg-slate-50 transition-colors">
+              <button className="text-slate-400 hover:text-slate-600 p-1 rounded-md hover:bg-slate-50 transition-colors" onClick={() => setIsColumnSettingsOpen(true)}>
                 <Settings className="w-5 h-5" />
               </button>
            </div>
@@ -232,7 +262,7 @@ export default function DeductionDetails() {
                  <div className="font-semibold text-slate-800 text-lg">{selectedTaskObjects.length} 个</div>
                </div>
                <div>
-                 <div className="text-xs text-slate-500 mb-1">包含月份</div>
+                 <div className="text-xs text-slate-500 mb-1">包含分类</div>
                  <div className="font-semibold text-slate-800 truncate" title={uniqueMonths}>{uniqueMonths}</div>
                </div>
                <div>
@@ -255,7 +285,7 @@ export default function DeductionDetails() {
                     <thead className="bg-slate-50 sticky top-0 z-10 border-b border-slate-200 text-slate-600">
                        <tr>
                          <th className="px-4 py-2 bg-slate-50">任务名称</th>
-                         <th className="px-4 py-2 bg-slate-50">数据时间</th>
+                         <th className="px-4 py-2 bg-slate-50">医保业务分类</th>
                          <th className="px-4 py-2 text-center bg-slate-50">可扣减记录数</th>
                          <th className="px-4 py-2 text-right bg-slate-50">扣减金额合计 (元)</th>
                        </tr>
@@ -264,7 +294,7 @@ export default function DeductionDetails() {
                        {selectedTaskObjects.map(t => (
                          <tr key={t.id} className="hover:bg-slate-50">
                            <td className="px-4 py-3">{t.name}</td>
-                           <td className="px-4 py-3">{t.month}</td>
+                           <td className="px-4 py-3">{t.businessCategory}</td>
                            <td className="px-4 py-3 text-center">{t.deductibleCount}</td>
                            <td className="px-4 py-3 text-right">{t.totalDeductionAmount.toFixed(2)}</td>
                          </tr>
@@ -280,6 +310,15 @@ export default function DeductionDetails() {
             </div>
          </div>
       </Modal>
+      <ColumnSettingsModal
+        isOpen={isColumnSettingsOpen}
+        onClose={() => setIsColumnSettingsOpen(false)}
+        columns={configurableColumns as ColumnItem[]}
+        onSave={(newCols) => {
+          setConfigurableColumns(newCols);
+          setIsColumnSettingsOpen(false);
+        }}
+      />
     </div>
   );
 }
