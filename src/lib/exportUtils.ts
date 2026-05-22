@@ -7,14 +7,14 @@ import * as XLSX from "xlsx";
  * @param excelFilename 导出的表格文件名 (应为 .xlsx 结尾)
  * @param headers 表格首行标题数组
  * @param rows 表格行数据二维数组
- * @param attachments 附件列表，格式为: { name: string, recordInfo?: string }[]
+ * @param attachments 附件列表，格式为: { name: string, recordInfo?: string, folderName?: string }[]
  */
 export async function downloadZipWithExcel(
   zipFilename: string,
   excelFilename: string,
   headers: string[],
   rows: any[][],
-  attachments: { name: string; recordInfo?: string }[]
+  attachments: { name: string; recordInfo?: string; folderName?: string }[]
 ) {
   const zip = new JSZip();
 
@@ -28,23 +28,24 @@ export async function downloadZipWithExcel(
 
   zip.file(excelFilename, xlsxBuffer);
 
-  // 2. 将附近打包进“附件内容”文件夹
-  const folder = zip.folder("附件内容");
-  if (folder) {
-    attachments.forEach(att => {
-      if (att.name) {
-        // 多附件处理
-        const names = att.name.split(", ");
-        names.forEach(name => {
-          const trimmed = name.trim();
-          if (trimmed) {
-            const content = `[演示佐证附件]\n文件名: ${trimmed}\n归属患者/信息: ${att.recordInfo || "未知"}\n\n该说明文件属于医保真实申报批量附件包`;
+  // 2. 将附件按要求打包进各个文件夹
+  attachments.forEach(att => {
+    if (att.name) {
+      const names = att.name.split(", ");
+      names.forEach(name => {
+        const trimmed = name.trim();
+        if (trimmed) {
+          // 如果有 folderName，则在该文件夹下，否则放到“附件内容”文件夹
+          const folderName = att.folderName || "附件内容";
+          const folder = zip.folder(folderName);
+          if (folder) {
+            const content = `[演示佐证附件]\n文件名: ${trimmed}\n归属患者/信息: ${att.recordInfo || "未知"}\n\n该说明文件属于医保真实申报测试附近包`;
             folder.file(trimmed, content);
           }
-        });
-      }
-    });
-  }
+        }
+      });
+    }
+  });
 
   // 3. 压缩并下载
   const content = await zip.generateAsync({ type: "blob" });

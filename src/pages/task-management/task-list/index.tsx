@@ -6,6 +6,7 @@ import { Badge } from "@/src/components/ui/Badge";
 import { Pagination } from "@/src/components/ui/Pagination";
 import { toast } from "@/src/components/ui/Toast";
 import { mockApi, Task, ReviewTemplate } from "@/src/lib/mockData";
+import { downloadZipWithExcel } from "@/src/lib/exportUtils";
 import { TASK_STATUS, DEPARTMENTS } from "@/src/lib/constants";
 import { Search, Plus, MoreVertical, Settings, Filter, Download, Trash2, XCircle } from "lucide-react";
 import { Link } from "react-router-dom";
@@ -16,7 +17,7 @@ export function TaskList() {
   const [isColumnSettingsOpen, setIsColumnSettingsOpen] = useState(false);
   const [configurableColumns, setConfigurableColumns] = useState<ColumnItem[]>([
     { key: "name", title: "任务名称", visible: true },
-    { key: "departmentId", title: "下发科室", visible: true },
+    { key: "departmentId", title: "创建科室", visible: true },
     { key: "templateName", title: "数据模板", visible: true },
     { key: "status", title: "任务状态", visible: true },
     { key: "creator", title: "任务创建人", visible: true },
@@ -116,6 +117,88 @@ export function TaskList() {
     }
   };
 
+  // Action handlers
+  const handleDownloadTask = async (task: Task) => {
+    toast("正在生成下载文件...", "info");
+    const tpl = templates.find(t => t.id === task.templateId);
+    let headers: string[] = ["序号", "填报状态", "审核状态"];
+    if (tpl) {
+      headers = [...headers, ...tpl.fields.map(f => f.displayName || f.comment || f.name)];
+    } else {
+      headers = [...headers, "数据详情"];
+    }
+
+    const allRecords = mockApi.getTaskDetailRecords(task.id);
+    const rows = allRecords.map((r: any, idx: number) => {
+      const getStatusLabel = (s: string) => {
+        if (s === "UNFILL") return "未填报";
+        if (s === "FILLED") return "已填报";
+        if (s === "APPROVED") return "审核通过";
+        if (s === "REJECTED") return "已驳回";
+        if (s === "AI_FILLED") return "AI已填";
+        if (s === "AI_FILLING") return "AI填充中";
+        return s || "未开始";
+      };
+      
+      const getAuditStatusLabel = (ast: number) => {
+        if (ast === 0) return "已送审";
+        if (ast === 1) return "待审核";
+        if (ast === 2) return "审核通过";
+        if (ast === 3) return "审核驳回";
+        if (ast === 7) return "未作申诉填报";
+        if (ast === 8) return "已申诉";
+        return "-";
+      };
+
+      const baseCols = [
+        String(idx + 1),
+        getStatusLabel(r.fillStatus),
+        getAuditStatusLabel(r.auditStatus)
+      ];
+
+      if (tpl && tpl.fields) {
+        const templateCols = tpl.fields.map(f => {
+          const val = r.data[f.name];
+          return val === undefined || val === null ? "" : String(val);
+        });
+        return [...baseCols, ...templateCols];
+      } else {
+        return [...baseCols, JSON.stringify(r.data)];
+      }
+    });
+
+    const attachments: { name: string; recordInfo?: string; folderName?: string }[] = [];
+    allRecords.forEach((r: any) => {
+      const fileString = r.data.APPEAL_ATTACHMENT;
+      if (fileString) {
+        const fileNames = fileString.split(", ");
+        fileNames.forEach((file: string) => {
+          if (file.trim()) {
+            const patientName = r.data.PATIENT_NAME || "未名";
+            const disDate = r.data.DISCHARGE_DATE || r.data.ADMIT_DATE || "无出院日";
+            const projName = r.data.PROJECT_NAME || "未提项目";
+            const folderName = `${patientName}_${disDate}_${projName}`;
+            attachments.push({
+              name: file.trim(),
+              recordInfo: `患者姓名：${patientName}，出院时间：${disDate}`,
+              folderName
+            });
+          }
+        });
+      }
+    });
+
+    try {
+      const zipName = `${task.name}_全部数据导出.zip`;
+      const excelName = `${task.name}_明细表.xlsx`;
+      await downloadZipWithExcel(zipName, excelName, headers, rows, attachments);
+      toast("导出打包成功！开始下载...", "success");
+    } catch (e) {
+      toast("下载打包失败，请重试", "error");
+      console.error(e);
+    }
+  };
+
   // Action generators
   const renderActions = (r: Task) => {
     const actions: Array<{ label: string, onClick: () => void, isLink?: boolean, linkTo?: string, isDanger?: boolean }> = [];
@@ -132,7 +215,7 @@ export function TaskList() {
     } };
     const importAction = { label: "导入", onClick: () => { setActiveTask(r); setIsImportModalOpen(true); } };
     const dispatchAction = { label: "下发", onClick: () => { setActiveTask(r); setIsDispatchModalOpen(true); } };
-    const downloadDataAction = { label: "下载数据", onClick: () => { toast("数据已下载", "success"); } };
+    const downloadDataAction = { label: "下载数据", onClick: () => handleDownloadTask(r) };
 
     if (r.templateId === "TPL_DED") {
       switch(r.status) {
@@ -208,7 +291,7 @@ export function TaskList() {
     },
     { key: "index", title: "序号", width: "60px", render: (r: Task) => (page - 1) * pageSize + data.findIndex(d => d.id === r.id) + 1 },
     { key: "name", title: "任务名称", width: "22%", render: (r: Task) => <Link to={`/task-management/task-list/data-query/index?id=${r.id}`} className="text-blue-600 hover:text-blue-800 font-medium decoration-blue-600/30 underline-offset-4 hover:underline">{r.name}</Link> },
-    { key: "departmentId", title: "下发科室", width: "15%", render: (r: any) => DEPARTMENTS[r.departmentId as keyof typeof DEPARTMENTS] || "-" },
+    { key: "departmentId", title: "创建科室", width: "15%", render: (r: any) => DEPARTMENTS[r.departmentId as keyof typeof DEPARTMENTS] || "-" },
     { key: "templateName", title: "数据模板", width: "15%", render: (r: Task) => r.templateName || "-" },
     { key: "status", title: "任务状态", width: "12%", render: (r: Task) => getStatusBadge(r.status) },
     { key: "creator", title: "任务创建人", width: "10%" },
@@ -481,7 +564,7 @@ export function TaskList() {
             </select>
           </div>
           <div className="grid grid-cols-[100px_1fr] items-center gap-2">
-            <label className="text-right font-medium text-slate-700"><span className="text-red-500 mr-1">*</span>下发科室</label>
+            <label className="text-right font-medium text-slate-700"><span className="text-red-500 mr-1">*</span>创建科室</label>
             <select className={selectClasses} disabled
               value={newTaskForm.departmentId} onChange={e => setNewTaskForm({...newTaskForm, departmentId: e.target.value})}>
               <option value="1">医保办</option>

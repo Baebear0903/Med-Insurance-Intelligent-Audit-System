@@ -56,6 +56,7 @@ export interface ReviewTemplate {
   taskCount: number;
   createTime: string;
   fields: TemplateField[];
+  businessCategory?: string;
 }
 
 const INITIAL_TASKS: Task[] = [
@@ -96,6 +97,7 @@ const INITIAL_TEMPLATES: ReviewTemplate[] = [
     id: "TPL_GZ_YB",
     name: "广州医保（线下）反馈",
     templateType: "医保审核反馈",
+    businessCategory: "广州医保（线下）",
     status: "ENABLED",
     desc: "针对广州医保线下反馈的疑点数据进行核查与反馈。",
     creator: "管理员",
@@ -119,6 +121,7 @@ const INITIAL_TEMPLATES: ReviewTemplate[] = [
       { id: "F12", name: "IS_APPEAL", comment: "是/否申诉", type: "VARCHAR", length: 10, decimal: 0, isPrimaryKey: false, isNotNull: false, isRequired: false, isQueryable: false, isFeedback: true, noUpdate: false, isShow: true, displayName: "" },
       { id: "F13", name: "APPEAL_REASON", comment: "申诉原因", type: "VARCHAR", length: 500, decimal: 0, isPrimaryKey: false, isNotNull: false, isRequired: false, isQueryable: false, isFeedback: true, noUpdate: false, isShow: true, displayName: "" },
       { id: "F14", name: "APPEAL_ATTACHMENT", comment: "申诉附件", type: "VARCHAR", length: 500, decimal: 0, isPrimaryKey: false, isNotNull: false, isRequired: false, isQueryable: false, isFeedback: true, noUpdate: false, isShow: true, displayName: "" },
+      { id: "DF_APPEAL_REMARK", name: "APPEAL_REMARK", comment: "申诉备注", type: "VARCHAR", length: 500, decimal: 0, isPrimaryKey: false, isNotNull: false, isRequired: false, isShow: true, displayName: "", isQueryable: false, isFeedback: true, noUpdate: false },
     ]
   },
   {
@@ -214,6 +217,9 @@ const ALL_MOCK_DETAILS: Record<string, any[]> = {
     "task_details_T_2024_01_GZ": generate12Records("1"),
     "task_details_T_2024_02_GZ": generate12Records("2"),
     "task_details_T_2024_03_GZ": generate12Records("3"),
+    "task_details_T_2024_04_GZ": generate12Records("4"),
+    "task_details_T_2024_05_GZ": generate12Records("5"),
+    "task_details_T_2024_06_GZ": generate12Records("6"),
 };
 
 // 复用反馈核查任务中所生成的扣减明细 (IS_APPEAL === "否")
@@ -270,6 +276,7 @@ export const mockApi = {
                 ...d.data,
                 IS_APPEAL: "是",
                 APPEAL_REASON: "AI识别符合申诉条件",
+                APPEAL_REMARK: "建议去病历系统或HIS系统查找相关附件材料",
                 APPEAL_ATTACHMENT: attachment
               },
               evidence: [attachment]

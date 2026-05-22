@@ -38,10 +38,12 @@ export function Audit() {
     confirm: "APPEAL" | "NO_APPEAL" | "";
     opinion: string;
     evidence: string[];
+    remark: string;
   }>({
     confirm: "",
     opinion: "",
-    evidence: []
+    evidence: [],
+    remark: ""
   });
 
   const [filterStatus, setFilterStatus] = useState("全部");
@@ -190,10 +192,12 @@ export function Audit() {
     const origEvidence = Array.isArray(activeRecord.evidence) 
       ? activeRecord.evidence 
       : (activeRecord.data.APPEAL_ATTACHMENT ? activeRecord.data.APPEAL_ATTACHMENT.split(", ") : []);
+    const origRemark = activeRecord.data.APPEAL_REMARK || "";
       
     const isSame = 
       origConfirm === auditForm.confirm &&
       origOpinion === auditForm.opinion &&
+      origRemark === auditForm.remark &&
       origEvidence.length === auditForm.evidence.length &&
       origEvidence.every((val, i) => val === auditForm.evidence[i]);
       
@@ -217,6 +221,7 @@ export function Audit() {
         ...activeRecord.data,
         IS_APPEAL: auditForm.confirm === "APPEAL" ? "是" : "否",
         APPEAL_REASON: auditForm.opinion,
+        APPEAL_REMARK: auditForm.remark,
         APPEAL_ATTACHMENT: auditForm.evidence.join(", ")
       }
     };
@@ -322,7 +327,8 @@ export function Audit() {
           setAuditForm({
             confirm: r.data.IS_APPEAL === "否" ? "NO_APPEAL" : (r.data.IS_APPEAL === "是" ? "APPEAL" : ""),
             opinion: r.data.APPEAL_REASON || "",
-            evidence: r.data.IS_APPEAL === "是" ? (Array.isArray(r.evidence) ? [...r.evidence] : (r.data.APPEAL_ATTACHMENT ? r.data.APPEAL_ATTACHMENT.split(", ") : [])) : []
+            evidence: r.data.IS_APPEAL === "是" ? (Array.isArray(r.evidence) ? [...r.evidence] : (r.data.APPEAL_ATTACHMENT ? r.data.APPEAL_ATTACHMENT.split(", ") : [])) : [],
+            remark: r.data.APPEAL_REMARK || ""
           });
           setAuditModal(true);
         }}
@@ -659,6 +665,18 @@ export function Audit() {
                     </button>
                   )}
                 </div>
+              </div>
+              
+              <div className="space-y-3 pt-2">
+                <label className="text-sm font-bold text-slate-700">
+                  申诉备注
+                </label>
+                <textarea 
+                  className="w-full h-24 px-4 py-3 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500/20 focus:outline-none focus:border-blue-500 transition-all placeholder:text-slate-300 resize-none"
+                  placeholder="可在此补充或修改申诉备注说明..."
+                  value={auditForm.remark}
+                  onChange={(e) => setAuditForm({...auditForm, remark: e.target.value})}
+                />
               </div>
             </div>
           </div>

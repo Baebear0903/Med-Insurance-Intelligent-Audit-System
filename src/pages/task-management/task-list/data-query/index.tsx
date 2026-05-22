@@ -99,15 +99,18 @@ export default function DataQuery() {
     });
 
     // 收集附件列表
-    const attachments: { name: string; recordInfo?: string }[] = [];
+    const attachments: { name: string; recordInfo?: string; folderName?: string }[] = [];
     targetRecords.forEach((r: any) => {
       const fileString = r.data.APPEAL_ATTACHMENT;
       if (fileString) {
         const patientName = r.data.PATIENT_NAME || "未名";
         const disDate = r.data.DISCHARGE_DATE || r.data.ADMIT_DATE || "无出院日";
+        const projName = r.data.PROJECT_NAME || "未提项目";
+        const folderName = `${patientName}_${disDate}_${projName}`;
         attachments.push({
           name: fileString,
-          recordInfo: `患者姓名：${patientName}，出院时间：${disDate}`
+          recordInfo: `患者姓名：${patientName}，出院时间：${disDate}`,
+          folderName
         });
       }
     });

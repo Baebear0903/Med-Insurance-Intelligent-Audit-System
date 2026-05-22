@@ -8,11 +8,20 @@ import { cn } from "@/src/lib/utils";
 
 const FIELD_TYPES = ["BIGINT", "INT", "VARCHAR", "DECIMAL", "DATE", "DATETIME", "TEXT", "DOUBLE", "FLOAT", "CHAR", "TIMESTAMP", "LONGTEXT"];
 
+const BUSINESS_CATEGORIES = [
+  "广州医保（线上）", "广州医保（线下）", "省内异地（线上）", "省内异地（线下）",
+  "跨省异地（线上）", "跨省异地（线下）", "市直医保", "省直医保",
+  "荔湾公医", "白云公医", "海珠公医", "从化公医", "花都公医", "黄埔公医"
+];
+
 const DEFAULT_FEEDBACK_FIELDS: TemplateField[] = [
+  { id: "DF_ORDER_DEPT", name: "ORDER_DEPT", comment: "开单科室", type: "VARCHAR", length: 100, decimal: 0, isPrimaryKey: false, isNotNull: false, isRequired: false, isShow: true, displayName: "", isQueryable: false, isFeedback: false, noUpdate: true },
+  { id: "DF_EXECUTE_DEPT", name: "EXECUTE_DEPT", comment: "执行科室", type: "VARCHAR", length: 100, decimal: 0, isPrimaryKey: false, isNotNull: false, isRequired: false, isShow: true, displayName: "", isQueryable: false, isFeedback: false, noUpdate: true },
   { id: "DF_DEPARTMENT_NAME", name: "DEPARTMENT_NAME", comment: "科室名称", type: "VARCHAR", length: 100, decimal: 0, isPrimaryKey: false, isNotNull: false, isRequired: false, isShow: true, displayName: "责任科室", isQueryable: true, isFeedback: false, noUpdate: true },
   { id: "DF_IS_APPEAL", name: "IS_APPEAL", comment: "是/否申诉", type: "VARCHAR", length: 10, decimal: 0, isPrimaryKey: false, isNotNull: false, isRequired: false, isShow: true, displayName: "", isQueryable: false, isFeedback: true, noUpdate: false },
   { id: "DF_APPEAL_REASON", name: "APPEAL_REASON", comment: "申诉原因", type: "VARCHAR", length: 500, decimal: 0, isPrimaryKey: false, isNotNull: false, isRequired: false, isShow: true, displayName: "", isQueryable: false, isFeedback: true, noUpdate: false },
   { id: "DF_APPEAL_ATTACHMENT", name: "APPEAL_ATTACHMENT", comment: "申诉附件", type: "VARCHAR", length: 500, decimal: 0, isPrimaryKey: false, isNotNull: false, isRequired: false, isShow: true, displayName: "", isQueryable: false, isFeedback: true, noUpdate: false },
+  { id: "DF_APPEAL_REMARK", name: "APPEAL_REMARK", comment: "申诉备注", type: "VARCHAR", length: 500, decimal: 0, isPrimaryKey: false, isNotNull: false, isRequired: false, isShow: true, displayName: "", isQueryable: false, isFeedback: true, noUpdate: false },
 ];
 
 export function AddReviewTemplate() {
@@ -137,6 +146,10 @@ export function AddReviewTemplate() {
   const handleSave = () => {
     if (!formData.name) {
       toast("请输入模板名称", "error");
+      return;
+    }
+    if (formData.templateType === "医保审核反馈" && !formData.businessCategory) {
+      toast("请选择医保业务分类", "error");
       return;
     }
     const fields = formData.fields || [];
@@ -267,6 +280,23 @@ export function AddReviewTemplate() {
                 </label>
               </div>
             </div>
+            {formData.templateType === "医保审核反馈" && (
+              <div className="md:col-span-3 space-y-2">
+                <label className="text-sm font-medium text-slate-700 flex items-center">
+                  医保业务分类 <span className="text-red-500 ml-1">*</span>
+                </label>
+                <select
+                  className="w-full h-10 px-3 rounded border border-slate-300 focus:ring-2 focus:ring-blue-500 outline-none text-sm bg-white"
+                  value={formData.businessCategory || ""}
+                  onChange={(e) => { setFormData({ ...formData, businessCategory: e.target.value }); setHasChanges(true); }}
+                >
+                  <option value="" disabled>请选择医保业务分类</option>
+                  {BUSINESS_CATEGORIES.map(cat => (
+                    <option key={cat} value={cat}>{cat}</option>
+                  ))}
+                </select>
+              </div>
+            )}
             <div className="md:col-span-3 space-y-2">
               <label className="text-sm font-medium text-slate-700">模板描述</label>
               <textarea

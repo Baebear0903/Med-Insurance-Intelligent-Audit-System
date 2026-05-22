@@ -180,7 +180,7 @@ export function FillReportDetail() {
       confirm: data.IS_APPEAL === "否" ? "NO_APPEAL" : (data.IS_APPEAL === "是" ? "APPEAL" : ""),
       opinion: data.APPEAL_REASON || "",
       evidence: evidence,
-      remark: data.REMARK || ""
+      remark: data.APPEAL_REMARK || ""
     });
     setFillModal({ show: true, record, isBatch: false });
   };
@@ -248,7 +248,7 @@ export function FillReportDetail() {
     });
 
     // 收集附件列表
-    const attachments: { name: string; recordInfo?: string }[] = [];
+    const attachments: { name: string; recordInfo?: string; folderName?: string }[] = [];
     targetRecords.forEach((r: any) => {
       const fileString = r.data.APPEAL_ATTACHMENT;
       if (fileString) {
@@ -257,9 +257,12 @@ export function FillReportDetail() {
           if (file.trim()) {
             const patientName = r.data.PATIENT_NAME || "未名";
             const disDate = r.data.DISCHARGE_DATE || r.data.ADMIT_DATE || "无出院日";
+            const projName = r.data.PROJECT_NAME || "未提项目";
+            const folderName = `${patientName}_${disDate}_${projName}`;
             attachments.push({
               name: file.trim(),
-              recordInfo: `患者姓名：${patientName}，出院时间：${disDate}`
+              recordInfo: `患者姓名：${patientName}，出院时间：${disDate}`,
+              folderName
             });
           }
         });
@@ -342,7 +345,7 @@ export function FillReportDetail() {
         IS_APPEAL: fillForm.confirm === "APPEAL" ? "是" : "否",
         APPEAL_REASON: fillForm.opinion,
         APPEAL_ATTACHMENT: fillForm.evidence.join(", "),
-        REMARK: fillForm.remark,
+        APPEAL_REMARK: fillForm.remark,
       },
       fillStatus: "FILLED",
       auditStatus: 8,
@@ -826,11 +829,13 @@ export function FillReportDetail() {
                 />
               </div>
 
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <label className="text-sm font-bold text-slate-700">申诉附件</label>
-                  <span className="text-xs text-slate-400">支持 PDF, JPG, PNG, DOCX (≤20MB)</span>
-                </div>
+              {/* 申诉附件仅在单条填报时显示 */}
+              {!fillModal.isBatch && (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <label className="text-sm font-bold text-slate-700">申诉附件</label>
+                    <span className="text-xs text-slate-400">支持 PDF, JPG, PNG, DOCX (≤20MB)</span>
+                  </div>
                 <div className="space-y-2">
                   {fillForm.evidence.map((fileName, i) => {
                     const isImg = /\.(jpg|jpeg|png)$/i.test(fileName);
@@ -903,6 +908,20 @@ export function FillReportDetail() {
                     </button>
                   )}
                 </div>
+              </div>
+              )}
+
+              <div className="space-y-3">
+                <label className="text-sm font-bold text-slate-700">
+                  申诉备注
+                </label>
+                <textarea 
+                  disabled={isReadOnly}
+                  className="w-full h-24 px-4 py-3 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500/20 focus:outline-none focus:border-blue-500 transition-all placeholder:text-slate-300 resize-none"
+                  placeholder="可在此补充申诉备注说明..."
+                  value={fillForm.remark}
+                  onChange={(e) => setFillForm({...fillForm, remark: e.target.value})}
+                />
               </div>
             </div>
           </div>
