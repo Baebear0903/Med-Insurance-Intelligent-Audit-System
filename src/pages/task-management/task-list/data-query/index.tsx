@@ -75,6 +75,7 @@ export default function DataQuery() {
         if (s === "FILLED") return "已提交";
         if (s === "AI_FILLED") return "AI已填";
         if (s === "AI_FILLING") return "AI填充中";
+        if (s === "AI_PAUSED") return "AI已暂停";
         return s || "未开始";
       };
       
@@ -212,8 +213,24 @@ export default function DataQuery() {
 
   const handleRestartAIFill = () => {
     if (task) {
-      toast("正在重新智能填报...", "success");
-      mockApi.startAIFill(task.id);
+      toast("正在重新AI填报...", "success");
+      mockApi.startAIFill(task.id, true);
+      fetchTaskData();
+    }
+  };
+
+  const handleAbortAIFill = () => {
+    if (task) {
+      toast("已暂停AI填报", "success");
+      mockApi.abortAIFill(task.id);
+      fetchTaskData();
+    }
+  };
+
+  const handleContinueAIFill = () => {
+    if (task) {
+      toast("继续AI填报...", "success");
+      mockApi.startAIFill(task.id, false);
       fetchTaskData();
     }
   };
@@ -223,14 +240,15 @@ export default function DataQuery() {
 
   const queryFields = template.fields.filter((f) => f.isQueryable && (role === "ADMIN" || !f.adminVisible));
 
-  const calculatedAiTotal = data.length;
-  const calculatedAiProgress = data.filter(d => d.fillStatus === "AI_FILLED" || d.fillStatus === "FILLED" || d.fillStatus === "SUBMITTED").length;
-  // Fallback to task properties if calculated values are missing but we use calculated values for accurate UI tracking. Wait, AI status is AI_FILLED or AI_FILLING.
-  // Actually, the requirements say "进度计算方法为 当前任务状态为“AI填报”的明细条数/当前任务所有明细条数"
   const aiProgressCount = data.filter((d) => d.fillStatus === "AI_FILLED").length;
   const aiTotalCount = data.length;
   
-  const showAiProgress = template.templateType === "医保审核反馈" && aiTotalCount > 0;
+  const isAIFillingActive = data.some(d => d.fillStatus === "AI_FILLING");
+  const isAIPaused = data.some(d => d.fillStatus === "AI_PAUSED");
+  // Only show progress if it's "医保审核反馈" type and we have some records, and we've engaged AI filling features
+  // Or just if we have started filling before (like `aiProgressCount > 0`, `isAIFillingActive`, `isAIPaused`)
+  const hasEngagedAIFill = aiProgressCount > 0 || isAIFillingActive || isAIPaused;
+  const showAiProgress = template.templateType === "医保审核反馈" && aiTotalCount > 0 && hasEngagedAIFill;
 
   const configurableColumns: ColumnItem[] = template.fields
     .filter(f => f.isShow !== false && (role === "ADMIN" || !f.adminVisible))
@@ -365,7 +383,7 @@ export default function DataQuery() {
           {showAiProgress && (
             <div className="flex items-center gap-3 ml-4 bg-slate-50 px-3 py-1.5 rounded-full border border-slate-200">
               <span className="text-sm text-slate-600 font-medium whitespace-nowrap">
-                智能填报
+                AI填报
               </span>
               <div className="w-32 h-1.5 bg-slate-200 rounded-full overflow-hidden">
                 <motion.div 
@@ -378,14 +396,45 @@ export default function DataQuery() {
               <span className="text-sm text-slate-500 font-mono">
                 {aiProgressCount}/{aiTotalCount} ({Math.round((aiProgressCount / aiTotalCount) * 100)}%)
               </span>
+              
               {aiProgressCount === aiTotalCount && (
                 <button 
                   onClick={handleRestartAIFill}
-                  className="flex items-center justify-center p-1 hover:bg-slate-200 rounded text-blue-600 transition-colors ml-1"
-                  title="重新智能填报"
+                  className="text-xs text-blue-600 hover:text-blue-800 font-medium ml-2 transition-colors focus:outline-none"
+                  title="重新AI填报"
                 >
-                  <RefreshCw className="w-4 h-4 cursor-pointer" />
+                  重新填报
                 </button>
+              )}
+
+              {aiProgressCount < aiTotalCount && isAIFillingActive && (
+                <button 
+                  onClick={handleAbortAIFill}
+                  className="text-xs text-red-500 hover:text-red-700 font-medium ml-2 transition-colors focus:outline-none"
+                  title="暂停AI填报"
+                >
+                  暂停
+                </button>
+              )}
+
+              {aiProgressCount < aiTotalCount && isAIPaused && (
+                <div className="flex items-center gap-1 ml-2">
+                  <button 
+                    onClick={handleContinueAIFill}
+                    className="text-xs text-blue-600 hover:text-blue-800 font-medium transition-colors px-1 focus:outline-none"
+                    title="继续AI填报"
+                  >
+                    继续
+                  </button>
+                  <div className="w-px h-3 bg-slate-300 mx-1"></div>
+                  <button 
+                    onClick={handleRestartAIFill}
+                    className="text-xs text-slate-500 hover:text-slate-700 font-medium transition-colors px-1 focus:outline-none"
+                    title="重新AI填报"
+                  >
+                    重新填报
+                  </button>
+                </div>
               )}
             </div>
           )}

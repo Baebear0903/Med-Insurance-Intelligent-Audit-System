@@ -42,7 +42,6 @@ export function TaskList() {
   const [isMatchVisitModalOpen, setIsMatchVisitModalOpen] = useState(false);
   const [isEndTaskModalOpen, setIsEndTaskModalOpen] = useState(false);
   const [isResultImportModalOpen, setIsResultImportModalOpen] = useState(false);
-  const [isIntelligentFillModalOpen, setIsIntelligentFillModalOpen] = useState(false);
 
   // New task form state
   const [newTaskForm, setNewTaskForm] = useState({ name: "", dueDate: "", templateId: "", departmentId: "1", desc: "" });
@@ -137,6 +136,7 @@ export function TaskList() {
         if (s === "REJECTED") return "已驳回";
         if (s === "AI_FILLED") return "AI已填";
         if (s === "AI_FILLING") return "AI填充中";
+        if (s === "AI_PAUSED") return "AI已暂停";
         return s || "未开始";
       };
       
@@ -208,8 +208,8 @@ export function TaskList() {
     const issueData = { label: "问题数据", isLink: true, linkTo: `/task-management/task-list/issue-data/index?id=${r.id}`, onClick: () => {} };
     const matchVisit = { label: "匹配就诊", onClick: () => { setActiveTask(r); setIsMatchVisitModalOpen(true); } };
     const resultImport = { label: "结果导入", onClick: () => { setActiveTask(r); setIsResultImportModalOpen(true); } };
-    const intelligentFill = { label: "智能填报", onClick: () => { 
-      toast("正在进行AI智能填报", "success"); 
+    const intelligentFill = { label: "AI填报", onClick: () => { 
+      toast("正在进行AI填报", "success"); 
       mockApi.startAIFill(r.id);
       fetchData();
     } };
@@ -234,7 +234,7 @@ export function TaskList() {
         break;
     }
 
-    const orderIndex = ["导入", "问题数据", "匹配就诊", "智能填报", "下发", "结束任务", "结果导入", "下载数据"];
+    const orderIndex = ["导入", "问题数据", "匹配就诊", "AI填报", "下发", "结束任务", "结果导入", "下载数据"];
     actions.sort((a, b) => {
       const idxA = orderIndex.indexOf(a.label);
       const idxB = orderIndex.indexOf(b.label);
@@ -623,20 +623,6 @@ export function TaskList() {
         </div>
       </Modal>
       
-      {/* 智能填报 (Placeholder, waits for integration) */}
-      <Modal isOpen={isIntelligentFillModalOpen} onClose={() => setIsIntelligentFillModalOpen(false)} title="选择智能填报规则" width="max-w-md"
-         footer={<><Button variant="outline" onClick={() => setIsIntelligentFillModalOpen(false)}>取消</Button><Button variant="primary" onClick={() => { setIsIntelligentFillModalOpen(false); toast("智能填报规则应用成功", "success"); }}>确认</Button></>}
-      >
-        <div className="text-sm text-slate-600 py-4 text-center flex flex-col gap-3">
-          <p>请选择要应用的智能填报规则策略</p>
-          <select className="h-9 px-3 border border-slate-300 rounded focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none w-full bg-white transition-all">
-             <option value="1">默认填写策略（按模板历史数据提取）</option>
-             <option value="2">医嘱关联分析策略</option>
-          </select>
-          <p className="text-xs text-slate-400 mt-2">与“智能填写”模块共用规则库</p>
-        </div>
-      </Modal>
-
     </div>
   );
 }

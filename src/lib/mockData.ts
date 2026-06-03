@@ -106,6 +106,8 @@ const INITIAL_TEMPLATES: ReviewTemplate[] = [
     taskCount: 8,
     createTime: "2024-01-01 10:00:00",
     fields: [
+      { id: "F1_P", name: "_PERSON_CATEGORY", comment: "人员类别", type: "VARCHAR", length: 50, decimal: 0, isPrimaryKey: false, isNotNull: false, isRequired: false, isQueryable: false, isFeedback: false, noUpdate: true, isShow: true, displayName: "" },
+      { id: "F1_O", name: "_IS_ONLINE", comment: "线上/线下", type: "VARCHAR", length: 50, decimal: 0, isPrimaryKey: false, isNotNull: false, isRequired: false, isQueryable: false, isFeedback: false, noUpdate: true, isShow: true, displayName: "" },
       { id: "F1", name: "HOSPITAL_NO", comment: "住院号", type: "VARCHAR", length: 50, decimal: 0, isPrimaryKey: true, isNotNull: true, isRequired: true, isQueryable: true, isFeedback: false, noUpdate: true, isShow: true, displayName: "" },
       { id: "F2", name: "PATIENT_NAME", comment: "参保人", type: "VARCHAR", length: 100, decimal: 0, isPrimaryKey: false, isNotNull: false, isRequired: false, isQueryable: false, isFeedback: false, noUpdate: true, isShow: true, displayName: "" },
       { id: "F3", name: "ID_CARD", comment: "身份证号", type: "VARCHAR", length: 50, decimal: 0, isPrimaryKey: false, isNotNull: false, isRequired: false, isQueryable: false, isFeedback: false, noUpdate: true, isShow: true, displayName: "", adminVisible: true },
@@ -166,12 +168,14 @@ function generate12Records(month: string) {
     const records = [];
     const depts = ["内科", "外科"];
     const patientNames = ["李伟", "王芳", "张强", "刘洋", "陈静", "杨烁", "黄勇", "周杰", "吴凡", "赵丽", "徐宁", "孙亮"];
+    const personCategories = ["广州医保", "省内异地", "跨省异地", "省直医保", "市直医保", "荔湾公医", "白云公医", "海珠公医", "从化公医", "花都公医", "黄埔公医"];
     
     for (let i = 0; i < 12; i++) {
         const isAppeal = i % 3 === 0; // 一些申诉，一些不申诉
-        const isOnline = i % 2 === 0; 
-        
         const dateMonth = month.padStart(2, '0');
+
+        const _PERSON_CATEGORY = "广州医保";
+        const _IS_ONLINE = "线下";
         
         records.push({
             id: `D_${month}_${i}`,
@@ -195,8 +199,8 @@ function generate12Records(month: string) {
                 REMARK: "",
                 
                 // --- 后台数据治理补充的业务字段 ---
-                _PERSON_CATEGORY: "职工医保",
-                _IS_ONLINE: isOnline ? "线上" : "线下",
+                _PERSON_CATEGORY: _PERSON_CATEGORY,
+                _IS_ONLINE: _IS_ONLINE,
                 _DEDUCTION_TARGET: depts[i % 2], // 扣减科室或个人
                 _DEDUCTION_AMOUNT: (i + 1) * 110.5, // 扣减科室金额
                 _DEDUCTION_MED_COM: i % 2 === 0 ? 0 : 50, // 扣减金额(药耗)
@@ -228,9 +232,11 @@ const ALL_MOCK_DETAILS: Record<string, any[]> = {
 ALL_MOCK_DETAILS["task_records_T_2024_01_DED"] = ALL_MOCK_DETAILS["task_records_T_2024_01_GZ"].filter(r => r.data.IS_APPEAL === "否").map(r => ({ ...r, id: r.id.replace('D_', 'DED_') }));
 ALL_MOCK_DETAILS["task_records_T_2024_02_DED"] = ALL_MOCK_DETAILS["task_records_T_2024_02_GZ"].filter(r => r.data.IS_APPEAL === "否").map(r => ({ ...r, id: r.id.replace('D_', 'DED_') }));
 
+let activeIntervals: Record<string, NodeJS.Timeout> = {};
+
 export const mockApi = {
-  startAIFill: (taskId: string) => {
-    let tasks = JSON.parse(localStorage.getItem("tasks_v17") || "null");
+  startAIFill: (taskId: string, restart = true) => {
+    let tasks = JSON.parse(localStorage.getItem("tasks_v20") || "null");
     let isSubtask = false;
     let parentId = null;
     if (tasks) {
@@ -244,34 +250,48 @@ export const mockApi = {
     const key = `task_records_${realTaskId}`;
     let data = JSON.parse(localStorage.getItem(key) || "null");
     if (data) {
-      // First, set everything to AI_FILLING
-      data = data.map((d: any) => ({
-        ...d,
-        fillStatus: d.fillStatus === "AI_FILLED" ? "AI_FILLED" : "AI_FILLING"
-      }));
+      if (restart) {
+        // First, set everything to AI_FILLING except those already AI_FILLED if restart is false but here we set all if restart
+        data = data.map((d: any) => ({
+          ...d,
+          fillStatus: "AI_FILLING"
+        }));
+      } else {
+         // It's a continue
+         data = data.map((d: any) => ({
+          ...d,
+          fillStatus: d.fillStatus === "AI_FILLED" ? "AI_FILLED" : "AI_FILLING"
+        }));
+      }
       localStorage.setItem(key, JSON.stringify(data));
       window.dispatchEvent(new Event("task_updated"));
       
+      if (activeIntervals[key]) {
+        clearInterval(activeIntervals[key]);
+      }
+
       // Gradually complete them
       let index = 0;
-      const interval = setInterval(() => {
+      activeIntervals[key] = setInterval(() => {
         let currentData = JSON.parse(localStorage.getItem(key) || "null");
         if (!currentData) {
-          clearInterval(interval);
+          clearInterval(activeIntervals[key]);
+          delete activeIntervals[key];
           return;
         }
         
         let modified = false;
-        // Find next item to fill
-        while (index < currentData.length) {
-          if (currentData[index].fillStatus === "AI_FILLING") {
-            const d = currentData[index];
+        // Find next item to fill (actually filling AI_FILLING ones)
+        let found = false;
+        for (let i = index; i < currentData.length; i++) {
+          if (currentData[i].fillStatus === "AI_FILLING") {
+            const d = currentData[i];
             const patient = d.data.PATIENT_NAME || "";
             const outDate = d.data.DISCHARGE_DATE || "";
             const proj = d.data.PROJECT_NAME || "";
             const attachment = `${patient}_${outDate}_${proj}_病历系统.pdf`;
     
-            currentData[index] = {
+            currentData[i] = {
               ...d,
               fillStatus: "AI_FILLED",
               data: {
@@ -284,10 +304,11 @@ export const mockApi = {
               evidence: [attachment]
             };
             modified = true;
-            index++;
+            found = true;
+            // update index to next
+            index = i + 1;
             break;
           }
-          index++;
         }
         
         if (modified) {
@@ -295,23 +316,57 @@ export const mockApi = {
           window.dispatchEvent(new Event("task_updated"));
         }
         
-        if (index >= currentData.length) {
-          clearInterval(interval);
+        if (!found || index >= currentData.length) {
+          clearInterval(activeIntervals[key]);
+          delete activeIntervals[key];
         }
       }, 500); // every 500ms fill one record
+    }
+  },
+  abortAIFill: (taskId: string) => {
+    let tasks = JSON.parse(localStorage.getItem("tasks_v20") || "null");
+    let isSubtask = false;
+    let parentId = null;
+    if (tasks) {
+      const t = tasks.find((t: Task) => t.id === taskId);
+      if (t && t.parentId) {
+        isSubtask = true;
+        parentId = t.parentId;
+      }
+    }
+    const realTaskId = isSubtask ? parentId : taskId;
+    const key = `task_records_${realTaskId}`;
+    
+    if (activeIntervals[key]) {
+      clearInterval(activeIntervals[key]);
+      delete activeIntervals[key];
+    }
+    
+    let data = JSON.parse(localStorage.getItem(key) || "null");
+    if (data) {
+      // Mark still in progress as AI_ABORTED to differentiate them, or leave as AI_FILLING 
+      // but without interval they just stop. Better mark them as AI_PAUSED or just leave as UNFILLED/AI_FILLING
+      data = data.map((d: any) => {
+        if (d.fillStatus === "AI_FILLING") {
+           return { ...d, fillStatus: "AI_PAUSED" };
+        }
+        return d;
+      });
+      localStorage.setItem(key, JSON.stringify(data));
+      window.dispatchEvent(new Event("task_updated"));
     }
   },
   completeAIFill: (taskId: string) => {},
   resetData: () => {},
 
   getTasks: (page = 1, pageSize = 10, filters: any = {}): { data: Task[], total: number } => {
-    let tasks = JSON.parse(localStorage.getItem("tasks_v17") || "null");
+    let tasks = JSON.parse(localStorage.getItem("tasks_v20") || "null");
     
     if (!tasks || tasks.length !== INITIAL_TASKS.length) {
       tasks = INITIAL_TASKS;
-      localStorage.setItem("tasks_v17", JSON.stringify(tasks));
-      localStorage.setItem("records_v17", JSON.stringify(INITIAL_REPORTS));
-      localStorage.setItem("templates_v17", JSON.stringify(INITIAL_TEMPLATES));
+      localStorage.setItem("tasks_v20", JSON.stringify(tasks));
+      localStorage.setItem("records_v20", JSON.stringify(INITIAL_REPORTS));
+      localStorage.setItem("templates_v20", JSON.stringify(INITIAL_TEMPLATES));
       Object.keys(ALL_MOCK_DETAILS).forEach(key => {
          localStorage.setItem(key, JSON.stringify(ALL_MOCK_DETAILS[key]));
       });
@@ -339,13 +394,13 @@ export const mockApi = {
   },
 
   getTaskById: (id: string): Task | null => {
-    let tasks = JSON.parse(localStorage.getItem("tasks_v17") || "null");
+    let tasks = JSON.parse(localStorage.getItem("tasks_v20") || "null");
     if (!tasks) tasks = INITIAL_TASKS;
     return tasks.find((t: Task) => t.id === id) || null;
   },
 
   getReviewRecords: (taskId?: string): ReviewRecord[] => {
-    let records = JSON.parse(localStorage.getItem("records_v17") || "null");
+    let records = JSON.parse(localStorage.getItem("records_v20") || "null");
     if (!records) records = INITIAL_REPORTS;
     if (taskId) {
       return records.filter((r: ReviewRecord) => r.taskId === taskId);
@@ -354,7 +409,7 @@ export const mockApi = {
   },
 
   getTemplates: (search = "", status?: string, typeFilter?: string): ReviewTemplate[] => {
-    let templates = JSON.parse(localStorage.getItem("templates_v17") || "null");
+    let templates = JSON.parse(localStorage.getItem("templates_v20") || "null");
     if (!templates) templates = INITIAL_TEMPLATES;
     let filtered = templates;
     if (search) filtered = filtered.filter((t: ReviewTemplate) => t.name.includes(search));
@@ -367,13 +422,13 @@ export const mockApi = {
   deleteTemplates: (ids: string[]) => {},
 
   updateTaskStatus: (taskId: string, status: keyof typeof TASK_STATUS) => {
-    let tasks = JSON.parse(localStorage.getItem("tasks_v17") || "null");
+    let tasks = JSON.parse(localStorage.getItem("tasks_v20") || "null");
     if (!tasks) return;
     const index = tasks.findIndex((t: Task) => t.id === taskId);
     if (index > -1) {
       tasks[index].status = status;
       tasks[index].updateTime = new Date().toLocaleString();
-      localStorage.setItem("tasks_v17", JSON.stringify(tasks));
+      localStorage.setItem("tasks_v20", JSON.stringify(tasks));
       // For deductions, update parent if all children are END
       if (tasks[index].parentId && status === "END") {
           const parentId = tasks[index].parentId;
@@ -383,7 +438,7 @@ export const mockApi = {
               if (parentIdx > -1) {
                   tasks[parentIdx].status = "END";
                   tasks[parentIdx].updateTime = new Date().toLocaleString();
-                  localStorage.setItem("tasks_v17", JSON.stringify(tasks));
+                  localStorage.setItem("tasks_v20", JSON.stringify(tasks));
               }
           }
       }
@@ -391,7 +446,7 @@ export const mockApi = {
   },
 
   getTaskDetailRecords: (taskId: string) => {
-    let tasks = JSON.parse(localStorage.getItem("tasks_v17") || "null");
+    let tasks = JSON.parse(localStorage.getItem("tasks_v20") || "null");
     let isSubtask = false;
     let parentId = null;
     let currentDeptName = null;
@@ -423,19 +478,19 @@ export const mockApi = {
 
   dispatchTask: (taskId: string) => {
       // Just mock returning true for deduction tasks if they are dispatched
-      let tasks = JSON.parse(localStorage.getItem("tasks_v17") || "null");
+      let tasks = JSON.parse(localStorage.getItem("tasks_v20") || "null");
       if (!tasks) return false;
       const index = tasks.findIndex((t: Task) => t.id === taskId);
       if (index > -1 && tasks[index].status === "CREATE") {
           tasks[index].status = "PUBLISH";
-          localStorage.setItem("tasks_v17", JSON.stringify(tasks));
+          localStorage.setItem("tasks_v20", JSON.stringify(tasks));
           return true;
       }
       return false;
   },
 
   saveTaskDetailRecord: (taskId: string, record: any) => {
-    let tasks = JSON.parse(localStorage.getItem("tasks_v17") || "null");
+    let tasks = JSON.parse(localStorage.getItem("tasks_v20") || "null");
     let isSubtask = false;
     let parentId = null;
     if (tasks) {
