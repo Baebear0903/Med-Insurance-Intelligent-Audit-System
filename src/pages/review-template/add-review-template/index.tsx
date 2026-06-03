@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { ArrowLeft, Save, Plus, Copy, Trash2, ArrowUp, ArrowDown, HelpCircle, AlertCircle } from "lucide-react";
+import { ArrowLeft, Save, Plus, Copy, Trash2, ArrowUp, ArrowDown, HelpCircle, AlertCircle, Link2 } from "lucide-react";
 import { Button } from "@/src/components/ui/Button";
 import { toast } from "@/src/components/ui/Toast";
+import { Drawer } from "@/src/components/ui/Drawer";
 import { mockApi, ReviewTemplate, TemplateField } from "@/src/lib/mockData";
 import { cn } from "@/src/lib/utils";
 
@@ -14,14 +15,30 @@ const BUSINESS_CATEGORIES = [
   "荔湾公医", "白云公医", "海珠公医", "从化公医", "花都公医", "黄埔公医"
 ];
 
+const STANDARD_FIELDS = [
+  { name: "ORDER_DEPT_CODE", comment: "开单科室编码", remark: "标准开单科室编码" },
+  { name: "ORDER_DEPT_NAME", comment: "开单科室名称", remark: "标准开单科室名称" },
+  { name: "ORDER_DOC_ID", comment: "开单医生ID", remark: "标准开单医生ID" },
+  { name: "ORDER_DOC_NAME", comment: "开单医生名称", remark: "标准开单医生名称" },
+  { name: "EXEC_DEPT_CODE", comment: "执行科室编码", remark: "标准执行科室编码" },
+  { name: "EXEC_DEPT_NAME", comment: "执行科室名称", remark: "标准执行科室名称" },
+  { name: "EXEC_DOC_ID", comment: "执行医生ID", remark: "标准执行医生ID" },
+  { name: "EXEC_DOC_NAME", comment: "执行医生名称", remark: "标准执行医生名称" },
+  { name: "VISIT_ID", comment: "就诊ID", remark: "患者就诊唯一标识" },
+  { name: "INOUT_NO", comment: "住院门诊流水号", remark: "门诊或住院的流水编号" },
+  { name: "PATIENT_UID", comment: "院内患者唯一ID", remark: "患者的院内唯一标识" },
+  { name: "ID_CARD", comment: "身份证号", remark: "居民身份证号码" },
+  { name: "INSURED_NAME", comment: "参保人姓名", remark: "参保人员真实姓名" },
+];
+
 const DEFAULT_FEEDBACK_FIELDS: TemplateField[] = [
-  { id: "DF_ORDER_DEPT", name: "ORDER_DEPT", comment: "开单科室", type: "VARCHAR", length: 100, decimal: 0, isPrimaryKey: false, isNotNull: false, isRequired: false, isShow: true, displayName: "", isQueryable: false, isFeedback: false, noUpdate: true },
-  { id: "DF_EXECUTE_DEPT", name: "EXECUTE_DEPT", comment: "执行科室", type: "VARCHAR", length: 100, decimal: 0, isPrimaryKey: false, isNotNull: false, isRequired: false, isShow: true, displayName: "", isQueryable: false, isFeedback: false, noUpdate: true },
-  { id: "DF_DEPARTMENT_NAME", name: "DEPARTMENT_NAME", comment: "科室名称", type: "VARCHAR", length: 100, decimal: 0, isPrimaryKey: false, isNotNull: false, isRequired: false, isShow: true, displayName: "责任科室", isQueryable: true, isFeedback: false, noUpdate: true },
-  { id: "DF_IS_APPEAL", name: "IS_APPEAL", comment: "是/否申诉", type: "VARCHAR", length: 10, decimal: 0, isPrimaryKey: false, isNotNull: false, isRequired: false, isShow: true, displayName: "", isQueryable: false, isFeedback: true, noUpdate: false },
-  { id: "DF_APPEAL_REASON", name: "APPEAL_REASON", comment: "申诉原因", type: "VARCHAR", length: 500, decimal: 0, isPrimaryKey: false, isNotNull: false, isRequired: false, isShow: true, displayName: "", isQueryable: false, isFeedback: true, noUpdate: false },
-  { id: "DF_APPEAL_ATTACHMENT", name: "APPEAL_ATTACHMENT", comment: "申诉附件", type: "VARCHAR", length: 500, decimal: 0, isPrimaryKey: false, isNotNull: false, isRequired: false, isShow: true, displayName: "", isQueryable: false, isFeedback: true, noUpdate: false },
-  { id: "DF_APPEAL_REMARK", name: "APPEAL_REMARK", comment: "申诉备注", type: "VARCHAR", length: 500, decimal: 0, isPrimaryKey: false, isNotNull: false, isRequired: false, isShow: true, displayName: "", isQueryable: false, isFeedback: true, noUpdate: true },
+  { id: "DF_ORDER_DEPT", name: "ORDER_DEPT", comment: "开单科室", type: "VARCHAR", length: 100, decimal: 0, isPrimaryKey: false, isNotNull: false, isRequired: false, isShow: true, displayName: "开单科室", isQueryable: false, isFeedback: false, noUpdate: true },
+  { id: "DF_EXECUTE_DEPT", name: "EXECUTE_DEPT", comment: "执行科室", type: "VARCHAR", length: 100, decimal: 0, isPrimaryKey: false, isNotNull: false, isRequired: false, isShow: true, displayName: "执行科室", isQueryable: false, isFeedback: false, noUpdate: true },
+  { id: "DF_DEPARTMENT_NAME", name: "DEPARTMENT_NAME", comment: "科室名称", type: "VARCHAR", length: 100, decimal: 0, isPrimaryKey: false, isNotNull: false, isRequired: false, isShow: true, displayName: "科室名称", isQueryable: true, isFeedback: false, noUpdate: true },
+  { id: "DF_IS_APPEAL", name: "IS_APPEAL", comment: "是/否申诉", type: "VARCHAR", length: 10, decimal: 0, isPrimaryKey: false, isNotNull: false, isRequired: false, isShow: true, displayName: "是/否申诉", isQueryable: false, isFeedback: true, noUpdate: false },
+  { id: "DF_APPEAL_REASON", name: "APPEAL_REASON", comment: "申诉原因", type: "VARCHAR", length: 500, decimal: 0, isPrimaryKey: false, isNotNull: false, isRequired: false, isShow: true, displayName: "申诉原因", isQueryable: false, isFeedback: true, noUpdate: false },
+  { id: "DF_APPEAL_ATTACHMENT", name: "APPEAL_ATTACHMENT", comment: "申诉附件", type: "VARCHAR", length: 500, decimal: 0, isPrimaryKey: false, isNotNull: false, isRequired: false, isShow: true, displayName: "申诉附件", isQueryable: false, isFeedback: true, noUpdate: false },
+  { id: "DF_APPEAL_REMARK", name: "APPEAL_REMARK", comment: "申诉备注", type: "VARCHAR", length: 500, decimal: 0, isPrimaryKey: false, isNotNull: false, isRequired: false, isShow: true, displayName: "申诉备注", isQueryable: false, isFeedback: true, noUpdate: true },
 ];
 
 export function AddReviewTemplate() {
@@ -30,6 +47,9 @@ export function AddReviewTemplate() {
   const id = searchParams.get("id");
   const [hasChanges, setHasChanges] = useState(false);
   const [showConfirmBack, setShowConfirmBack] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [activeFieldIndex, setActiveFieldIndex] = useState<number | null>(null);
+  const [searchStdKeyword, setSearchStdKeyword] = useState("");
 
   const [formData, setFormData] = useState<Partial<ReviewTemplate>>({
     name: "",
@@ -38,6 +58,35 @@ export function AddReviewTemplate() {
     desc: "",
     fields: [...JSON.parse(JSON.stringify(DEFAULT_FEEDBACK_FIELDS))]
   });
+
+  const handleOpenStandardFields = (index: number) => {
+    setActiveFieldIndex(index);
+    setSearchStdKeyword("");
+    setDrawerOpen(true);
+  };
+
+  const handleLinkStandardField = (stdField: typeof STANDARD_FIELDS[0]) => {
+    if (activeFieldIndex === null) return;
+    const usedBy = formData.fields?.find(f => f.mappedStandardField === stdField.name && f.id !== formData.fields![activeFieldIndex].id);
+    if (usedBy) {
+      toast(`当前所选变量已被字段 ${usedBy.comment || usedBy.name} 选中，请重新选择`, "error");
+      return;
+    }
+    const newFields = [...(formData.fields || [])];
+    newFields[activeFieldIndex] = { ...newFields[activeFieldIndex], mappedStandardField: stdField.name };
+    setFormData({ ...formData, fields: newFields });
+    setHasChanges(true);
+    toast("关联成功", "success");
+  };
+
+  const handleUnlinkStandardField = () => {
+    if (activeFieldIndex === null) return;
+    const newFields = [...(formData.fields || [])];
+    newFields[activeFieldIndex] = { ...newFields[activeFieldIndex], mappedStandardField: undefined };
+    setFormData({ ...formData, fields: newFields });
+    setHasChanges(true);
+    toast("已解除关联", "success");
+  };
 
   const handleTemplateTypeChange = (value: any) => {
     let currentFields = formData.fields || [];
@@ -183,6 +232,14 @@ export function AddReviewTemplate() {
     setHasChanges(false);
     navigate("/review-template/index");
   };
+
+  const activeField = activeFieldIndex !== null ? formData.fields?.[activeFieldIndex] : null;
+  const currentMappedField = STANDARD_FIELDS.find(f => f.name === activeField?.mappedStandardField);
+  const filteredStandardFields = STANDARD_FIELDS.filter(f => 
+    f.name.toLowerCase().includes(searchStdKeyword.toLowerCase()) || 
+    f.comment.toLowerCase().includes(searchStdKeyword.toLowerCase()) ||
+    f.remark.toLowerCase().includes(searchStdKeyword.toLowerCase())
+  );
 
   return (
     <div className="flex flex-col h-full bg-slate-50">
@@ -334,10 +391,11 @@ export function AddReviewTemplate() {
                   <th className="px-2 py-3 w-12 text-center">非空</th>
                   <th className="px-2 py-3 w-12 text-center">必填</th>
                   <th className="px-2 py-3 w-12 text-center">展示</th>
+                  <th className="px-2 py-3 w-16 text-center">管理可见</th>
                   <th className="px-2 py-3 w-12 text-center">查询</th>
                   <th className="px-2 py-3 w-14 text-center">反馈</th>
                   <th className="px-2 py-3 w-14 text-center">不更新</th>
-                  <th className="px-3 py-3 w-36 text-left sticky right-0 bg-slate-50 shadow-[-4px_0_4px_-4px_rgba(0,0,0,0.1)]">操作</th>
+                  <th className="px-3 py-3 w-40 text-left sticky right-0 bg-slate-50 shadow-[-4px_0_4px_-4px_rgba(0,0,0,0.1)]">操作</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 divide-x divide-slate-100">
@@ -353,12 +411,19 @@ export function AddReviewTemplate() {
                       />
                     </td>
                     <td className="px-2 py-1.5">
-                      <input 
-                        type="text" 
-                        value={field.comment} 
-                        onChange={(e) => handleUpdateField(idx, { comment: e.target.value })}
-                        className="w-full h-8 px-2 border border-transparent focus:border-blue-300 focus:bg-white rounded outline-none bg-slate-50/10" 
-                      />
+                      <div className="flex items-center gap-1.5">
+                        <input 
+                          type="text" 
+                          value={field.comment} 
+                          onChange={(e) => handleUpdateField(idx, { comment: e.target.value })}
+                          className="w-full h-8 px-2 border border-transparent focus:border-blue-300 focus:bg-white rounded outline-none bg-slate-50/10" 
+                        />
+                        {field.mappedStandardField && (
+                          <div className="w-4 h-4 text-green-500 shrink-0" title={`已关联: ${field.mappedStandardField}`}>
+                            <Link2 className="w-4 h-4" />
+                          </div>
+                        )}
+                      </div>
                     </td>
                     <td className="px-2 py-1.5">
                       <input 
@@ -408,6 +473,9 @@ export function AddReviewTemplate() {
                       <input type="checkbox" checked={field.isShow !== false} onChange={(e) => handleUpdateField(idx, { isShow: e.target.checked })} />
                     </td>
                     <td className="px-2 py-2 text-center">
+                      <input type="checkbox" checked={field.adminVisible || false} onChange={(e) => handleUpdateField(idx, { adminVisible: e.target.checked })} />
+                    </td>
+                    <td className="px-2 py-2 text-center">
                       <input type="checkbox" checked={field.isQueryable} onChange={(e) => handleUpdateField(idx, { isQueryable: e.target.checked })} />
                     </td>
                     <td className="px-2 py-2 text-center">
@@ -418,6 +486,7 @@ export function AddReviewTemplate() {
                     </td>
                     <td className="px-3 py-2 text-left sticky right-0 bg-white group-hover:bg-blue-50 shadow-[-4px_0_4px_-4px_rgba(0,0,0,0.1)]">
                       <div className="flex items-center justify-start gap-1.5">
+                        <button onClick={() => handleOpenStandardFields(idx)} className="p-1 text-emerald-500 hover:bg-emerald-50 rounded" title="关联标准表字段"><Link2 className="w-3.5 h-3.5"/></button>
                         <button onClick={() => handleAction(idx, "copy")} className="p-1 text-blue-500 hover:bg-blue-50 rounded" title="复制一行"><Copy className="w-3.5 h-3.5"/></button>
                         {((formData.templateType || "医保审核反馈") !== "医保审核反馈" || !DEFAULT_FEEDBACK_FIELDS.map(f => f.name).includes(field.name)) && (
                           <button onClick={() => handleAction(idx, "delete")} className="p-1 text-red-500 hover:bg-red-50 rounded" title="删除"><Trash2 className="w-3.5 h-3.5"/></button>
@@ -430,7 +499,7 @@ export function AddReviewTemplate() {
                 ))}
                 {(!formData.fields || formData.fields.length === 0) && (
                   <tr>
-                    <td colSpan={15} className="px-4 py-8 text-center text-slate-400 bg-slate-50/30">
+                    <td colSpan={16} className="px-4 py-8 text-center text-slate-400 bg-slate-50/30">
                       <div className="flex flex-col items-center gap-2">
                         <AlertCircle className="w-8 h-8 opacity-20" />
                         <span>未设计任何字段，请点击“新增字段”按钮</span>
@@ -443,6 +512,106 @@ export function AddReviewTemplate() {
           </div>
         </div>
       </div>
+
+      <Drawer
+        isOpen={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+        title="关联标准表字段"
+        width="w-[800px]"
+        placement="left"
+      >
+        <div className="flex flex-col h-full">
+          <div className="p-6 border-b border-slate-100 space-y-4 shrink-0">
+            {currentMappedField && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-center justify-between">
+                <div>
+                  <div className="text-sm font-semibold text-blue-900 mb-1">
+                    已关联标准字段
+                  </div>
+                  <div className="text-sm text-blue-800">
+                    <span className="font-bold">{currentMappedField.comment}</span> 
+                    <span className="font-mono ml-2 text-xs opacity-70">({currentMappedField.name})</span>
+                  </div>
+                </div>
+                <Button variant="outline" size="sm" onClick={handleUnlinkStandardField} className="text-red-500 border-red-200 hover:bg-red-50 hover:text-red-600">
+                  解除关联
+                </Button>
+              </div>
+            )}
+            
+            <div className="flex items-center gap-3">
+              <input
+                type="text"
+                placeholder="搜索标准表字段名称/描述/备注..."
+                className="w-full h-9 px-3 rounded border border-slate-300 focus:ring-2 focus:ring-blue-500 outline-none text-sm"
+                value={searchStdKeyword}
+                onChange={(e) => setSearchStdKeyword(e.target.value)}
+              />
+            </div>
+          </div>
+          
+          <div className="flex-1 overflow-y-auto p-6 pt-0">
+            <div className="border border-slate-200 rounded-md overflow-hidden">
+              <table className="w-full text-sm text-left border-collapse">
+                <thead className="bg-slate-50 text-slate-600 font-bold border-b border-slate-200">
+                  <tr>
+                    <th className="px-4 py-3 min-w-[150px]">字段注释</th>
+                    <th className="px-4 py-3 min-w-[150px]">字段名称</th>
+                    <th className="px-4 py-3">备注</th>
+                    <th className="px-4 py-3 w-28 text-center bg-slate-50 sticky right-0 shadow-[-4px_0_4px_-4px_rgba(0,0,0,0.1)]">操作</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {filteredStandardFields.map((stdField) => {
+                    const usedBy = formData.fields?.find(f => f.mappedStandardField === stdField.name);
+                    const isUsed = !!usedBy;
+                    const isCurrent = activeField?.mappedStandardField === stdField.name;
+
+                    return (
+                      <tr key={stdField.name} className={cn("group hover:bg-slate-50 transition-colors", isCurrent && "bg-blue-50")}>
+                        <td className="px-4 py-3 font-semibold text-slate-800 tracking-tight">{stdField.comment}</td>
+                        <td className="px-4 py-3 text-xs font-mono text-slate-500">{stdField.name}</td>
+                        <td className="px-4 py-3 text-xs text-slate-500">{stdField.remark}</td>
+                        <td className={cn(
+                          "px-4 py-3 text-center sticky right-0 shadow-[-4px_0_4px_-4px_rgba(0,0,0,0.1)] transition-colors",
+                          isCurrent ? "bg-blue-50 group-hover:bg-blue-50" : "bg-white group-hover:bg-slate-50"
+                        )}>
+                          {isCurrent ? (
+                            <span className="text-xs font-medium text-blue-600 bg-blue-100 px-2 py-1 rounded">当前关联</span>
+                          ) : (
+                            <div className="flex flex-col items-center gap-1 w-full">
+                              <Button
+                                variant={isUsed ? "outline" : "primary"}
+                                size="sm"
+                                onClick={() => handleLinkStandardField(stdField)}
+                                className={cn("w-full", isUsed && "opacity-80")}
+                              >
+                                {isUsed ? "重新关联" : "关联"}
+                              </Button>
+                              {isUsed && !isCurrent && (
+                                <div className="text-[10px] text-amber-600 truncate max-w-[80px]" title={`已被 ${usedBy.comment || usedBy.name} 选中`}>
+                                  已被选中
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  {filteredStandardFields.length === 0 && (
+                    <tr>
+                      <td colSpan={4} className="px-4 py-8 text-center text-slate-400">
+                        未搜索到相关字段
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </Drawer>
     </div>
   );
 }

@@ -10,10 +10,12 @@ import { Modal } from "@/src/components/ui/Modal";
 import { toast } from "@/src/components/ui/Toast";
 import { mockApi, Task, ReviewTemplate } from "@/src/lib/mockData";
 import { DEPARTMENTS, TASK_STATUS } from "@/src/lib/constants";
+import { useUser } from "@/src/lib/userContext";
 import { motion, AnimatePresence } from "motion/react";
 import { cn } from "@/src/lib/utils";
 
 export function Audit() {
+  const { role } = useUser();
   const [isColumnSettingsOpen, setIsColumnSettingsOpen] = useState(false);
   const [configurableColumns, setConfigurableColumns] = useState<ColumnItem[]>([]);
 
@@ -34,6 +36,8 @@ export function Audit() {
   // Modal states
   const [auditModal, setAuditModal] = useState(false);
   const [batchAuditModal, setBatchAuditModal] = useState(false);
+  const [rejectModal, setRejectModal] = useState(false);
+  const [rejectOpinion, setRejectOpinion] = useState("");
   const [auditForm, setAuditForm] = useState<{
     confirm: "APPEAL" | "NO_APPEAL" | "";
     opinion: string;
@@ -48,6 +52,7 @@ export function Audit() {
 
   const [filterStatus, setFilterStatus] = useState("全部");
   const [showFilter, setShowFilter] = useState(false);
+  const [batchAuditOpinion, setBatchAuditOpinion] = useState("");
 
   const fetchData = React.useCallback(() => {
     if (!taskId) return;
@@ -95,7 +100,7 @@ export function Audit() {
   useEffect(() => {
     if (template && template.fields) {
       const items = template.fields
-        .filter(f => f.isShow !== false)
+        .filter(f => f.isShow !== false && (role === "ADMIN" || !f.adminVisible))
         .map(f => ({
           key: `data.${f.name}`,
           title: f.displayName || f.comment || f.name,
@@ -103,7 +108,7 @@ export function Audit() {
         }));
       setConfigurableColumns(items);
     }
-  }, [template]);
+  }, [template, role]);
 
   const handleBack = () => navigate("/data-review/index");
 
@@ -201,16 +206,8 @@ export function Audit() {
       origEvidence.length === auditForm.evidence.length &&
       origEvidence.every((val, i) => val === auditForm.evidence[i]);
       
-    let newFillStatus = activeRecord.fillStatus;
-    let newAuditStatus = activeRecord.auditStatus;
-    
-    if (isSame) {
-      newFillStatus = "APPROVED"; // 审核通过
-      newAuditStatus = 1; // 审批通过
-    } else {
-      newFillStatus = "REJECTED"; // 驳回
-      newAuditStatus = 2; // 已驳回
-    }
+    let newFillStatus = "APPROVED"; // 审核通过
+    let newAuditStatus = 1; // 审批通过
     
     const updatedRecord = {
       ...activeRecord,
@@ -280,8 +277,8 @@ export function Audit() {
     </div>
   );
 
-  const queryFields = template.fields.filter(f => f.isQueryable);
-  const dynamicCols = template.fields.filter(f => f.isShow !== false).map(f => ({
+  const queryFields = template.fields.filter(f => f.isQueryable && (role === "ADMIN" || !f.adminVisible));
+  const dynamicCols = template.fields.filter(f => f.isShow !== false && (role === "ADMIN" || !f.adminVisible)).map(f => ({
     key: `data.${f.name}`,
     title: f.displayName || f.comment || f.name,
     width: f.length > 100 ? "200px" : "120px",
@@ -297,7 +294,7 @@ export function Audit() {
 
   const getStatusBadge = (r: any) => {
     if (r.auditStatus === 1) return <Badge status="success">审批通过</Badge>;
-    if (r.auditStatus === 2) return <Badge status="error">已驳回</Badge>;
+    if (r.auditStatus === 2 || r.auditStatus === 3) return <Badge status="error">已驳回</Badge>;
     if (r.fillStatus === "AI_FILLING") return <Badge status="info">填报中</Badge>;
     return <Badge status="warning">待审核</Badge>;
   };
@@ -314,28 +311,43 @@ export function Audit() {
       key: "status_col",
       title: "审核状态",
       fixed: "right" as const,
-      fixedOffset: "100px",
+      fixedOffset: "140px",
       width: "120px",
       render: (r: any) => getStatusBadge(r)
     },
-    { key: "action", title: "操作", fixed: "right" as const, width: "100px", render: (r: any) => (
-      <Button 
-        variant="ghost" 
-        size="sm" 
-        onClick={() => {
-          setActiveRecord(r);
-          setAuditForm({
-            confirm: r.data.IS_APPEAL === "否" ? "NO_APPEAL" : (r.data.IS_APPEAL === "是" ? "APPEAL" : ""),
-            opinion: r.data.APPEAL_REASON || "",
-            evidence: r.data.IS_APPEAL === "是" ? (Array.isArray(r.evidence) ? [...r.evidence] : (r.data.APPEAL_ATTACHMENT ? r.data.APPEAL_ATTACHMENT.split(", ") : [])) : [],
-            remark: r.data.APPEAL_REMARK || ""
-          });
-          setAuditModal(true);
-        }}
-        className="text-blue-600 font-medium"
-      >
-        审核
-      </Button>
+    { key: "action", title: "操作", fixed: "right" as const, width: "140px", render: (r: any) => (
+      <div className="flex gap-1 items-center">
+        <Button 
+          variant="ghost" 
+          size="sm" 
+          onClick={() => {
+            setActiveRecord(r);
+            setAuditForm({
+              confirm: r.data.IS_APPEAL === "否" ? "NO_APPEAL" : (r.data.IS_APPEAL === "是" ? "APPEAL" : ""),
+              opinion: r.data.APPEAL_REASON || "",
+              evidence: r.data.IS_APPEAL === "是" ? (Array.isArray(r.evidence) ? [...r.evidence] : (r.data.APPEAL_ATTACHMENT ? r.data.APPEAL_ATTACHMENT.split(", ") : [])) : [],
+              remark: r.data.APPEAL_REMARK || ""
+            });
+            setAuditModal(true);
+          }}
+          className="text-blue-600 font-medium px-2"
+        >
+          审核
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          disabled={r.fillStatus === "REJECTED" || r.auditStatus === 3}
+          onClick={() => {
+            setActiveRecord(r);
+            setRejectOpinion("");
+            setRejectModal(true);
+          }}
+          className="text-red-500 hover:text-red-700 font-medium px-2"
+        >
+          驳回
+        </Button>
+      </div>
     )}] : [])
   ] : [];
 
@@ -350,11 +362,69 @@ export function Audit() {
 
   const handleBulkAuditClick = () => {
     if (selectedIds.length > 0) {
+      const hasFinalState = records.filter(r => selectedIds.includes(r.id)).some(r => r.auditStatus === 1 || r.auditStatus === 2 || r.auditStatus === 3);
+      if (hasFinalState) {
+        toast("部分记录不可批量审核，请重新选择", "error");
+        return;
+      }
+      setBatchAuditOpinion("");
       setBatchAuditModal(true);
     }
   };
 
-  const handleConfirmBatchAudit = () => {
+  const handleConfirmReject = () => {
+    if (!activeRecord || !taskId) {
+      return;
+    }
+    const updatedRecord = {
+      ...activeRecord,
+      fillStatus: "REJECTED",
+      auditStatus: 3, // 审核驳回
+      reviewOpinion: rejectOpinion,
+    };
+    mockApi.saveTaskDetailRecord(taskId, updatedRecord);
+    
+    // Find subtask matching the department and set its status to WITHDRAWN
+    const allTasks = mockApi.getTasks(1, 1000).data;
+    const subtask = allTasks.find(t => t.parentId === taskId && DEPARTMENTS[t.departmentId as keyof typeof DEPARTMENTS] === activeRecord.data.DEPARTMENT_NAME);
+    if (subtask) {
+      mockApi.updateTaskStatus(subtask.id, "WITHDRAWN");
+    }
+
+    setRecords(records.map(r => r.id === activeRecord.id ? updatedRecord : r));
+    toast("已驳回该明细", "success");
+    setRejectModal(false);
+    setActiveRecord(null);
+    setRejectOpinion("");
+  };
+
+  const handleConfirmBatchReject = () => {
+    if (selectedIds.length === 0) return;
+    
+    selectedIds.forEach(id => {
+      const rec = records.find(r => r.id === id);
+      if (rec) {
+        const updatedRecord = {
+          ...rec,
+          fillStatus: "REJECTED",
+          auditStatus: 3, // 审核驳回
+          reviewOpinion: batchAuditOpinion,
+        };
+        mockApi.saveTaskDetailRecord(taskId!, updatedRecord);
+      }
+    });
+
+    toast(`已批量驳回已选的 ${selectedIds.length} 项数据审核！`, "success");
+    
+    window.dispatchEvent(new Event("task_updated"));
+    setBatchAuditModal(false);
+    setSelectedIds([]);
+    setBatchAuditOpinion("");
+    fetchData(); 
+    checkAndCompleteTaskStatus(taskId!, deptId);
+  };
+
+  const handleConfirmBatchApprove = () => {
     if (selectedIds.length === 0) return;
     
     selectedIds.forEach(id => {
@@ -371,15 +441,11 @@ export function Audit() {
 
     toast(`已批量通过已选的 ${selectedIds.length} 项数据审核！`, "success");
     
-    // Trigger task_updated event to notify other screens
     window.dispatchEvent(new Event("task_updated"));
-    
-    // Close modal & reload lists
     setBatchAuditModal(false);
     setSelectedIds([]);
-    fetchData(); // reload records
-    
-    // Sync completion status of tasks
+    setBatchAuditOpinion("");
+    fetchData(); 
     checkAndCompleteTaskStatus(taskId!, deptId);
   };
 
@@ -393,7 +459,7 @@ export function Audit() {
           </h2>
         </div>
         <div className="flex items-center gap-3">
-          {!isDeductionTask && (
+          {!isDeductionTask && role === "ADMIN" && (
             <Button 
               variant="primary" 
               onClick={handleBulkAuditClick} 
@@ -689,60 +755,86 @@ export function Audit() {
       </Drawer>
 
       <Modal 
-        isOpen={batchAuditModal} 
-        onClose={() => setBatchAuditModal(false)} 
-        title="批量数据审核" 
+        isOpen={rejectModal}
+        title="审核驳回"
+        onClose={() => setRejectModal(false)}
         width="max-w-[540px]"
       >
         <div className="flex flex-col bg-white space-y-4">
           <div className="p-1">
-            <div className="flex items-start gap-3 bg-blue-50/70 border border-blue-100 p-4 rounded-xl text-blue-800">
-              <Info className="w-5 h-5 text-blue-500 shrink-0 mt-0.5" />
-              <div className="text-sm">
-                <p className="font-bold mb-1">批量通过确认</p>
-                <p className="text-blue-700/90 leading-relaxed">
-                  您已勾选了 <span className="font-bold text-blue-900 text-base">{selectedIds.length}</span> 条申诉报表记录。
-                  选中记录将直接执行【<span className="font-bold text-emerald-600">批量审核通过</span>】。
-                </p>
-                <div className="text-xs text-amber-700 font-medium mt-2 bg-amber-50 border border-amber-100/60 px-3 py-2 rounded-lg flex items-start gap-1.5 leading-relaxed">
-                  <AlertCircle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
-                  <span>提示：系统仅支持批量通过，不支持批量驳回。若有申诉证据不足或内容错误的项，请点击明细列表操作列中的【审核】进行单个驳回。</span>
-                </div>
-              </div>
+            <div className="mb-4 text-sm text-slate-600">
+              请填写驳回意见，驳回后由科室重新填报。
             </div>
-
-            <div className="mt-4">
-              <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">待审核记录清单 ({selectedIds.length})</p>
-              <div className="max-h-[220px] overflow-y-auto border border-slate-200/60 rounded-xl divide-y divide-slate-100 bg-slate-50/30 pr-1">
-                {records.filter(r => selectedIds.includes(r.id)).map((item, idx) => (
-                  <div key={item.id} className="p-3 flex items-center justify-between text-[13px] hover:bg-slate-50 transition-colors">
-                    <div className="min-w-0 pr-4">
-                      <div className="flex items-center gap-2">
-                        <span className="text-slate-400 font-mono text-xs">{idx + 1}.</span>
-                        <span className="font-bold text-slate-800">{item.data.PATIENT_NAME || "张三"}</span>
-                        <span className="text-xs text-slate-400 font-mono bg-slate-100 px-1 rounded">住院号: {item.data.HOSPITAL_NO || item.id}</span>
-                      </div>
-                      <p className="text-slate-500 text-xs truncate mt-1">项目: {item.data.PROJECT_NAME || "-"}</p>
-                    </div>
-                    <div className="shrink-0 text-right">
-                      <span className="font-mono font-semibold text-rose-600">
-                        {item.data.VIOLATION_AMOUNT ? `¥${Number(item.data.VIOLATION_AMOUNT).toFixed(2)}` : "-"}
-                      </span>
-                    </div>
-                  </div>
-                ))}
+            <div>
+              <label className="block text-sm font-bold text-slate-700 mb-2">
+                审核意见
+              </label>
+              <textarea 
+                className="w-full h-32 px-4 py-3 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500/20 focus:outline-none focus:border-blue-500 transition-all placeholder:text-slate-300 resize-none"
+                placeholder="请输入内容（最多500字）"
+                maxLength={500}
+                value={rejectOpinion}
+                onChange={(e) => setRejectOpinion(e.target.value)}
+              />
+              <div className="text-right text-xs text-slate-400 mt-1">
+                {rejectOpinion.length}/500
               </div>
             </div>
           </div>
-
           <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
-            <Button variant="ghost" onClick={() => setBatchAuditModal(false)}>取消</Button>
+            <Button variant="ghost" onClick={() => setRejectModal(false)}>取消</Button>
             <Button 
               variant="primary" 
-              onClick={handleConfirmBatchAudit}
-              className="bg-blue-600 hover:bg-blue-700 shadow-sm border-0 text-white"
+              onClick={handleConfirmReject}
+              className="bg-red-500 hover:bg-red-600 shadow-sm border-0 text-white"
             >
-              确认批量通过
+              确定驳回
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal 
+        isOpen={batchAuditModal} 
+        onClose={() => setBatchAuditModal(false)} 
+        title="审核" 
+        width="max-w-[540px]"
+      >
+        <div className="flex flex-col bg-white space-y-4">
+          <div className="p-1">
+            <div className="flex items-center gap-2 bg-blue-50/70 border border-blue-200 px-4 py-3 rounded-lg text-blue-700 text-sm mb-4">
+              <Info className="w-4 h-4 shrink-0 text-blue-500" />
+              <span>
+                已选中{selectedIds.length}条数据，其中{records.filter(r => selectedIds.includes(r.id) && r.data?.IS_APPEAL === "是").length}条申诉，{records.filter(r => selectedIds.includes(r.id) && r.data?.IS_APPEAL === "否").length}条不申诉
+              </span>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-2">
+                审核意见
+              </label>
+              <textarea 
+                className="w-full h-32 px-4 py-3 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500/20 focus:outline-none focus:border-blue-500 transition-all placeholder:text-slate-300 resize-none"
+                placeholder="请输入内容"
+                value={batchAuditOpinion}
+                onChange={(e) => setBatchAuditOpinion(e.target.value)}
+              />
+            </div>
+          </div>
+
+          <div className="flex justify-center gap-4 pt-4 border-t border-slate-100">
+            <Button variant="outline" onClick={() => setBatchAuditModal(false)} className="px-8 shadow-sm">取消</Button>
+            <Button 
+              className="bg-red-400 hover:bg-red-500 text-white shadow-sm border-0 px-8"
+              onClick={handleConfirmBatchReject}
+            >
+              驳回
+            </Button>
+            <Button 
+              className="bg-blue-600 hover:bg-blue-700 text-white shadow-sm border-0 px-8"
+              onClick={handleConfirmBatchApprove}
+            >
+              同意
             </Button>
           </div>
         </div>

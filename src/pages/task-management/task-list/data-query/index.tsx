@@ -8,6 +8,7 @@ import {
   Filter,
   ChevronUp,
   ChevronDown,
+  Upload,
 } from "lucide-react";
 import { Link, useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "motion/react";
@@ -26,10 +27,12 @@ import {
 import { TASK_STATUS, DEPARTMENTS } from "@/src/lib/constants";
 import { downloadZipWithExcel } from "@/src/lib/exportUtils";
 import { ColumnSettingsModal, ColumnItem } from "@/src/components/ColumnSettingsModal";
+import { useUser } from "@/src/lib/userContext";
 
 // Mock data generator no longer used, removed
 
 export default function DataQuery() {
+  const { role } = useUser();
   const [searchParams] = useSearchParams();
   const id = searchParams.get("id");
   const [task, setTask] = useState<Task | null>(null);
@@ -179,6 +182,22 @@ export default function DataQuery() {
 
   const [isColumnSettingsOpen, setIsColumnSettingsOpen] = useState(false);
   const [hiddenColumns, setHiddenColumns] = useState<string[]>([]);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [importFile, setImportFile] = useState<File | null>(null);
+
+  const handleImport = () => {
+    if (!importFile) {
+      toast("请选择需要导入的文件", "error");
+      return;
+    }
+    if (importFile.size > 20 * 1024 * 1024) {
+      toast("单个文件不超过 20MB", "error");
+      return;
+    }
+    setIsImportModalOpen(false);
+    toast("导入成功并生成了问题数据", "success");
+    setImportFile(null);
+  };
 
   useEffect(() => {
     fetchTaskData();
@@ -202,7 +221,7 @@ export default function DataQuery() {
   if (!task || !template)
     return <div className="p-6">加载中或任务未找到...</div>;
 
-  const queryFields = template.fields.filter((f) => f.isQueryable);
+  const queryFields = template.fields.filter((f) => f.isQueryable && (role === "ADMIN" || !f.adminVisible));
 
   const calculatedAiTotal = data.length;
   const calculatedAiProgress = data.filter(d => d.fillStatus === "AI_FILLED" || d.fillStatus === "FILLED" || d.fillStatus === "SUBMITTED").length;
@@ -214,7 +233,7 @@ export default function DataQuery() {
   const showAiProgress = template.templateType === "医保审核反馈" && aiTotalCount > 0;
 
   const configurableColumns: ColumnItem[] = template.fields
-    .filter(f => f.isShow !== false)
+    .filter(f => f.isShow !== false && (role === "ADMIN" || !f.adminVisible))
     .map(f => ({
       key: f.name,
       title: f.displayName || f.comment || f.name,
@@ -295,7 +314,7 @@ export default function DataQuery() {
         />
       ),
     },
-    ...template.fields.filter(f => f.isShow !== false && !hiddenColumns.includes(f.name)).map((f) => ({
+    ...template.fields.filter(f => f.isShow !== false && (role === "ADMIN" || !f.adminVisible) && !hiddenColumns.includes(f.name)).map((f) => ({
       key: f.name,
       title: f.displayName || f.comment || f.name,
       width: "15%",
@@ -374,65 +393,77 @@ export default function DataQuery() {
 
         {/* Search & Actions */}
         <div className="flex flex-col gap-4 mb-4">
-          <div className="flex items-center justify-end gap-2 flex-shrink-0 order-1 xl:order-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setShowFilters(!showFilters)}
-              className={
-                showFilters ? "bg-blue-50 border-blue-200 text-blue-600" : ""
-              }
-            >
-              <Filter className="w-4 h-4 mr-1.5" />
-              筛选
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleOpenSwitchDeptModal}
-              disabled={selectedIds.length === 0}
-              className={
-                selectedIds.length === 0
-                  ? "opacity-50 cursor-not-allowed bg-slate-50 text-slate-400 border-slate-200"
-                  : "text-blue-600 border-blue-200 hover:bg-blue-50"
-              }
-            >
-              <RefreshCw className="w-4 h-4 mr-1.5" />
-              切换科室
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => handleDownload("部分数据")}
-              disabled={selectedIds.length === 0}
-              className={
-                selectedIds.length === 0
-                  ? "opacity-50 cursor-not-allowed bg-slate-50 text-slate-400 border-slate-200"
-                  : "text-blue-600 border-blue-200 hover:bg-blue-50"
-              }
-            >
-              <Download className="w-4 h-4 mr-1.5" />
-              下载数据
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => toast("刷新成功", "success")}
-            >
-              <RefreshCw className="w-4 h-4 mr-1.5" />
-              刷新
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => handleDownload("所有数据")}
-            >
-              <Download className="w-4 h-4 mr-1.5" />
-              导出所有数据
-            </Button>
-            <Button variant="outline" size="sm" className="px-2" onClick={() => setIsColumnSettingsOpen(true)} title="设置">
-              <Settings className="w-4 h-4 text-slate-500" />
-            </Button>
+          <div className="flex items-center justify-between gap-2 flex-shrink-0">
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowFilters(!showFilters)}
+                className={
+                  showFilters ? "bg-blue-50 border-blue-200 text-blue-600" : ""
+                }
+              >
+                <Filter className="w-4 h-4 mr-1.5" />
+                筛选
+              </Button>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleOpenSwitchDeptModal}
+                disabled={selectedIds.length === 0}
+                className={
+                  selectedIds.length === 0
+                    ? "opacity-50 cursor-not-allowed bg-slate-50 text-slate-400 border-slate-200"
+                    : "text-blue-600 border-blue-200 hover:bg-blue-50"
+                }
+              >
+                <RefreshCw className="w-4 h-4 mr-1.5" />
+                切换科室
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handleDownload("部分数据")}
+                disabled={selectedIds.length === 0}
+                className={
+                  selectedIds.length === 0
+                    ? "opacity-50 cursor-not-allowed bg-slate-50 text-slate-400 border-slate-200"
+                    : "text-blue-600 border-blue-200 hover:bg-blue-50"
+                }
+              >
+                <Download className="w-4 h-4 mr-1.5" />
+                下载数据
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setIsImportModalOpen(true)}
+              >
+                <Upload className="w-4 h-4 mr-1.5" />
+                导入更新
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => toast("刷新成功", "success")}
+              >
+                <RefreshCw className="w-4 h-4 mr-1.5" />
+                刷新
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handleDownload("所有数据")}
+              >
+                <Download className="w-4 h-4 mr-1.5" />
+                导出所有数据
+              </Button>
+              <Button variant="outline" size="sm" className="px-2" onClick={() => setIsColumnSettingsOpen(true)} title="设置">
+                <Settings className="w-4 h-4 text-slate-500" />
+              </Button>
+            </div>
           </div>
 
           <AnimatePresence>
@@ -441,7 +472,7 @@ export default function DataQuery() {
                 initial={{ height: 0, opacity: 0, marginBottom: 0 }}
                 animate={{ height: "auto", opacity: 1, marginBottom: 16 }}
                 exit={{ height: 0, opacity: 0, marginBottom: 0 }}
-                className="overflow-hidden order-2 xl:order-1"
+                className="overflow-hidden"
               >
                 <div className="flex flex-wrap items-center gap-x-8 gap-y-4 bg-slate-50/50 border border-slate-100 rounded-xl p-4">
                   {queryFields.map((f) => (
@@ -550,6 +581,23 @@ export default function DataQuery() {
             </div>
           </div>
         </Modal>
+        {/* 导入更新弹窗 */}
+        <Modal isOpen={isImportModalOpen} onClose={() => setIsImportModalOpen(false)} 
+          title="数据导入更新" width="max-w-md"
+          footer={<><Button variant="outline" onClick={() => setIsImportModalOpen(false)}>取消</Button><Button variant="primary" onClick={handleImport}>确认</Button></>}
+        >
+          <div className="flex flex-col gap-4 text-sm text-center py-6">
+            <input type="file" id="file_upload_update" className="hidden" accept=".xls,.xlsx" onChange={(e) => { 
+              const files = e.target.files;
+              if(files && files.length > 0) setImportFile(files[0]);
+            }}/>
+            <Button variant="outline" className="mx-auto w-32" onClick={() => document.getElementById("file_upload_update")?.click()}>选择文件</Button>
+            <div className="text-slate-500">
+              {importFile ? <span className="text-blue-600 font-medium">{importFile.name}</span> : "暂未选择文件"}
+            </div>
+          </div>
+        </Modal>
+
         <ColumnSettingsModal
           isOpen={isColumnSettingsOpen}
           onClose={() => setIsColumnSettingsOpen(false)}

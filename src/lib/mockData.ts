@@ -40,10 +40,12 @@ export interface TemplateField {
   isNotNull: boolean;
   isRequired: boolean;
   isShow?: boolean;
+  adminVisible?: boolean;
   displayName?: string;
   isQueryable: boolean;
   isFeedback: boolean;
   noUpdate: boolean;
+  mappedStandardField?: string;
 }
 
 export interface ReviewTemplate {
@@ -106,22 +108,22 @@ const INITIAL_TEMPLATES: ReviewTemplate[] = [
     fields: [
       { id: "F1", name: "HOSPITAL_NO", comment: "住院号", type: "VARCHAR", length: 50, decimal: 0, isPrimaryKey: true, isNotNull: true, isRequired: true, isQueryable: true, isFeedback: false, noUpdate: true, isShow: true, displayName: "" },
       { id: "F2", name: "PATIENT_NAME", comment: "参保人", type: "VARCHAR", length: 100, decimal: 0, isPrimaryKey: false, isNotNull: false, isRequired: false, isQueryable: false, isFeedback: false, noUpdate: true, isShow: true, displayName: "" },
-      { id: "F3", name: "ID_CARD", comment: "身份证号", type: "VARCHAR", length: 50, decimal: 0, isPrimaryKey: false, isNotNull: false, isRequired: false, isQueryable: false, isFeedback: false, noUpdate: true, isShow: true, displayName: "" },
+      { id: "F3", name: "ID_CARD", comment: "身份证号", type: "VARCHAR", length: 50, decimal: 0, isPrimaryKey: false, isNotNull: false, isRequired: false, isQueryable: false, isFeedback: false, noUpdate: true, isShow: true, displayName: "", adminVisible: true },
       { id: "F4", name: "ADMIT_DATE", comment: "入院日期", type: "DATE", length: 0, decimal: 0, isPrimaryKey: false, isNotNull: false, isRequired: false, isQueryable: false, isFeedback: false, noUpdate: true, isShow: true, displayName: "" },
       { id: "F5", name: "DISCHARGE_DATE", comment: "出院日期", type: "DATE", length: 0, decimal: 0, isPrimaryKey: false, isNotNull: false, isRequired: false, isQueryable: false, isFeedback: false, noUpdate: true, isShow: true, displayName: "" },
       { id: "F6", name: "MEDICAL_CATEGORY", comment: "医疗类别", type: "VARCHAR", length: 50, decimal: 0, isPrimaryKey: false, isNotNull: false, isRequired: false, isQueryable: false, isFeedback: false, noUpdate: true, isShow: true, displayName: "" },
       { id: "F7", name: "PROJECT_NAME", comment: "项目名称", type: "VARCHAR", length: 100, decimal: 0, isPrimaryKey: false, isNotNull: false, isRequired: false, isQueryable: false, isFeedback: false, noUpdate: true, isShow: true, displayName: "" },
       { id: "F8", name: "VIOLATION_AMOUNT", comment: "违规金额", type: "DECIMAL", length: 10, decimal: 2, isPrimaryKey: false, isNotNull: false, isRequired: false, isQueryable: false, isFeedback: false, noUpdate: true, isShow: true, displayName: "" },
       { id: "F9", name: "VIOLATION_DESC", comment: "违规描述", type: "VARCHAR", length: 500, decimal: 0, isPrimaryKey: false, isNotNull: false, isRequired: false, isQueryable: false, isFeedback: false, noUpdate: true, isShow: true, displayName: "" },
-      { id: "F16", name: "ORDER_DEPT", comment: "开单科室", type: "VARCHAR", length: 100, decimal: 0, isPrimaryKey: false, isNotNull: false, isRequired: false, isQueryable: true, isFeedback: false, noUpdate: true, isShow: true, displayName: "" },
-      { id: "F17", name: "EXECUTE_DEPT", comment: "执行科室", type: "VARCHAR", length: 100, decimal: 0, isPrimaryKey: false, isNotNull: false, isRequired: false, isQueryable: true, isFeedback: false, noUpdate: true, isShow: true, displayName: "" },
-      { id: "F10", name: "DEPARTMENT_NAME", comment: "科室名称", type: "VARCHAR", length: 100, decimal: 0, isPrimaryKey: false, isNotNull: false, isRequired: false, isQueryable: true, isFeedback: false, noUpdate: true, isShow: true, displayName: "责任科室" },
+      { id: "F16", name: "ORDER_DEPT", comment: "开单科室", type: "VARCHAR", length: 100, decimal: 0, isPrimaryKey: false, isNotNull: false, isRequired: false, isQueryable: true, isFeedback: false, noUpdate: true, isShow: true, displayName: "开单科室" },
+      { id: "F17", name: "EXECUTE_DEPT", comment: "执行科室", type: "VARCHAR", length: 100, decimal: 0, isPrimaryKey: false, isNotNull: false, isRequired: false, isQueryable: true, isFeedback: false, noUpdate: true, isShow: true, displayName: "执行科室" },
+      { id: "F10", name: "DEPARTMENT_NAME", comment: "科室名称", type: "VARCHAR", length: 100, decimal: 0, isPrimaryKey: false, isNotNull: false, isRequired: false, isQueryable: true, isFeedback: false, noUpdate: true, isShow: true, displayName: "科室名称" },
       { id: "F11", name: "DOCTOR_NAME", comment: "医生名称", type: "VARCHAR", length: 100, decimal: 0, isPrimaryKey: false, isNotNull: false, isRequired: false, isQueryable: true, isFeedback: false, noUpdate: true, isShow: true, displayName: "" },
       { id: "F15", name: "REMARK", comment: "备注", type: "VARCHAR", length: 500, decimal: 0, isPrimaryKey: false, isNotNull: false, isRequired: false, isQueryable: false, isFeedback: false, noUpdate: true, isShow: true, displayName: "" },
-      { id: "F12", name: "IS_APPEAL", comment: "是/否申诉", type: "VARCHAR", length: 10, decimal: 0, isPrimaryKey: false, isNotNull: false, isRequired: false, isQueryable: false, isFeedback: true, noUpdate: false, isShow: true, displayName: "" },
-      { id: "F13", name: "APPEAL_REASON", comment: "申诉原因", type: "VARCHAR", length: 500, decimal: 0, isPrimaryKey: false, isNotNull: false, isRequired: false, isQueryable: false, isFeedback: true, noUpdate: false, isShow: true, displayName: "" },
-      { id: "F14", name: "APPEAL_ATTACHMENT", comment: "申诉附件", type: "VARCHAR", length: 500, decimal: 0, isPrimaryKey: false, isNotNull: false, isRequired: false, isQueryable: false, isFeedback: true, noUpdate: false, isShow: true, displayName: "" },
-      { id: "DF_APPEAL_REMARK", name: "APPEAL_REMARK", comment: "申诉备注", type: "VARCHAR", length: 500, decimal: 0, isPrimaryKey: false, isNotNull: false, isRequired: false, isShow: true, displayName: "", isQueryable: false, isFeedback: true, noUpdate: true },
+      { id: "F12", name: "IS_APPEAL", comment: "是/否申诉", type: "VARCHAR", length: 10, decimal: 0, isPrimaryKey: false, isNotNull: false, isRequired: false, isQueryable: false, isFeedback: true, noUpdate: false, isShow: true, displayName: "是/否申诉" },
+      { id: "F13", name: "APPEAL_REASON", comment: "申诉原因", type: "VARCHAR", length: 500, decimal: 0, isPrimaryKey: false, isNotNull: false, isRequired: false, isQueryable: false, isFeedback: true, noUpdate: false, isShow: true, displayName: "申诉原因" },
+      { id: "F14", name: "APPEAL_ATTACHMENT", comment: "申诉附件", type: "VARCHAR", length: 500, decimal: 0, isPrimaryKey: false, isNotNull: false, isRequired: false, isQueryable: false, isFeedback: true, noUpdate: false, isShow: true, displayName: "申诉附件" },
+      { id: "DF_APPEAL_REMARK", name: "APPEAL_REMARK", comment: "申诉备注", type: "VARCHAR", length: 500, decimal: 0, isPrimaryKey: false, isNotNull: false, isRequired: false, isShow: true, displayName: "申诉备注", isQueryable: false, isFeedback: true, noUpdate: true },
     ]
   },
   {
@@ -214,21 +216,21 @@ function generate12Records(month: string) {
 }
 
 const ALL_MOCK_DETAILS: Record<string, any[]> = {
-    "task_details_T_2024_01_GZ": generate12Records("1"),
-    "task_details_T_2024_02_GZ": generate12Records("2"),
-    "task_details_T_2024_03_GZ": generate12Records("3"),
-    "task_details_T_2024_04_GZ": generate12Records("4"),
-    "task_details_T_2024_05_GZ": generate12Records("5"),
-    "task_details_T_2024_06_GZ": generate12Records("6"),
+    "task_records_T_2024_01_GZ": generate12Records("1"),
+    "task_records_T_2024_02_GZ": generate12Records("2"),
+    "task_records_T_2024_03_GZ": generate12Records("3"),
+    "task_records_T_2024_04_GZ": generate12Records("4"),
+    "task_records_T_2024_05_GZ": generate12Records("5").map((r) => r.data.DEPARTMENT_NAME === "内科" ? { ...r, fillStatus: "SUBMITTED", auditStatus: 8 } : r),
+    "task_records_T_2024_06_GZ": generate12Records("6"),
 };
 
 // 复用反馈核查任务中所生成的扣减明细 (IS_APPEAL === "否")
-ALL_MOCK_DETAILS["task_details_T_2024_01_DED"] = ALL_MOCK_DETAILS["task_details_T_2024_01_GZ"].filter(r => r.data.IS_APPEAL === "否").map(r => ({ ...r, id: r.id.replace('D_', 'DED_') }));
-ALL_MOCK_DETAILS["task_details_T_2024_02_DED"] = ALL_MOCK_DETAILS["task_details_T_2024_02_GZ"].filter(r => r.data.IS_APPEAL === "否").map(r => ({ ...r, id: r.id.replace('D_', 'DED_') }));
+ALL_MOCK_DETAILS["task_records_T_2024_01_DED"] = ALL_MOCK_DETAILS["task_records_T_2024_01_GZ"].filter(r => r.data.IS_APPEAL === "否").map(r => ({ ...r, id: r.id.replace('D_', 'DED_') }));
+ALL_MOCK_DETAILS["task_records_T_2024_02_DED"] = ALL_MOCK_DETAILS["task_records_T_2024_02_GZ"].filter(r => r.data.IS_APPEAL === "否").map(r => ({ ...r, id: r.id.replace('D_', 'DED_') }));
 
 export const mockApi = {
   startAIFill: (taskId: string) => {
-    let tasks = JSON.parse(localStorage.getItem("tasks_v13") || "null");
+    let tasks = JSON.parse(localStorage.getItem("tasks_v17") || "null");
     let isSubtask = false;
     let parentId = null;
     if (tasks) {
@@ -239,7 +241,7 @@ export const mockApi = {
       }
     }
     const realTaskId = isSubtask ? parentId : taskId;
-    const key = `task_details_${realTaskId}`;
+    const key = `task_records_${realTaskId}`;
     let data = JSON.parse(localStorage.getItem(key) || "null");
     if (data) {
       // First, set everything to AI_FILLING
@@ -303,13 +305,13 @@ export const mockApi = {
   resetData: () => {},
 
   getTasks: (page = 1, pageSize = 10, filters: any = {}): { data: Task[], total: number } => {
-    let tasks = JSON.parse(localStorage.getItem("tasks_v13") || "null");
+    let tasks = JSON.parse(localStorage.getItem("tasks_v17") || "null");
     
     if (!tasks || tasks.length !== INITIAL_TASKS.length) {
       tasks = INITIAL_TASKS;
-      localStorage.setItem("tasks_v13", JSON.stringify(tasks));
-      localStorage.setItem("records_v13", JSON.stringify(INITIAL_REPORTS));
-      localStorage.setItem("templates_v13", JSON.stringify(INITIAL_TEMPLATES));
+      localStorage.setItem("tasks_v17", JSON.stringify(tasks));
+      localStorage.setItem("records_v17", JSON.stringify(INITIAL_REPORTS));
+      localStorage.setItem("templates_v17", JSON.stringify(INITIAL_TEMPLATES));
       Object.keys(ALL_MOCK_DETAILS).forEach(key => {
          localStorage.setItem(key, JSON.stringify(ALL_MOCK_DETAILS[key]));
       });
@@ -337,13 +339,13 @@ export const mockApi = {
   },
 
   getTaskById: (id: string): Task | null => {
-    let tasks = JSON.parse(localStorage.getItem("tasks_v13") || "null");
+    let tasks = JSON.parse(localStorage.getItem("tasks_v17") || "null");
     if (!tasks) tasks = INITIAL_TASKS;
     return tasks.find((t: Task) => t.id === id) || null;
   },
 
   getReviewRecords: (taskId?: string): ReviewRecord[] => {
-    let records = JSON.parse(localStorage.getItem("records_v13") || "null");
+    let records = JSON.parse(localStorage.getItem("records_v17") || "null");
     if (!records) records = INITIAL_REPORTS;
     if (taskId) {
       return records.filter((r: ReviewRecord) => r.taskId === taskId);
@@ -352,7 +354,7 @@ export const mockApi = {
   },
 
   getTemplates: (search = "", status?: string, typeFilter?: string): ReviewTemplate[] => {
-    let templates = JSON.parse(localStorage.getItem("templates_v13") || "null");
+    let templates = JSON.parse(localStorage.getItem("templates_v17") || "null");
     if (!templates) templates = INITIAL_TEMPLATES;
     let filtered = templates;
     if (search) filtered = filtered.filter((t: ReviewTemplate) => t.name.includes(search));
@@ -365,13 +367,13 @@ export const mockApi = {
   deleteTemplates: (ids: string[]) => {},
 
   updateTaskStatus: (taskId: string, status: keyof typeof TASK_STATUS) => {
-    let tasks = JSON.parse(localStorage.getItem("tasks_v13") || "null");
+    let tasks = JSON.parse(localStorage.getItem("tasks_v17") || "null");
     if (!tasks) return;
     const index = tasks.findIndex((t: Task) => t.id === taskId);
     if (index > -1) {
       tasks[index].status = status;
       tasks[index].updateTime = new Date().toLocaleString();
-      localStorage.setItem("tasks_v13", JSON.stringify(tasks));
+      localStorage.setItem("tasks_v17", JSON.stringify(tasks));
       // For deductions, update parent if all children are END
       if (tasks[index].parentId && status === "END") {
           const parentId = tasks[index].parentId;
@@ -381,7 +383,7 @@ export const mockApi = {
               if (parentIdx > -1) {
                   tasks[parentIdx].status = "END";
                   tasks[parentIdx].updateTime = new Date().toLocaleString();
-                  localStorage.setItem("tasks_v13", JSON.stringify(tasks));
+                  localStorage.setItem("tasks_v17", JSON.stringify(tasks));
               }
           }
       }
@@ -389,7 +391,7 @@ export const mockApi = {
   },
 
   getTaskDetailRecords: (taskId: string) => {
-    let tasks = JSON.parse(localStorage.getItem("tasks_v13") || "null");
+    let tasks = JSON.parse(localStorage.getItem("tasks_v17") || "null");
     let isSubtask = false;
     let parentId = null;
     let currentDeptName = null;
@@ -403,7 +405,7 @@ export const mockApi = {
     }
 
     const realTaskId = isSubtask ? parentId : taskId;
-    const key = `task_details_${realTaskId}`;
+    const key = `task_records_${realTaskId}`;
     let data = JSON.parse(localStorage.getItem(key) || "null");
 
     if (!data && ALL_MOCK_DETAILS[key]) {
@@ -421,19 +423,19 @@ export const mockApi = {
 
   dispatchTask: (taskId: string) => {
       // Just mock returning true for deduction tasks if they are dispatched
-      let tasks = JSON.parse(localStorage.getItem("tasks_v13") || "null");
+      let tasks = JSON.parse(localStorage.getItem("tasks_v17") || "null");
       if (!tasks) return false;
       const index = tasks.findIndex((t: Task) => t.id === taskId);
       if (index > -1 && tasks[index].status === "CREATE") {
           tasks[index].status = "PUBLISH";
-          localStorage.setItem("tasks_v13", JSON.stringify(tasks));
+          localStorage.setItem("tasks_v17", JSON.stringify(tasks));
           return true;
       }
       return false;
   },
 
   saveTaskDetailRecord: (taskId: string, record: any) => {
-    let tasks = JSON.parse(localStorage.getItem("tasks_v13") || "null");
+    let tasks = JSON.parse(localStorage.getItem("tasks_v17") || "null");
     let isSubtask = false;
     let parentId = null;
     if (tasks) {
@@ -444,7 +446,7 @@ export const mockApi = {
       }
     }
     const realTaskId = isSubtask ? parentId : taskId;
-    const key = `task_details_${realTaskId}`;
+    const key = `task_records_${realTaskId}`;
     let data = JSON.parse(localStorage.getItem(key) || "null");
     if (!data) return;
     const idx = data.findIndex((d: any) => d.id === record.id);

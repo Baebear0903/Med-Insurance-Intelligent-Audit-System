@@ -58,7 +58,7 @@ export function FillReportDetail() {
   useEffect(() => {
     if (template && template.fields) {
       const items = template.fields
-        .filter(f => f.isShow !== false)
+        .filter(f => f.isShow !== false && (role === "ADMIN" || !f.adminVisible))
         .map(f => ({
           key: `data.${f.name}`,
           title: f.displayName || f.comment || f.name,
@@ -66,15 +66,16 @@ export function FillReportDetail() {
         }));
       setConfigurableColumns(items);
     }
-  }, [template]);
+  }, [template, role]);
 
   // Modals
-  const [fillModal, setFillModal] = useState<{ show: boolean, record: any | null, isBatch: boolean }>({ show: false, record: null, isBatch: false });
+  const [fillModal, setFillModal] = useState<{ show: boolean, record: any | null, isBatch: boolean, isViewOnly?: boolean }>({ show: false, record: null, isBatch: false, isViewOnly: false });
   const [assignModal, setAssignModal] = useState(false);
   const [deptModal, setDeptModal] = useState(false);
   const [confirmModal, setConfirmModal] = useState<{ show: boolean, type: string, title: string, content: string }>({ show: false, type: "", title: "", content: "" });
   const [historyModal, setHistoryModal] = useState(false);
   const [patient360Modal, setPatient360Modal] = useState<{ show: boolean, record: any | null }>({ show: false, record: null });
+  const [rejectOpinionModal, setRejectOpinionModal] = useState<{ show: boolean, opinion: string }>({ show: false, opinion: "" });
   const [showFilter, setShowFilter] = useState(false);
   const [filterStatus, setFilterStatus] = useState("全部"); // 全部, 已填报, 未填报
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -92,7 +93,8 @@ export function FillReportDetail() {
     return records.filter(r => {
       if (filterStatus === "未填报") return r.fillStatus === "UNFILLED";
       if (filterStatus === "AI填报") return r.fillStatus === "AI_FILLED" || r.fillStatus === "AI_FILLING";
-      if (filterStatus === "已填报") return r.fillStatus === "FILLED" || r.fillStatus === "SUBMITTED";
+      if (filterStatus === "已填报") return r.fillStatus === "FILLED";
+      if (filterStatus === "待审核") return r.fillStatus === "SUBMITTED";
       if (filterStatus === "审核通过") return r.fillStatus === "APPROVED";
       if (filterStatus === "已驳回") return r.fillStatus === "REJECTED";
       return true;
@@ -166,7 +168,7 @@ export function FillReportDetail() {
     window.dispatchEvent(new Event("task_updated"));
   };
 
-  const handleRowFill = (record: any) => {
+  const handleRowFill = (record: any, viewOnly: boolean = false) => {
     const data = record?.data || {};
     let evidence = [];
     if (data.APPEAL_ATTACHMENT) {
@@ -182,7 +184,7 @@ export function FillReportDetail() {
       evidence: evidence,
       remark: data.APPEAL_REMARK || ""
     });
-    setFillModal({ show: true, record, isBatch: false });
+    setFillModal({ show: true, record, isBatch: false, isViewOnly: viewOnly });
   };
 
   const handleDownload = async () => {
@@ -223,20 +225,18 @@ export function FillReportDetail() {
         return s || "未开始";
       };
       
-      const getAuditStatusLabel = (ast: number) => {
-        if (ast === 0) return "已送审";
-        if (ast === 1) return "待审核";
-        if (ast === 2) return "审核通过";
-        if (ast === 3) return "审核驳回";
-        if (ast === 7) return "未作申诉填报";
-        if (ast === 8) return "已申诉";
+      const getAuditStatusLabel = (ast: number, fst: string) => {
+        if (ast === 1) return "审核通过";
+        if (ast === 2 || ast === 3) return "审核驳回";
+        if (fst === "SUBMITTED") return "待审核";
+        if (fst === "FILLED") return "已提交";
         return "-";
       };
 
       const baseCols = [
         String(idx + 1),
         getStatusLabel(r.fillStatus),
-        getAuditStatusLabel(r.auditStatus)
+        getAuditStatusLabel(r.auditStatus, r.fillStatus)
       ];
 
       const templateCols = template.fields.map(f => {
@@ -500,7 +500,7 @@ export function FillReportDetail() {
 
   // Dynamic Columns
   const dynamicCols = template.fields
-    .filter(f => f.isShow !== false)
+    .filter(f => f.isShow !== false && (role === "ADMIN" || !f.adminVisible))
     .map(f => ({
       key: `data.${f.name}`,
       title: f.displayName || f.comment,
@@ -520,7 +520,7 @@ export function FillReportDetail() {
       case "UNFILLED": return <Badge status="default">未填报</Badge>;
       case "AI_FILLED": return <Badge status="info">AI填报</Badge>;
       case "AI_FILLING": return <Badge status="info">填报中</Badge>;
-      case "SUBMITTED": return <Badge status="success">已填报</Badge>;
+      case "SUBMITTED": return <Badge status="warning">待审核</Badge>;
       case "FILLED": return <Badge status="success">已填报</Badge>;
       case "APPROVED": return <Badge status="success">审核通过</Badge>;
       case "REJECTED": return <Badge status="error">已驳回</Badge>;
@@ -533,7 +533,7 @@ export function FillReportDetail() {
       key: "status_col",
       title: "状态",
       fixed: "right" as const,
-      fixedOffset: "160px",
+      fixedOffset: "300px",
       width: "100px",
       render: (r: any) => getStatusBadge(r.fillStatus)
     },
@@ -541,27 +541,41 @@ export function FillReportDetail() {
       key: "action",
       title: "操作",
       fixed: "right" as const,
-      width: "160px",
+      width: "300px",
       render: (r: any) => {
         const isDisabled = isReadOnly || r.fillStatus === "AI_FILLING";
         return (
           <div className="flex items-center gap-1">
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              disabled={isDisabled}
-              onClick={() => {
-                if (!isDisabled) {
-                  handleRowFill(r);
-                }
-              }}
-              className={cn(
-                "font-medium px-2", 
-                isDisabled ? "text-slate-400 opacity-50 cursor-not-allowed" : "text-blue-600 hover:text-blue-700"
-              )}
-            >
-              填报
-            </Button>
+            {['SUBMITTED', 'FILLED', 'APPROVED'].includes(r.fillStatus) && (
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={() => {
+                  handleRowFill(r, true);
+                }}
+                className="text-blue-600 hover:text-blue-700 font-medium px-2"
+              >
+                查看
+              </Button>
+            )}
+            {!['SUBMITTED', 'FILLED', 'APPROVED'].includes(r.fillStatus) && (
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                disabled={isDisabled}
+                onClick={() => {
+                  if (!isDisabled) {
+                    handleRowFill(r, false);
+                  }
+                }}
+                className={cn(
+                  "font-medium px-2", 
+                  isDisabled ? "text-slate-400 opacity-50 cursor-not-allowed" : "text-blue-600 hover:text-blue-700"
+                )}
+              >
+                填报
+              </Button>
+            )}
             <Button 
               variant="ghost" 
               size="sm" 
@@ -570,6 +584,24 @@ export function FillReportDetail() {
             >
               患者360
             </Button>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={() => toast("正在跳转HIS系统：患者收费明细", "success")} 
+              className="text-blue-600 font-medium px-2"
+            >
+              收费明细
+            </Button>
+            {r.fillStatus === "REJECTED" && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setRejectOpinionModal({ show: true, opinion: r.reviewOpinion })}
+                className="text-red-500 hover:text-red-700 font-medium px-2"
+              >
+                审核意见
+              </Button>
+            )}
           </div>
         );
       }
@@ -652,6 +684,7 @@ export function FillReportDetail() {
                   <option value="未填报">未填报</option>
                   <option value="AI填报">AI填报</option>
                   <option value="已填报">已填报</option>
+                  <option value="待审核">待审核</option>
                   <option value="审核通过">审核通过</option>
                   <option value="已驳回">已驳回</option>
                 </select>
@@ -695,7 +728,7 @@ export function FillReportDetail() {
                 className="overflow-hidden"
               >
                 <div className="px-4 py-3 border-t border-slate-100 flex flex-wrap items-center gap-4 bg-slate-50/50">
-                  {template.fields.filter(f => f.isQueryable).slice(0, 3).map(f => (
+                  {template.fields.filter(f => f.isQueryable && (role === "ADMIN" || !f.adminVisible)).slice(0, 3).map(f => (
                     <div key={f.id} className="flex items-center gap-2">
                       <span className="text-xs font-medium text-slate-500">{f.displayName || f.comment}</span>
                       <input 
@@ -734,7 +767,7 @@ export function FillReportDetail() {
       <Drawer
         isOpen={fillModal.show}
         onClose={() => setFillModal({ show: false, record: null, isBatch: false })}
-        title={isReadOnly ? "查看详情" : (fillModal.isBatch ? `批量填报 (${selectedIds.length}项)` : "数据填报")}
+        title={(isReadOnly || fillModal.isViewOnly) ? "查看详情" : (fillModal.isBatch ? `批量填报 (${selectedIds.length}项)` : "数据填报")}
         width="max-w-[500px]"
         placement="left"
       >
@@ -788,7 +821,7 @@ export function FillReportDetail() {
                 </label>
                 <div className="flex gap-4">
                   <button 
-                    disabled={isReadOnly}
+                    disabled={isReadOnly || fillModal.isViewOnly}
                     onClick={() => setFillForm({...fillForm, confirm: "APPEAL"})}
                     className={cn(
                       "flex-1 py-2.5 px-4 rounded-lg border-2 transition-all flex items-center justify-center gap-2",
@@ -801,7 +834,7 @@ export function FillReportDetail() {
                     <span className="font-bold text-sm">申诉</span>
                   </button>
                   <button 
-                    disabled={isReadOnly}
+                    disabled={isReadOnly || fillModal.isViewOnly}
                     onClick={() => setFillForm({...fillForm, confirm: "NO_APPEAL"})}
                     className={cn(
                       "flex-1 py-2.5 px-4 rounded-lg border-2 transition-all flex items-center justify-center gap-2",
@@ -821,7 +854,7 @@ export function FillReportDetail() {
                   申诉原因 {fillForm.confirm === "APPEAL" && <span className="text-rose-500">*</span>}
                 </label>
                 <textarea 
-                  disabled={isReadOnly}
+                  disabled={isReadOnly || fillModal.isViewOnly}
                   className="w-full h-32 px-4 py-3 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500/20 focus:outline-none focus:border-blue-500 transition-all placeholder:text-slate-300 resize-none"
                   placeholder={fillForm.confirm === "APPEAL" ? "请详细叙述申诉理由..." : "可选填..."}
                   value={fillForm.opinion}
@@ -858,7 +891,7 @@ export function FillReportDetail() {
                             <span className="text-[11px] text-slate-400 font-medium">1.2 MB</span>
                           </div>
                         </div>
-                        {!isReadOnly && (
+                        {!isReadOnly && !fillModal.isViewOnly && (
                           <button 
                             onClick={() => setFillForm({...fillForm, evidence: fillForm.evidence.filter((_, idx) => idx !== i)})}
                             className="p-1.5 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-all opacity-0 group-hover:opacity-100"
@@ -870,7 +903,7 @@ export function FillReportDetail() {
                     );
                   })}
                   
-                  {!isReadOnly && fillForm.evidence.length < 5 && (
+                  {!isReadOnly && !fillModal.isViewOnly && fillForm.evidence.length < 5 && (
                     <button 
                       onClick={() => {
                         let patientName = "张三";
@@ -916,7 +949,7 @@ export function FillReportDetail() {
                   申诉备注
                 </label>
                 <textarea 
-                  disabled={isReadOnly}
+                  disabled={isReadOnly || fillModal.isViewOnly}
                   className="w-full h-24 px-4 py-3 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500/20 focus:outline-none focus:border-blue-500 transition-all placeholder:text-slate-300 resize-none"
                   placeholder="可在此补充申诉备注说明..."
                   value={fillForm.remark}
@@ -927,7 +960,7 @@ export function FillReportDetail() {
           </div>
           <div className="flex justify-end gap-3 p-5 border-t border-slate-100 bg-slate-50 shrink-0">
             <Button variant="ghost" onClick={() => setFillModal({ show: false, record: null, isBatch: false })} className="px-6">取消</Button>
-            {!isReadOnly && (
+            {!isReadOnly && !fillModal.isViewOnly && (
               <Button onClick={handleSaveFill} className="bg-blue-600 hover:bg-blue-700 shadow-sm px-8">确定</Button>
             )}
           </div>
@@ -1111,6 +1144,25 @@ export function FillReportDetail() {
               className="bg-blue-600 hover:bg-blue-700"
             >
               确认
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Reject Opinion Modal */}
+      <Modal
+        isOpen={rejectOpinionModal.show}
+        onClose={() => setRejectOpinionModal({ show: false, opinion: "" })}
+        title="审核意见"
+        width="max-w-[500px]"
+      >
+        <div className="py-4">
+          <div className="bg-slate-50 p-4 rounded-lg border border-slate-200 min-h-[100px] text-sm text-slate-700 whitespace-pre-wrap">
+            {rejectOpinionModal.opinion || "暂无审核意见"}
+          </div>
+          <div className="flex justify-end pt-5">
+            <Button onClick={() => setRejectOpinionModal({ show: false, opinion: "" })} className="px-6 bg-blue-600 hover:bg-blue-700 text-white border-0">
+              我知道了
             </Button>
           </div>
         </div>

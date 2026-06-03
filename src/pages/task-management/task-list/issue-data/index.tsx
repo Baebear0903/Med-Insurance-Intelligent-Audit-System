@@ -5,8 +5,10 @@ import { Table, Column } from "@/src/components/ui/Table";
 import { Badge } from "@/src/components/ui/Badge";
 import { Pagination } from "@/src/components/ui/Pagination";
 import { mockApi, Task, ReviewTemplate } from "@/src/lib/mockData";
+import { useUser } from "@/src/lib/userContext";
 
 export default function IssueData() {
+  const { role } = useUser();
   const [searchParams] = useSearchParams();
   const id = searchParams.get("id");
   const [task, setTask] = useState<Task | null>(null);
@@ -40,7 +42,7 @@ export default function IssueData() {
 
   const columns: Column<any>[] = [
     { key: "index", title: "序号", width: "80px", render: (_: any, index: number) => (page - 1) * pageSize + index + 1 },
-    ...template.fields.filter(f => f.isShow !== false).map(f => ({
+    ...template.fields.filter(f => f.isShow !== false && (role === "ADMIN" || !f.adminVisible)).map(f => ({
       key: f.name,
       title: f.displayName || f.comment || f.name,
       width: "15%",

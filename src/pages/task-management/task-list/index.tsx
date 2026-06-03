@@ -217,39 +217,29 @@ export function TaskList() {
     const dispatchAction = { label: "下发", onClick: () => { setActiveTask(r); setIsDispatchModalOpen(true); } };
     const downloadDataAction = { label: "下载数据", onClick: () => handleDownloadTask(r) };
 
-    if (r.templateId === "TPL_DED") {
-      switch(r.status) {
-        case "CREATE": // 待下发
-          actions.push(importAction, dispatchAction, issueData, endTask); break;
-        case "PUBLISH": // 填报中
-          actions.push(issueData, endTask); break;
-        case "SUBMITTED": // 已提交
-          actions.push(issueData, endTask); break;
-        case "COMPLETE": // 审核完成
-          actions.push(issueData, downloadDataAction, endTask); break;
-        case "END": // 已结束
-          actions.push(issueData, downloadDataAction); break;
-        default: // 对于其他异常状态（已取消BACK、已撤回CANCELLATION、已驳回WITHDRAWN等），展示问题数据
-          actions.push(issueData); break;
-      }
-    } else {
-      // Normal logic for non-TPL_DED tasks
-      switch(r.status) {
-        case "CREATE":
-          actions.push(importAction, dispatchAction, issueData, matchVisit, intelligentFill, endTask); break;
-        case "PUBLISH":
-          actions.push(issueData, matchVisit, intelligentFill, endTask); break;
-        case "SUBMITTED":
-        case "WITHDRAWN":
-          actions.push(issueData, matchVisit, endTask); break;
-        case "COMPLETE":
-          actions.push(issueData, resultImport, matchVisit, endTask); break;
-        case "END":
-          actions.push(issueData, resultImport, matchVisit); break;
-        default:
-          actions.push(issueData); break;
-      }
+    // Normal logic for all master tasks
+    switch(r.status) {
+      case "CREATE": // 待下发
+        actions.push(importAction, issueData, matchVisit, intelligentFill, dispatchAction, endTask); break;
+      case "PUBLISH": // 填报中
+      case "SUBMITTED": // 已提交
+      case "COMPLETE": // 审核完成
+      case "CANCELLATION": // 已撤回
+      case "BACK": // 已取消
+        actions.push(matchVisit, intelligentFill, endTask); break;
+      case "END": // 已结束
+        actions.push(downloadDataAction, resultImport); break;
+      case "WITHDRAWN": // 已驳回 弃用
+      default:
+        break;
     }
+
+    const orderIndex = ["导入", "问题数据", "匹配就诊", "智能填报", "下发", "结束任务", "结果导入", "下载数据"];
+    actions.sort((a, b) => {
+      const idxA = orderIndex.indexOf(a.label);
+      const idxB = orderIndex.indexOf(b.label);
+      return (idxA !== -1 ? idxA : 99) - (idxB !== -1 ? idxB : 99);
+    });
 
     return (
       <div className="flex items-center gap-x-3 gap-y-1 flex-nowrap whitespace-nowrap">
