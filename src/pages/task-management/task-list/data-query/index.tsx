@@ -70,22 +70,27 @@ export default function DataQuery() {
 
     // 拼装数据行
     const rows = targetRecords.map((r: any, idx: number) => {
-      const getStatusLabel = (s: string) => {
-        if (s === "UNFILLED") return "待填报";
-        if (s === "FILLED") return "已提交";
-        if (s === "AI_FILLED") return "AI已填";
-        if (s === "AI_FILLING") return "AI填充中";
-        if (s === "AI_PAUSED") return "AI已暂停";
+      const getStatusLabel = (s: number) => {
+        if (s === 0) return "未填报";
+        if (s === 1) return "已提交/已填报";
+        if (s === 5) return "AI填报";
+        if (s === 51) return "填报中";
+        if (s === 52) return "AI暂停";
+        if (s === 2) return "审核通过";
+        if (s === 6) return "审核变更";
+        if (s === 3) return "驳回";
+        if (s === 4) return "撤销";
         return s || "未开始";
       };
       
       const getAuditStatusLabel = (ast: number) => {
-        if (ast === 0) return "已送审";
-        if (ast === 1) return "待审核";
-        if (ast === 2) return "审核通过";
-        if (ast === 3) return "审核驳回";
-        if (ast === 7) return "未作申诉填报";
-        if (ast === 8) return "已申诉";
+        if (ast === 1) return "审批通过";
+        if (ast === 9) return "审核变更";
+        if (ast === 2) return "已驳回";
+        if (ast === 0) return "编辑待审核";
+        if (ast === 3) return "编辑待提交";
+        if (ast === 7) return "填报中";
+        if (ast === 8) return "填报待审核";
         return "-";
       };
 
@@ -240,11 +245,11 @@ export default function DataQuery() {
 
   const queryFields = template.fields.filter((f) => f.isQueryable && (role === "ADMIN" || !f.adminVisible));
 
-  const aiProgressCount = data.filter((d) => d.fillStatus === "AI_FILLED").length;
+  const aiProgressCount = data.filter((d) => d.fillStatus === 5).length;
   const aiTotalCount = data.length;
   
-  const isAIFillingActive = data.some(d => d.fillStatus === "AI_FILLING");
-  const isAIPaused = data.some(d => d.fillStatus === "AI_PAUSED");
+  const isAIFillingActive = data.some(d => d.fillStatus === 51);
+  const isAIPaused = data.some(d => d.fillStatus === 52);
   // Only show progress if it's "医保审核反馈" type and we have some records, and we've engaged AI filling features
   // Or just if we have started filling before (like `aiProgressCount > 0`, `isAIFillingActive`, `isAIPaused`)
   const hasEngagedAIFill = aiProgressCount > 0 || isAIFillingActive || isAIPaused;

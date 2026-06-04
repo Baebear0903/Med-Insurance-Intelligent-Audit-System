@@ -417,40 +417,43 @@ export default function DeductionSummary() {
       </div>
 
       {/* KPI Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 shrink-0">
-        <div className="bg-white ring-1 ring-gray-200 shadow-sm rounded-xl p-6 flex flex-col justify-between">
-          <div className="text-sm font-medium text-gray-500">扣减记录总数</div>
-          <div className="mt-4 flex items-end justify-between gap-4">
-             <div className="text-3xl font-semibold text-gray-900 break-words">{stats.totalCount}</div>
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 shrink-0">
+        <div className="bg-white ring-1 ring-gray-200 shadow-sm rounded-xl p-5 xl:p-6 flex flex-col justify-between overflow-hidden">
+          <div className="text-sm font-medium text-gray-500 truncate">扣减记录总数</div>
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-y-3 gap-x-2">
+             <div className="flex items-baseline text-2xl xl:text-3xl font-semibold text-gray-900 truncate pr-2 min-w-[2rem]">
+               <span>{stats.totalCount}</span>
+               <span className="text-lg xl:text-xl font-medium text-gray-400 ml-1">笔</span>
+             </div>
              <YoYBadge isUp={yoyCount.isUp} value={yoyCount.value} />
           </div>
         </div>
-        <div className="bg-white ring-1 ring-gray-200 shadow-sm rounded-xl p-6 flex flex-col justify-between">
-          <div className="text-sm font-medium text-gray-500">违规扣减总金额</div>
-          <div className="mt-4 flex items-end justify-between gap-4">
-             <div className="text-3xl font-semibold text-gray-900 break-words">
-               <span className="text-xl font-medium text-gray-400 mr-0.5">￥</span>
-               {stats.totalViolation.toLocaleString('zh-CN', {minimumFractionDigits: 2})}
+        <div className="bg-white ring-1 ring-gray-200 shadow-sm rounded-xl p-5 xl:p-6 flex flex-col justify-between overflow-hidden">
+          <div className="text-sm font-medium text-gray-500 truncate">违规扣减总金额</div>
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-y-3 gap-x-2">
+             <div className="flex items-baseline text-2xl xl:text-3xl font-semibold text-gray-900 truncate pr-2 min-w-[2rem]">
+               <span className="text-lg xl:text-xl font-medium text-gray-400 mr-0.5">￥</span>
+               <span>{stats.totalViolation.toLocaleString('zh-CN', {minimumFractionDigits: 2})}</span>
              </div>
              <YoYBadge isUp={yoyVio.isUp} value={yoyVio.value} />
           </div>
         </div>
-        <div className="bg-white ring-1 ring-gray-200 shadow-sm rounded-xl p-6 flex flex-col justify-between">
-          <div className="text-sm font-medium text-gray-500">扣减金额（药费/耗材）</div>
-          <div className="mt-4 flex items-end justify-between gap-4">
-             <div className="text-3xl font-semibold text-gray-900 break-words">
-               <span className="text-xl font-medium text-gray-400 mr-0.5">￥</span>
-               {stats.totalMedCom.toLocaleString('zh-CN', {minimumFractionDigits: 2})}
+        <div className="bg-white ring-1 ring-gray-200 shadow-sm rounded-xl p-5 xl:p-6 flex flex-col justify-between overflow-hidden">
+          <div className="text-sm font-medium text-gray-500 truncate">扣减金额（药费/耗材）</div>
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-y-3 gap-x-2">
+             <div className="flex items-baseline text-2xl xl:text-3xl font-semibold text-gray-900 truncate pr-2 min-w-[2rem]">
+               <span className="text-lg xl:text-xl font-medium text-gray-400 mr-0.5">￥</span>
+               <span>{stats.totalMedCom.toLocaleString('zh-CN', {minimumFractionDigits: 2})}</span>
              </div>
              <YoYBadge isUp={yoyMed.isUp} value={yoyMed.value} />
           </div>
         </div>
-        <div className="bg-white ring-1 ring-gray-200 shadow-sm rounded-xl p-6 flex flex-col justify-between">
-          <div className="text-sm font-medium text-gray-500">扣减金额（其它）</div>
-          <div className="mt-4 flex items-end justify-between gap-4">
-             <div className="text-3xl font-semibold text-gray-900 break-words">
-               <span className="text-xl font-medium text-gray-400 mr-0.5">￥</span>
-               {stats.totalOther.toLocaleString('zh-CN', {minimumFractionDigits: 2})}
+        <div className="bg-white ring-1 ring-gray-200 shadow-sm rounded-xl p-5 xl:p-6 flex flex-col justify-between overflow-hidden">
+          <div className="text-sm font-medium text-gray-500 truncate">扣减金额（其它）</div>
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-y-3 gap-x-2">
+             <div className="flex items-baseline text-2xl xl:text-3xl font-semibold text-gray-900 truncate pr-2 min-w-[2rem]">
+               <span className="text-lg xl:text-xl font-medium text-gray-400 mr-0.5">￥</span>
+               <span>{stats.totalOther.toLocaleString('zh-CN', {minimumFractionDigits: 2})}</span>
              </div>
              <YoYBadge isUp={yoyOth.isUp} value={yoyOth.value} />
           </div>

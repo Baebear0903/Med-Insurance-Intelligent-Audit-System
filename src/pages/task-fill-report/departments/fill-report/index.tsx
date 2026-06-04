@@ -91,12 +91,13 @@ export function FillReportDetail() {
 
   const filteredRecords = React.useMemo(() => {
     return records.filter(r => {
-      if (filterStatus === "未填报") return r.fillStatus === "UNFILLED";
-      if (filterStatus === "AI填报") return r.fillStatus === "AI_FILLED" || r.fillStatus === "AI_FILLING";
-      if (filterStatus === "已填报") return r.fillStatus === "FILLED";
-      if (filterStatus === "待审核") return r.fillStatus === "SUBMITTED";
-      if (filterStatus === "审核通过") return r.fillStatus === "APPROVED";
-      if (filterStatus === "已驳回") return r.fillStatus === "REJECTED";
+      if (filterStatus === "未填报") return r.fillStatus === 0;
+      if (filterStatus === "AI填报") return r.fillStatus === 5;
+      if (filterStatus === "已填报") return r.fillStatus === 1;
+      if (filterStatus === "待审核") return r.fillStatus === 8;
+      if (filterStatus === "审核通过") return r.fillStatus === 2;
+      if (filterStatus === "审核变更") return r.fillStatus === 6;
+      if (filterStatus === "已驳回") return r.fillStatus === 3;
       return true;
     });
   }, [records, filterStatus]);
@@ -217,19 +218,23 @@ export function FillReportDetail() {
 
     // 拼装行
     const rows = targetRecords.map((r: any, idx: number) => {
-      const getStatusLabel = (s: string) => {
-        if (s === "UNFILLED") return "待填报";
-        if (s === "FILLED") return "已提交";
-        if (s === "AI_FILLED") return "AI已填";
-        if (s === "AI_FILLING") return "AI填充中";
+      const getStatusLabel = (s: number) => {
+        if (s === 0) return "未填报";
+        if (s === 1) return "已填报";
+        if (s === 5) return "AI填报";
+        if (s === 8) return "待审核";
+        if (s === 2) return "审核通过";
+        if (s === 6) return "审核变更";
+        if (s === 3) return "已驳回";
         return s || "未开始";
       };
       
-      const getAuditStatusLabel = (ast: number, fst: string) => {
+      const getAuditStatusLabel = (ast: number, fst: number) => {
         if (ast === 1) return "审核通过";
-        if (ast === 2 || ast === 3) return "审核驳回";
-        if (fst === "SUBMITTED") return "待审核";
-        if (fst === "FILLED") return "已提交";
+        if (ast === 9) return "审核变更";
+        if (ast === 2) return "已驳回";
+        if (ast === 8) return "待审核";
+        if (ast === 7) return "填报中";
         return "-";
       };
 
@@ -347,7 +352,7 @@ export function FillReportDetail() {
         APPEAL_ATTACHMENT: fillForm.evidence.join(", "),
         APPEAL_REMARK: fillForm.remark,
       },
-      fillStatus: "FILLED",
+      fillStatus: 1,
       auditStatus: 8,
       submitter: "当前用户"
     });
@@ -397,7 +402,7 @@ export function FillReportDetail() {
   };
 
   const handleOneClickRemind = () => {
-    const unfiledCount = records.filter(r => r.fillStatus === "UNFILLED").length;
+    const unfiledCount = records.filter(r => r.fillStatus === 0).length;
     const assignedCount = records.filter(r => r.submitter !== "-").length;
     
     setConfirmModal({
@@ -416,7 +421,7 @@ export function FillReportDetail() {
           mockApi.saveTaskDetailRecord(taskId!, {
             ...record,
             hospitalConfirm: "NO_APPEAL",
-            fillStatus: "FILLED",
+            fillStatus: 1,
             auditStatus: 8,
             submitter: "当前用户"
           });
@@ -443,7 +448,7 @@ export function FillReportDetail() {
       records.forEach(r => {
         mockApi.saveTaskDetailRecord(taskId!, {
           ...r,
-          fillStatus: "FILLED",
+          fillStatus: 1,
           auditStatus: 8
         });
       });
@@ -515,15 +520,15 @@ export function FillReportDetail() {
       }
     }));
 
-  const getStatusBadge = (status: string) => {
+  const getStatusBadge = (status: number) => {
     switch (status) {
-      case "UNFILLED": return <Badge status="default">未填报</Badge>;
-      case "AI_FILLED": return <Badge status="info">AI填报</Badge>;
-      case "AI_FILLING": return <Badge status="info">填报中</Badge>;
-      case "SUBMITTED": return <Badge status="warning">待审核</Badge>;
-      case "FILLED": return <Badge status="success">已填报</Badge>;
-      case "APPROVED": return <Badge status="success">审核通过</Badge>;
-      case "REJECTED": return <Badge status="error">已驳回</Badge>;
+      case 0: return <Badge status="default">未填报</Badge>;
+      case 5: return <Badge status="info">AI填报</Badge>;
+      case 1: return <Badge status="success">已填报</Badge>;
+      case 8: return <Badge status="warning">待审核</Badge>;
+      case 2: return <Badge status="success">审核通过</Badge>;
+      case 6: return <Badge status="warning">审核变更</Badge>;
+      case 3: return <Badge status="error">已驳回</Badge>;
       default: return <Badge status="default">未填报</Badge>;
     }
   };
@@ -543,10 +548,10 @@ export function FillReportDetail() {
       fixed: "right" as const,
       width: "300px",
       render: (r: any) => {
-        const isDisabled = isReadOnly || r.fillStatus === "AI_FILLING";
+        const isDisabled = isReadOnly || r.fillStatus === 5;
         return (
           <div className="flex items-center gap-1">
-            {['SUBMITTED', 'FILLED', 'APPROVED'].includes(r.fillStatus) && (
+            {[8, 2, 6].includes(r.fillStatus) && (
               <Button 
                 variant="ghost" 
                 size="sm" 
@@ -558,7 +563,7 @@ export function FillReportDetail() {
                 查看
               </Button>
             )}
-            {!['SUBMITTED', 'FILLED', 'APPROVED'].includes(r.fillStatus) && (
+            {[0, 5, 1, 3].includes(r.fillStatus) && (
               <Button 
                 variant="ghost" 
                 size="sm" 
@@ -592,7 +597,7 @@ export function FillReportDetail() {
             >
               收费明细
             </Button>
-            {r.fillStatus === "REJECTED" && (
+            {r.fillStatus === 3 && (
               <Button
                 variant="ghost"
                 size="sm"
@@ -686,6 +691,7 @@ export function FillReportDetail() {
                   <option value="已填报">已填报</option>
                   <option value="待审核">待审核</option>
                   <option value="审核通过">审核通过</option>
+                  <option value="审核变更">审核变更</option>
                   <option value="已驳回">已驳回</option>
                 </select>
               </div>

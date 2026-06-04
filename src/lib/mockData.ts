@@ -63,18 +63,26 @@ export interface ReviewTemplate {
 
 const INITIAL_TASKS: Task[] = [
   { id: "T_2024_01_GZ", name: "2024年01月广州医保线下反馈核查", year: "2024", departmentId: 1, templateId: "TPL_GZ_YB", templateName: "广州医保（线下）反馈", status: "END", creator: "管理员", createTime: "2024-01-01 09:00", updateTime: "2024-01-10 09:00", dueDate: "2024-01-30" },
+  { id: "T_2024_01_GZ_0", parentId: "T_2024_01_GZ", name: "2024年01月广州医保线下反馈核查 - 外科", year: "2024", departmentId: 3, templateId: "TPL_GZ_YB", templateName: "广州医保（线下）反馈", status: "END", creator: "管理员", createTime: "2024-01-01 09:00", updateTime: "2024-01-10 09:00", dueDate: "2024-01-30" },
+  { id: "T_2024_01_GZ_1", parentId: "T_2024_01_GZ", name: "2024年01月广州医保线下反馈核查 - 内科", year: "2024", departmentId: 4, templateId: "TPL_GZ_YB", templateName: "广州医保（线下）反馈", status: "END", creator: "管理员", createTime: "2024-01-01 09:00", updateTime: "2024-01-10 09:00", dueDate: "2024-01-30" },
   { id: "T_2024_01_DED", name: "2024年01月医保院内扣减", year: "2024", departmentId: 1, templateId: "TPL_DED", templateName: "医保院内扣减", status: "END", creator: "管理员", createTime: "2024-01-20 09:00", updateTime: "2024-01-20 09:00", dueDate: "2024-01-30" },
   { id: "T_2024_01_DED_0", parentId: "T_2024_01_DED", name: "2024年01月医保院内扣减 - 外科", year: "2024", departmentId: 3, templateId: "TPL_DED", templateName: "医保院内扣减", status: "END", creator: "管理员", createTime: "2024-01-20 09:00", updateTime: "2024-01-22 09:00", dueDate: "2024-01-30" },
   { id: "T_2024_01_DED_1", parentId: "T_2024_01_DED", name: "2024年01月医保院内扣减 - 内科", year: "2024", departmentId: 4, templateId: "TPL_DED", templateName: "医保院内扣减", status: "END", creator: "管理员", createTime: "2024-01-20 09:00", updateTime: "2024-01-22 09:00", dueDate: "2024-01-30" },
 
   { id: "T_2024_02_GZ", name: "2024年02月广州医保线下反馈核查", year: "2024", departmentId: 1, templateId: "TPL_GZ_YB", templateName: "广州医保（线下）反馈", status: "END", creator: "管理员", createTime: "2024-02-01 09:00", updateTime: "2024-02-10 09:00", dueDate: "2024-02-28" },
+  { id: "T_2024_02_GZ_0", parentId: "T_2024_02_GZ", name: "2024年02月广州医保线下反馈核查 - 外科", year: "2024", departmentId: 3, templateId: "TPL_GZ_YB", templateName: "广州医保（线下）反馈", status: "END", creator: "管理员", createTime: "2024-02-01 09:00", updateTime: "2024-02-10 09:00", dueDate: "2024-02-28" },
+  { id: "T_2024_02_GZ_1", parentId: "T_2024_02_GZ", name: "2024年02月广州医保线下反馈核查 - 内科", year: "2024", departmentId: 4, templateId: "TPL_GZ_YB", templateName: "广州医保（线下）反馈", status: "END", creator: "管理员", createTime: "2024-02-01 09:00", updateTime: "2024-02-10 09:00", dueDate: "2024-02-28" },
   { id: "T_2024_02_DED", name: "2024年02月医保院内扣减", year: "2024", departmentId: 1, templateId: "TPL_DED", templateName: "医保院内扣减", status: "PUBLISH", creator: "管理员", createTime: "2024-02-20 09:00", updateTime: "2024-02-20 09:00", dueDate: "2024-02-28" },
   { id: "T_2024_02_DED_0", parentId: "T_2024_02_DED", name: "2024年02月医保院内扣减 - 外科", year: "2024", departmentId: 3, templateId: "TPL_DED", templateName: "医保院内扣减", status: "END", creator: "管理员", createTime: "2024-02-20 09:00", updateTime: "2024-02-22 09:00", dueDate: "2024-02-28" },
   { id: "T_2024_02_DED_1", parentId: "T_2024_02_DED", name: "2024年02月医保院内扣减 - 内科", year: "2024", departmentId: 4, templateId: "TPL_DED", templateName: "医保院内扣减", status: "PUBLISH", creator: "管理员", createTime: "2024-02-20 09:00", updateTime: "2024-02-20 09:00", dueDate: "2024-02-28" },
 
   { id: "T_2024_03_GZ", name: "2024年03月广州医保线下反馈核查", year: "2024", departmentId: 1, templateId: "TPL_GZ_YB", templateName: "广州医保（线下）反馈", status: "END", creator: "管理员", createTime: "2024-03-01 09:00", updateTime: "2024-03-10 09:00", dueDate: "2024-03-31" },
+  { id: "T_2024_03_GZ_0", parentId: "T_2024_03_GZ", name: "2024年03月广州医保线下反馈核查 - 外科", year: "2024", departmentId: 3, templateId: "TPL_GZ_YB", templateName: "广州医保（线下）反馈", status: "END", creator: "管理员", createTime: "2024-03-01 09:00", updateTime: "2024-03-10 09:00", dueDate: "2024-03-31" },
+  { id: "T_2024_03_GZ_1", parentId: "T_2024_03_GZ", name: "2024年03月广州医保线下反馈核查 - 内科", year: "2024", departmentId: 4, templateId: "TPL_GZ_YB", templateName: "广州医保（线下）反馈", status: "END", creator: "管理员", createTime: "2024-03-01 09:00", updateTime: "2024-03-10 09:00", dueDate: "2024-03-31" },
   
   { id: "T_2024_04_GZ", name: "2024年04月广州医保线下反馈核查", year: "2024", departmentId: 1, templateId: "TPL_GZ_YB", templateName: "广州医保（线下）反馈", status: "SUBMITTED", creator: "管理员", createTime: "2024-04-01 09:00", updateTime: "2024-04-10 09:00", dueDate: "2024-04-30" },
+  { id: "T_2024_04_GZ_0", parentId: "T_2024_04_GZ", name: "2024年04月广州医保线下反馈核查 - 外科", year: "2024", departmentId: 3, templateId: "TPL_GZ_YB", templateName: "广州医保（线下）反馈", status: "SUBMITTED", creator: "管理员", createTime: "2024-04-01 09:00", updateTime: "2024-04-10 09:00", dueDate: "2024-04-30" },
+  { id: "T_2024_04_GZ_1", parentId: "T_2024_04_GZ", name: "2024年04月广州医保线下反馈核查 - 内科", year: "2024", departmentId: 4, templateId: "TPL_GZ_YB", templateName: "广州医保（线下）反馈", status: "PUBLISH", creator: "管理员", createTime: "2024-04-01 09:00", updateTime: "2024-04-10 09:00", dueDate: "2024-04-30" },
   
   { id: "T_2024_05_GZ", name: "2024年05月广州医保线下反馈核查", year: "2024", departmentId: 1, templateId: "TPL_GZ_YB", templateName: "广州医保（线下）反馈", status: "PUBLISH", creator: "管理员", createTime: "2024-05-01 09:00", updateTime: "2024-05-10 09:00", dueDate: "2024-05-31" },
   { id: "T_2024_05_GZ_0", parentId: "T_2024_05_GZ", name: "2024年05月广州医保线下反馈核查 - 外科", year: "2024", departmentId: 3, templateId: "TPL_GZ_YB", templateName: "广州医保（线下）反馈", status: "PUBLISH", creator: "管理员", createTime: "2024-05-01 09:00", updateTime: "2024-05-10 09:00", dueDate: "2024-05-31" },
@@ -87,7 +95,7 @@ const INITIAL_REPORTS: ReviewRecord[] = INITIAL_TASKS.filter(t => t.parentId).ma
     id: "R_" + t.id,
     taskId: t.id,
     auditStatus: t.status === "END" ? 1 : (t.status === "SUBMITTED" ? 8 : 7) as any,
-    fillStatus: t.status === "END" ? "APPROVED" : (t.status === "SUBMITTED" ? "SUBMITTED" : "UNFILLED"),
+    fillStatus: t.status === "END" ? 2 : (t.status === "SUBMITTED" ? 1 : 0),
     submitter: t.status === "END" || t.status === "SUBMITTED" ? "专管员" : "-",
     submitTime: t.status === "END" || t.status === "SUBMITTED" ? t.updateTime : "-",
     auditor: t.status === "END" ? "管理员" : "-",
@@ -209,7 +217,7 @@ function generate12Records(month: string) {
                 _DATA_SOURCE: `2024年${dateMonth}月广州医保线下反馈核查`
             }, 
             evidence: isAppeal ? [`${patientNames[i]}_小结.pdf`] : [], 
-            fillStatus: "APPROVED", 
+            fillStatus: 2, 
             auditStatus: 1, 
             submitter: "系统", 
             updateTime: `2024-${dateMonth}-15 14:00`, 
@@ -220,12 +228,12 @@ function generate12Records(month: string) {
 }
 
 const ALL_MOCK_DETAILS: Record<string, any[]> = {
-    "task_records_T_2024_01_GZ": generate12Records("1"),
-    "task_records_T_2024_02_GZ": generate12Records("2"),
-    "task_records_T_2024_03_GZ": generate12Records("3"),
-    "task_records_T_2024_04_GZ": generate12Records("4"),
-    "task_records_T_2024_05_GZ": generate12Records("5").map((r) => r.data.DEPARTMENT_NAME === "内科" ? { ...r, fillStatus: "SUBMITTED", auditStatus: 8 } : r),
-    "task_records_T_2024_06_GZ": generate12Records("6"),
+    "task_records_T_2024_01_GZ": generate12Records("1").map((r, i) => i % 3 === 0 ? { ...r, fillStatus: 6, auditStatus: 9 } : r),
+    "task_records_T_2024_02_GZ": generate12Records("2").map((r, i) => i % 3 === 0 ? { ...r, fillStatus: 6, auditStatus: 9 } : r),
+    "task_records_T_2024_03_GZ": generate12Records("3").map((r, i) => i % 3 === 0 ? { ...r, fillStatus: 6, auditStatus: 9 } : r),
+    "task_records_T_2024_04_GZ": generate12Records("4").map((r) => r.data.DEPARTMENT_NAME === "内科" ? { ...r, fillStatus: 51, auditStatus: 7, submitter: "-", submitTime: "-", auditor: "-", auditTime: "-" } : { ...r, fillStatus: 1, auditStatus: 8, submitter: "专管员", submitTime: "2024-04-15 14:00" }),
+    "task_records_T_2024_05_GZ": generate12Records("5").map((r) => r.data.DEPARTMENT_NAME === "内科" ? { ...r, fillStatus: 1, auditStatus: 8, submitter: "专管员", submitTime: "2024-05-15 14:00", auditor: "-", auditTime: "-" } : { ...r, fillStatus: 0, auditStatus: 7, submitter: "-", submitTime: "-", auditor: "-", auditTime: "-" }),
+    "task_records_T_2024_06_GZ": generate12Records("6").map((r) => ({ ...r, fillStatus: 0, auditStatus: 7, submitter: "-", submitTime: "-", auditor: "-", auditTime: "-" })),
 };
 
 // 复用反馈核查任务中所生成的扣减明细 (IS_APPEAL === "否")
@@ -236,7 +244,7 @@ let activeIntervals: Record<string, NodeJS.Timeout> = {};
 
 export const mockApi = {
   startAIFill: (taskId: string, restart = true) => {
-    let tasks = JSON.parse(localStorage.getItem("tasks_v20") || "null");
+    let tasks = JSON.parse(localStorage.getItem("tasks_v21") || "null");
     let isSubtask = false;
     let parentId = null;
     if (tasks) {
@@ -254,13 +262,13 @@ export const mockApi = {
         // First, set everything to AI_FILLING except those already AI_FILLED if restart is false but here we set all if restart
         data = data.map((d: any) => ({
           ...d,
-          fillStatus: "AI_FILLING"
+          fillStatus: 51
         }));
       } else {
          // It's a continue
          data = data.map((d: any) => ({
           ...d,
-          fillStatus: d.fillStatus === "AI_FILLED" ? "AI_FILLED" : "AI_FILLING"
+          fillStatus: d.fillStatus === 5 ? 5 : 51
         }));
       }
       localStorage.setItem(key, JSON.stringify(data));
@@ -284,7 +292,7 @@ export const mockApi = {
         // Find next item to fill (actually filling AI_FILLING ones)
         let found = false;
         for (let i = index; i < currentData.length; i++) {
-          if (currentData[i].fillStatus === "AI_FILLING") {
+          if (currentData[i].fillStatus === 51) {
             const d = currentData[i];
             const patient = d.data.PATIENT_NAME || "";
             const outDate = d.data.DISCHARGE_DATE || "";
@@ -293,7 +301,7 @@ export const mockApi = {
     
             currentData[i] = {
               ...d,
-              fillStatus: "AI_FILLED",
+              fillStatus: 5,
               data: {
                 ...d.data,
                 IS_APPEAL: "是",
@@ -324,7 +332,7 @@ export const mockApi = {
     }
   },
   abortAIFill: (taskId: string) => {
-    let tasks = JSON.parse(localStorage.getItem("tasks_v20") || "null");
+    let tasks = JSON.parse(localStorage.getItem("tasks_v21") || "null");
     let isSubtask = false;
     let parentId = null;
     if (tasks) {
@@ -347,8 +355,8 @@ export const mockApi = {
       // Mark still in progress as AI_ABORTED to differentiate them, or leave as AI_FILLING 
       // but without interval they just stop. Better mark them as AI_PAUSED or just leave as UNFILLED/AI_FILLING
       data = data.map((d: any) => {
-        if (d.fillStatus === "AI_FILLING") {
-           return { ...d, fillStatus: "AI_PAUSED" };
+        if (d.fillStatus === 51) {
+           return { ...d, fillStatus: 52 };
         }
         return d;
       });
@@ -360,13 +368,13 @@ export const mockApi = {
   resetData: () => {},
 
   getTasks: (page = 1, pageSize = 10, filters: any = {}): { data: Task[], total: number } => {
-    let tasks = JSON.parse(localStorage.getItem("tasks_v20") || "null");
+    let tasks = JSON.parse(localStorage.getItem("tasks_v21") || "null");
     
     if (!tasks || tasks.length !== INITIAL_TASKS.length) {
       tasks = INITIAL_TASKS;
-      localStorage.setItem("tasks_v20", JSON.stringify(tasks));
-      localStorage.setItem("records_v20", JSON.stringify(INITIAL_REPORTS));
-      localStorage.setItem("templates_v20", JSON.stringify(INITIAL_TEMPLATES));
+      localStorage.setItem("tasks_v21", JSON.stringify(tasks));
+      localStorage.setItem("records_v21", JSON.stringify(INITIAL_REPORTS));
+      localStorage.setItem("templates_v21", JSON.stringify(INITIAL_TEMPLATES));
       Object.keys(ALL_MOCK_DETAILS).forEach(key => {
          localStorage.setItem(key, JSON.stringify(ALL_MOCK_DETAILS[key]));
       });
@@ -394,13 +402,13 @@ export const mockApi = {
   },
 
   getTaskById: (id: string): Task | null => {
-    let tasks = JSON.parse(localStorage.getItem("tasks_v20") || "null");
+    let tasks = JSON.parse(localStorage.getItem("tasks_v21") || "null");
     if (!tasks) tasks = INITIAL_TASKS;
     return tasks.find((t: Task) => t.id === id) || null;
   },
 
   getReviewRecords: (taskId?: string): ReviewRecord[] => {
-    let records = JSON.parse(localStorage.getItem("records_v20") || "null");
+    let records = JSON.parse(localStorage.getItem("records_v21") || "null");
     if (!records) records = INITIAL_REPORTS;
     if (taskId) {
       return records.filter((r: ReviewRecord) => r.taskId === taskId);
@@ -409,7 +417,7 @@ export const mockApi = {
   },
 
   getTemplates: (search = "", status?: string, typeFilter?: string): ReviewTemplate[] => {
-    let templates = JSON.parse(localStorage.getItem("templates_v20") || "null");
+    let templates = JSON.parse(localStorage.getItem("templates_v21") || "null");
     if (!templates) templates = INITIAL_TEMPLATES;
     let filtered = templates;
     if (search) filtered = filtered.filter((t: ReviewTemplate) => t.name.includes(search));
@@ -422,13 +430,25 @@ export const mockApi = {
   deleteTemplates: (ids: string[]) => {},
 
   updateTaskStatus: (taskId: string, status: keyof typeof TASK_STATUS) => {
-    let tasks = JSON.parse(localStorage.getItem("tasks_v20") || "null");
+    let tasks = JSON.parse(localStorage.getItem("tasks_v21") || "null");
     if (!tasks) return;
     const index = tasks.findIndex((t: Task) => t.id === taskId);
     if (index > -1) {
       tasks[index].status = status;
       tasks[index].updateTime = new Date().toLocaleString();
-      localStorage.setItem("tasks_v20", JSON.stringify(tasks));
+      
+      // Propagate BACK and CANCELLATION to children
+      if (status === "BACK" || status === "CANCELLATION") {
+        tasks.forEach((t: Task) => {
+           if (t.parentId === taskId) {
+               t.status = status;
+               t.updateTime = tasks[index].updateTime;
+           }
+        });
+      }
+
+      localStorage.setItem("tasks_v21", JSON.stringify(tasks));
+      
       // For deductions, update parent if all children are END
       if (tasks[index].parentId && status === "END") {
           const parentId = tasks[index].parentId;
@@ -438,7 +458,7 @@ export const mockApi = {
               if (parentIdx > -1) {
                   tasks[parentIdx].status = "END";
                   tasks[parentIdx].updateTime = new Date().toLocaleString();
-                  localStorage.setItem("tasks_v20", JSON.stringify(tasks));
+                  localStorage.setItem("tasks_v21", JSON.stringify(tasks));
               }
           }
       }
@@ -446,7 +466,7 @@ export const mockApi = {
   },
 
   getTaskDetailRecords: (taskId: string) => {
-    let tasks = JSON.parse(localStorage.getItem("tasks_v20") || "null");
+    let tasks = JSON.parse(localStorage.getItem("tasks_v21") || "null");
     let isSubtask = false;
     let parentId = null;
     let currentDeptName = null;
@@ -460,11 +480,11 @@ export const mockApi = {
     }
 
     const realTaskId = isSubtask ? parentId : taskId;
-    const key = `task_records_${realTaskId}`;
+    const key = `task_records_v21_${realTaskId}`;
     let data = JSON.parse(localStorage.getItem(key) || "null");
 
-    if (!data && ALL_MOCK_DETAILS[key]) {
-      data = ALL_MOCK_DETAILS[key];
+    if (!data && ALL_MOCK_DETAILS[`task_records_${realTaskId}`]) {
+      data = ALL_MOCK_DETAILS[`task_records_${realTaskId}`];
       localStorage.setItem(key, JSON.stringify(data));
     }
     
@@ -478,19 +498,19 @@ export const mockApi = {
 
   dispatchTask: (taskId: string) => {
       // Just mock returning true for deduction tasks if they are dispatched
-      let tasks = JSON.parse(localStorage.getItem("tasks_v20") || "null");
+      let tasks = JSON.parse(localStorage.getItem("tasks_v21") || "null");
       if (!tasks) return false;
       const index = tasks.findIndex((t: Task) => t.id === taskId);
       if (index > -1 && tasks[index].status === "CREATE") {
           tasks[index].status = "PUBLISH";
-          localStorage.setItem("tasks_v20", JSON.stringify(tasks));
+          localStorage.setItem("tasks_v21", JSON.stringify(tasks));
           return true;
       }
       return false;
   },
 
   saveTaskDetailRecord: (taskId: string, record: any) => {
-    let tasks = JSON.parse(localStorage.getItem("tasks_v20") || "null");
+    let tasks = JSON.parse(localStorage.getItem("tasks_v21") || "null");
     let isSubtask = false;
     let parentId = null;
     if (tasks) {

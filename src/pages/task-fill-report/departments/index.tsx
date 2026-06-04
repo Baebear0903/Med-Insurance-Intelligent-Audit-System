@@ -83,12 +83,27 @@ export function TaskFillReport() {
       filteredData = filteredData.filter(t => {
         const details = mockApi.getTaskDetailRecords(t.id);
         return details.some((d: any) => d.data && d.data.DEPARTMENT_NAME === deptName);
+      }).map(t => {
+        const details = mockApi.getTaskDetailRecords(t.id).filter((d: any) => d.data && d.data.DEPARTMENT_NAME === deptName);
+        let aggStatus: string | number = 0; // Or UNFILLED
+        if (details.length > 0) {
+            const hasReject = details.some((d: any) => d.fillStatus === 3);
+            const allApprovedOrChanged = details.every((d: any) => d.fillStatus === 2 || d.fillStatus === 6);
+            const hasRevoked = details.some((d: any) => d.fillStatus === 4);
+            const hasSubmitted = details.some((d: any) => d.fillStatus === 1);
+            
+            if (hasReject) aggStatus = 3;
+            else if (hasRevoked) aggStatus = 4;
+            else if (hasSubmitted) aggStatus = 1;
+            else if (allApprovedOrChanged) aggStatus = 2;
+        }
+        return { ...t, subtaskStatus: aggStatus };
       });
     }
 
     // Manual filter for status if detailed filter is shown
     if (showDetailedFilter && filterStatus) {
-      filteredData = filteredData.filter(t => t.status === filterStatus);
+      filteredData = filteredData.filter(t => (t as any).subtaskStatus === filterStatus || t.status === filterStatus);
     }
 
     // Also hide parent tasks if they have sub-tasks? The prompt says admin sees all. Let's just show all for admin.
@@ -194,21 +209,27 @@ export function TaskFillReport() {
 
     // 组装行内容
     const rows = allRecords.map((r: any, idx: number) => {
-      const getStatusLabel = (s: string) => {
-        if (s === "UNFILLED") return "待填报";
-        if (s === "FILLED") return "已提交";
-        if (s === "AI_FILLED") return "AI已填";
-        if (s === "AI_FILLING") return "AI填充中";
+      const getStatusLabel = (s: number) => {
+        if (s === 0) return "未填报";
+        if (s === 1) return "已提交/已填报";
+        if (s === 5) return "AI填报";
+        if (s === 51) return "填报中";
+        if (s === 52) return "AI暂停";
+        if (s === 2) return "审核通过";
+        if (s === 6) return "审核变更";
+        if (s === 3) return "驳回";
+        if (s === 4) return "撤销";
         return s || "未开始";
       };
       
       const getAuditStatusLabel = (ast: number) => {
-        if (ast === 0) return "已送审";
-        if (ast === 1) return "待审核";
-        if (ast === 2) return "审核通过";
-        if (ast === 3) return "审核驳回";
-        if (ast === 7) return "未作申诉填报";
-        if (ast === 8) return "已申诉";
+        if (ast === 1) return "审批通过";
+        if (ast === 9) return "审核变更";
+        if (ast === 2) return "已驳回";
+        if (ast === 0) return "编辑待审核";
+        if (ast === 3) return "编辑待提交";
+        if (ast === 7) return "填报中";
+        if (ast === 8) return "填报待审核";
         return "-";
       };
 
@@ -295,16 +316,30 @@ export function TaskFillReport() {
     { 
       key: "status", 
       title: "任务状态", 
-      render: (t: Task) => (
-        <Badge status={
-          t.status === "COMPLETE" || t.status === "END" ? "success" : 
-          t.status === "PUBLISH" ? "info" : 
-          t.status === "SUBMITTED" ? "warning" : 
-          t.status === "WITHDRAWN" ? "error" : "default"
-        }>
-          {TASK_STATUS[t.status]}
-        </Badge>
-      )
+      render: (t: Task) => {
+        const isDeptUser = role === "DEP_SURGERY" || role === "DEP_INTERNAL";
+        const statusValue = isDeptUser && (t as any).subtaskStatus ? (t as any).subtaskStatus : t.status;
+        const color = statusValue === "COMPLETE" || statusValue === "END" || statusValue === 2 ? "success" : 
+          statusValue === "PUBLISH" || statusValue === 0 ? "info" : 
+          statusValue === "SUBMITTED" || statusValue === 1 ? "warning" : 
+          statusValue === "WITHDRAWN" || statusValue === 3 ? "error" : "default";
+
+        let label = TASK_STATUS[t.status as keyof typeof TASK_STATUS] as string;
+        if (isDeptUser && (t as any).subtaskStatus) {
+            const ss = (t as any).subtaskStatus;
+            if (ss === 3) label = "驳回";
+            else if (ss === 4) label = "撤销";
+            else if (ss === 1) label = "已提交";
+            else if (ss === 2) label = "审核完成";
+            else if (ss === 0) label = "未填报";
+        }
+        
+        return (
+          <Badge status={color as any}>
+            {label}
+          </Badge>
+        );
+      }
     },
     { key: "creator", title: "任务创建人" },
     { key: "dueDate", title: "截止时间" },

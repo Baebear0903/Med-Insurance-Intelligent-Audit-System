@@ -20,21 +20,29 @@ export const TASK_STATUS = {
 } as const;
 
 export const AUDIT_STATUS = {
-  0: "编辑待审核",
-  1: "审批通过",
-  2: "已驳回",
-  3: "编辑待提交",
   7: "填报中",
-  8: "填报待审核",
+  8: "待审核",
+  2: "已驳回",
+  1: "审核通过",
+  9: "审核变更",
 } as const;
 
 export const FILL_STATUS = {
-  UNFILLED: "未填报",
-  AI_FILLED: "AI填报",
-  SUBMITTED: "已提交",
-  APPROVED: "审核通过",
-  REJECTED: "驳回",
-  REVOKED: "撤销",
+  0: "未填报",
+  5: "AI填报",
+  1: "已填报",
+  8: "待审核",
+  2: "审核通过",
+  6: "审核变更",
+  3: "已驳回",
+} as const;
+
+export const DEPARTMENT_TASK_STATUS = {
+  0: "未填报",
+  1: "已提交",
+  2: "审核完成",
+  3: "驳回",
+  4: "撤销",
 } as const;
 
 export const DEPARTMENTS = {

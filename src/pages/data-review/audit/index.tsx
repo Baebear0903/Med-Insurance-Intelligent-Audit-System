@@ -25,6 +25,7 @@ export function Audit() {
   const navigate = useNavigate();
 
   const [task, setTask] = useState<Task | null>(null);
+  const [subTask, setSubTask] = useState<Task | null>(null);
   const [template, setTemplate] = useState<ReviewTemplate | null>(null);
   const [records, setRecords] = useState<any[]>([]);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -78,6 +79,11 @@ export function Audit() {
           const deptName = DEPARTMENTS[deptRef];
           if (deptName) {
              detailRecords = detailRecords.filter(r => r.data.DEPARTMENT_NAME === deptName || r.data.DEPARTMENT_NAME === deptName + "专管员");
+             const allTasks = mockApi.getTasks(1, 1000).data;
+             const foundSubTask = allTasks.find(t => t.parentId === taskId && t.departmentId === deptRef);
+             if (foundSubTask) {
+               setSubTask(foundSubTask);
+             }
           }
         }
 
@@ -143,7 +149,7 @@ export function Audit() {
   };
 
   const checkAndCompleteTaskStatus = (tId: string, dId?: string | null) => {
-    let tasksList = JSON.parse(localStorage.getItem("tasks") || "null") as Task[];
+    let tasksList = JSON.parse(localStorage.getItem("tasks_v21") || "null") as Task[];
     if (!tasksList) return;
     
     const deptRef = dId && dId !== "all" ? parseInt(dId) : null;
@@ -157,7 +163,7 @@ export function Audit() {
     // Check subtask
     if (subtask && deptName) {
       const subtaskDetails = allDetails.filter(r => r.data.DEPARTMENT_NAME === deptName || r.data.DEPARTMENT_NAME === deptName + "专管员");
-      const subtaskAllAudited = subtaskDetails.every(r => r.auditStatus === 1 || r.auditStatus === 2);
+      const subtaskAllAudited = subtaskDetails.every(r => r.auditStatus === 1 || r.auditStatus === 9);
       if (subtaskAllAudited && subtaskDetails.length > 0) {
         const idx = tasksList.findIndex(t => t.id === subtask.id);
         if (idx > -1) {
@@ -168,7 +174,7 @@ export function Audit() {
     }
     
     // Check parent task
-    const allAudited = allDetails.every(r => r.auditStatus === 1 || r.auditStatus === 2);
+    const allAudited = allDetails.every(r => r.auditStatus === 1 || r.auditStatus === 9);
     if (allAudited && allDetails.length > 0) {
       const parentIdx = tasksList.findIndex(t => t.id === tId);
       if (parentIdx > -1) {
@@ -185,7 +191,7 @@ export function Audit() {
       });
     }
     
-    localStorage.setItem("tasks", JSON.stringify(tasksList));
+    localStorage.setItem("tasks_v21", JSON.stringify(tasksList));
   };
 
   const handleConfirmAudit = () => {
@@ -293,10 +299,12 @@ export function Audit() {
   }));
 
   const getStatusBadge = (r: any) => {
-    if (r.auditStatus === 1) return <Badge status="success">审批通过</Badge>;
-    if (r.auditStatus === 2 || r.auditStatus === 3) return <Badge status="error">已驳回</Badge>;
-    if (r.fillStatus === "AI_FILLING") return <Badge status="info">填报中</Badge>;
-    return <Badge status="warning">待审核</Badge>;
+    if (r.auditStatus === 1) return <Badge status="success">审核通过</Badge>;
+    if (r.auditStatus === 9) return <Badge status="warning">审核变更</Badge>;
+    if (r.auditStatus === 2) return <Badge status="error">已驳回</Badge>;
+    if (r.auditStatus === 7) return <Badge status="info">填报中</Badge>;
+    if (r.auditStatus === 8) return <Badge status="warning">待审核</Badge>;
+    return <Badge status="default">待审核</Badge>;
   };
 
   const isDeductionTask = task?.templateId === "TPL_DED";
@@ -337,7 +345,7 @@ export function Audit() {
         <Button
           variant="ghost"
           size="sm"
-          disabled={r.fillStatus === "REJECTED" || r.auditStatus === 3}
+          disabled={r.fillStatus === 3 || r.auditStatus === 2}
           onClick={() => {
             setActiveRecord(r);
             setRejectOpinion("");
@@ -352,17 +360,18 @@ export function Audit() {
   ] : [];
 
   const filteredRecords = records.filter(r => {
-    const isUnchecked = r.auditStatus === 0 || r.auditStatus === 7 || r.auditStatus === 8 || !r.auditStatus;
-    if (filterStatus === "填报中") return r.fillStatus === "AI_FILLING" && isUnchecked;
-    if (filterStatus === "待审核") return r.fillStatus !== "AI_FILLING" && isUnchecked;
-    if (filterStatus === "已通过") return r.auditStatus === 1;
+    const isUnchecked = r.auditStatus === 0 || r.auditStatus === 8;
+    if (filterStatus === "填报中") return r.auditStatus === 7;
+    if (filterStatus === "待审核") return r.auditStatus === 8;
     if (filterStatus === "已驳回") return r.auditStatus === 2;
+    if (filterStatus === "审核通过") return r.auditStatus === 1;
+    if (filterStatus === "审核变更") return r.auditStatus === 9;
     return true;
   });
 
   const handleBulkAuditClick = () => {
     if (selectedIds.length > 0) {
-      const hasFinalState = records.filter(r => selectedIds.includes(r.id)).some(r => r.auditStatus === 1 || r.auditStatus === 2 || r.auditStatus === 3);
+      const hasFinalState = records.filter(r => selectedIds.includes(r.id)).some(r => r.auditStatus === 1 || r.auditStatus === 9 || r.auditStatus === 2);
       if (hasFinalState) {
         toast("部分记录不可批量审核，请重新选择", "error");
         return;
@@ -378,8 +387,8 @@ export function Audit() {
     }
     const updatedRecord = {
       ...activeRecord,
-      fillStatus: "REJECTED",
-      auditStatus: 3, // 审核驳回
+      fillStatus: 3,
+      auditStatus: 2, // 已驳回
       reviewOpinion: rejectOpinion,
     };
     mockApi.saveTaskDetailRecord(taskId, updatedRecord);
@@ -406,8 +415,8 @@ export function Audit() {
       if (rec) {
         const updatedRecord = {
           ...rec,
-          fillStatus: "REJECTED",
-          auditStatus: 3, // 审核驳回
+          fillStatus: 3,
+          auditStatus: 2, // 已驳回
           reviewOpinion: batchAuditOpinion,
         };
         mockApi.saveTaskDetailRecord(taskId!, updatedRecord);
@@ -432,7 +441,7 @@ export function Audit() {
       if (rec) {
         const updatedRecord = {
           ...rec,
-          fillStatus: "APPROVED",
+          fillStatus: 2,
           auditStatus: 1, // 审批通过
         };
         mockApi.saveTaskDetailRecord(taskId!, updatedRecord);
@@ -449,13 +458,24 @@ export function Audit() {
     checkAndCompleteTaskStatus(taskId!, deptId);
   };
 
+  const renderTopStatusBadge = () => {
+    const targetStatus = subTask ? subTask.status : task.status;
+    const badgeStatus = ['END', 'COMPLETE'].includes(targetStatus) ? "success" : 
+                        targetStatus === "SUBMITTED" ? "info" : 
+                        targetStatus === "WITHDRAWN" ? "error" : 
+                        ['CANCELLATION', 'BACK'].includes(targetStatus) ? "warning" : "default";
+    const label = TASK_STATUS[targetStatus as keyof typeof TASK_STATUS] || "填报中";
+    
+    return <Badge status={badgeStatus} className="ml-3 font-normal">{label}</Badge>;
+  };
+
   return (
     <div className="flex flex-col h-full bg-[#f8fafc] p-5">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-3">
           <h2 className="text-xl font-bold flex items-center text-slate-800">
             {task.name}
-            <Badge status="info" className="ml-3 font-normal">{TASK_STATUS[task.status as keyof typeof TASK_STATUS]}</Badge>
+            {renderTopStatusBadge()}
           </h2>
         </div>
         <div className="flex items-center gap-3">
@@ -495,10 +515,11 @@ export function Audit() {
                     onChange={(e) => setFilterStatus(e.target.value)}
                   >
                     <option value="全部">全部</option>
-                    <option value="待审核">待审核</option>
                     <option value="填报中">填报中</option>
-                    <option value="已通过">已通过</option>
+                    <option value="待审核">待审核</option>
                     <option value="已驳回">已驳回</option>
+                    <option value="审核通过">审核通过</option>
+                    <option value="审核变更">审核变更</option>
                   </select>
                 </div>
               </>

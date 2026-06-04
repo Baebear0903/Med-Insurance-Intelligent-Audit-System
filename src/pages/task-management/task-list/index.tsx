@@ -129,24 +129,27 @@ export function TaskList() {
 
     const allRecords = mockApi.getTaskDetailRecords(task.id);
     const rows = allRecords.map((r: any, idx: number) => {
-      const getStatusLabel = (s: string) => {
-        if (s === "UNFILL") return "未填报";
-        if (s === "FILLED") return "已填报";
-        if (s === "APPROVED") return "审核通过";
-        if (s === "REJECTED") return "已驳回";
-        if (s === "AI_FILLED") return "AI已填";
-        if (s === "AI_FILLING") return "AI填充中";
-        if (s === "AI_PAUSED") return "AI已暂停";
-        return s || "未开始";
+      const getStatusLabel = (s: number) => {
+        if (s === 0) return "未填报";
+        if (s === 1) return "已提交/已填报";
+        if (s === 5) return "AI填报";
+        if (s === 51) return "填报中";
+        if (s === 52) return "AI暂停";
+        if (s === 2) return "审核通过";
+        if (s === 6) return "审核变更";
+        if (s === 3) return "驳回";
+        if (s === 4) return "撤销";
+        return s || "未开启";
       };
       
       const getAuditStatusLabel = (ast: number) => {
-        if (ast === 0) return "已送审";
-        if (ast === 1) return "待审核";
-        if (ast === 2) return "审核通过";
-        if (ast === 3) return "审核驳回";
-        if (ast === 7) return "未作申诉填报";
-        if (ast === 8) return "已申诉";
+        if (ast === 1) return "审批通过";
+        if (ast === 9) return "审核变更";
+        if (ast === 2) return "已驳回";
+        if (ast === 0) return "编辑待审核";
+        if (ast === 3) return "编辑待提交";
+        if (ast === 7) return "填报中";
+        if (ast === 8) return "填报待审核";
         return "-";
       };
 
@@ -305,7 +308,7 @@ export function TaskList() {
       return;
     }
     const tpl = templates.find(t => t.id === newTaskForm.templateId);
-    let tasks = JSON.parse(localStorage.getItem("tasks") || "[]");
+    let tasks = JSON.parse(localStorage.getItem("tasks_v21") || "[]");
     if (!tasks || tasks.length === 0) { tasks = mockApi.getTasks(1, 100).data; } // Load defaults if empty
     
     const newTask: Task = {
@@ -322,7 +325,7 @@ export function TaskList() {
       dueDate: newTaskForm.dueDate
     };
     tasks.push(newTask);
-    localStorage.setItem("tasks", JSON.stringify(tasks));
+    localStorage.setItem("tasks_v21", JSON.stringify(tasks));
     setIsNewTaskModalOpen(false);
     toast("新建任务成功", "success");
     setNewTaskForm({ name: "", dueDate: "", templateId: "", departmentId: "1", desc: "" });
@@ -368,10 +371,10 @@ export function TaskList() {
 
   const handleEndTask = () => {
     if(!activeTask) return;
-    let tasks = JSON.parse(localStorage.getItem("tasks") || "[]");
+    let tasks = JSON.parse(localStorage.getItem("tasks_v21") || "[]");
     const t = tasks.find((t: Task) => t.id === activeTask.id);
     if(t) t.status = "END";
-    localStorage.setItem("tasks", JSON.stringify(tasks));
+    localStorage.setItem("tasks_v21", JSON.stringify(tasks));
     setIsEndTaskModalOpen(false);
     toast("任务已结束", "success");
     fetchData();

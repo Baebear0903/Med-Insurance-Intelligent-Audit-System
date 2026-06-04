@@ -55,13 +55,15 @@ export function DataReview() {
       const treeData = parentTasks.map((pt, idx) => {
         const childrenRaw = allTasks.filter(t => t.parentId === pt.id);
         
-        const children = childrenRaw.map(ct => ({
-          id: ct.id,
-          deptId: ct.departmentId,
-          deptName: DEPARTMENTS[ct.departmentId] || ct.name.split(" - ")[1],
-          manager: ct.departmentId === 3 ? "李飞" : (ct.departmentId === 4 ? "赵云" : "陈磊"),
-          status: ct.status
-        }));
+        const children = childrenRaw.map(ct => {
+          return {
+            id: ct.id,
+            deptId: ct.departmentId,
+            deptName: DEPARTMENTS[ct.departmentId] || ct.name.split(" - ")[1],
+            manager: ct.departmentId === 3 ? "李飞" : (ct.departmentId === 4 ? "赵云" : "陈磊"),
+            status: ct.status
+          };
+        });
 
         return {
           id: pt.id,
@@ -108,17 +110,14 @@ export function DataReview() {
 
     const children = allRawTasksRef.current?.filter((t: any) => t.parentId === task.id) || [];
     const pData = children.map((c: any, index: number) => {
-      let progress = "未填报";
-      if (c.status === "END") progress = "审核通过";
-      else if (c.status === "SUBMITTED") progress = "审核中";
-      else if (c.status === "PUBLISH" || c.status === "CREATE") progress = "未填报";
+      let progress = TASK_STATUS[c.status as keyof typeof TASK_STATUS] || "填报中";
       
       // Since it's a DED (扣减) task where there's no real "审核通过", 
       // let's follow the wording in the prompt:
       // "1月院内扣减任务在进度弹窗中展示所有科室已读确认。" "外科已读、内科未读"
       const isDeduction = task.name.includes("扣减");
       if (isDeduction) {
-        if (c.status === "END") progress = "已读确认";
+        if (c.status === "END" || c.status === "COMPLETE") progress = "已读确认";
         else progress = "未读";
       }
 
@@ -144,7 +143,7 @@ export function DataReview() {
     });
 
     const isDeduction = task.name.includes("扣减");
-    const unfillCount = pData.filter((item: any) => item.progress === "未填报" || item.progress === "未读").length;
+    const unfillCount = pData.filter((item: any) => item.progress === "填报中" || item.progress === "未读").length;
     setProgressModalStats({
       total: pData.length,
       filled: pData.length - unfillCount,
@@ -159,7 +158,7 @@ export function DataReview() {
 
   const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.checked) {
-      const unfilledIds = filteredProgressData.filter(item => item.progress === "未填报").map(item => item.id);
+      const unfilledIds = filteredProgressData.filter(item => item.progress === "填报中" || item.progress === "未读").map(item => item.id);
       setSelectedProgressIds(unfilledIds);
     } else {
       setSelectedProgressIds([]);
@@ -191,9 +190,12 @@ export function DataReview() {
   };
 
   const getProgressBadgeStatus = (progress: string) => {
-    if (progress === "审核通过" || progress === "已读确认") return "success";
-    if (progress === "未填报" || progress === "未读") return "error";
-    return "warning";
+    if (["审核完成", "已结束", "已读确认"].includes(progress)) return "success";
+    if (progress === "已提交") return "info";
+    if (progress === "已驳回") return "error";
+    if (["已撤回", "已取消"].includes(progress)) return "warning";
+    if (progress === "填报中" || progress === "未读") return "default";
+    return "default";
   };
 
   const colHeaderMap: Record<string, React.ReactNode> = {
@@ -236,14 +238,14 @@ export function DataReview() {
     manager: <td key="manager" className="p-3 text-slate-600">{child.manager}</td>,
     status: (
       <td key="status" className="p-3">
-        {child.status ? (
+        {child.status !== undefined ? (
           <Badge status={
-            child.status === "COMPLETE" || child.status === "END" ? "success" : 
-            child.status === "PUBLISH" ? "info" : 
-            child.status === "SUBMITTED" ? "warning" : 
-            child.status === "WITHDRAWN" ? "error" : "default"
+            ['END', 'COMPLETE'].includes(child.status) ? "success" : 
+            child.status === "SUBMITTED" ? "info" : 
+            child.status === "WITHDRAWN" ? "error" : 
+            ['CANCELLATION', 'BACK'].includes(child.status) ? "warning" : "default"
           }>
-            {TASK_STATUS[child.status as keyof typeof TASK_STATUS] || child.status}
+            {TASK_STATUS[child.status as keyof typeof TASK_STATUS] || "填报中"}
           </Badge>
         ) : <span className="text-slate-500">-</span>}
       </td>
@@ -547,9 +549,13 @@ export function DataReview() {
                   className="w-full px-4 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 appearance-none text-slate-600 cursor-pointer"
                 >
                   <option value="">全部进度</option>
-                  {!progressModalStats.isDeduction && <option value="审核通过">审核通过</option>}
                   {!progressModalStats.isDeduction && <option value="填报中">填报中</option>}
-                  {!progressModalStats.isDeduction && <option value="未填报">未填报</option>}
+                  {!progressModalStats.isDeduction && <option value="已提交">已提交</option>}
+                  {!progressModalStats.isDeduction && <option value="已驳回">已驳回</option>}
+                  {!progressModalStats.isDeduction && <option value="审核完成">审核完成</option>}
+                  {!progressModalStats.isDeduction && <option value="已撤回">已撤回</option>}
+                  {!progressModalStats.isDeduction && <option value="已取消">已取消</option>}
+                  {!progressModalStats.isDeduction && <option value="已结束">已结束</option>}
                   {progressModalStats.isDeduction && <option value="已读确认">已读确认</option>}
                   {progressModalStats.isDeduction && <option value="未读">未读</option>}
                 </select>
@@ -571,7 +577,7 @@ export function DataReview() {
                         type="checkbox" 
                         className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 focus:ring-offset-0"
                         onChange={handleSelectAll}
-                        checked={filteredProgressData.length > 0 && filteredProgressData.filter(item => item.progress === "未填报").length > 0 && selectedProgressIds.length === filteredProgressData.filter(item => item.progress === "未填报").length}
+                        checked={filteredProgressData.length > 0 && filteredProgressData.filter(item => item.progress === "填报中").length > 0 && selectedProgressIds.length === filteredProgressData.filter(item => item.progress === "填报中").length}
                       />
                     </th>
                     <th className="px-4 py-3 w-16">序号</th>
@@ -584,7 +590,7 @@ export function DataReview() {
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {filteredProgressData.map((row) => {
-                    const isUnfilled = row.progress === "未填报" || row.progress === "未读";
+                    const isUnfilled = row.progress === "填报中" || row.progress === "未读";
                     return (
                       <tr key={row.id} className="bg-white hover:bg-slate-50 transition-colors group">
                         <td className="px-4 py-3 text-center">
