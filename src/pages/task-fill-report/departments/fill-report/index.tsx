@@ -561,7 +561,7 @@ export function FillReportDetail() {
             
             return (
               <div className="flex items-center gap-1">
-                {isViewOnlyStatus ? (
+                {isReadonlyRow ? (
                   <Button 
                     variant="ghost" 
                     size="sm" 

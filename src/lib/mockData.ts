@@ -1,5 +1,12 @@
 import { TASK_STATUS, AUDIT_STATUS, FILL_STATUS, DEPARTMENTS } from "./constants";
 
+if (typeof window !== 'undefined') {
+  if (localStorage.getItem("mock_data_version") !== "v24") {
+      localStorage.clear();
+      localStorage.setItem("mock_data_version", "v24");
+  }
+}
+
 export interface Task {
   id: string;
   name: string;
