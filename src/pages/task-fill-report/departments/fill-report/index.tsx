@@ -114,8 +114,19 @@ export function FillReportDetail() {
       
       if (foundTask) {
         setTask(foundTask);
+        let effectiveStatus = foundTask.status;
+        
+        if (role === "DEP_SURGERY" || role === "DEP_INTERNAL") {
+          const deptId = role === "DEP_SURGERY" ? 3 : 4;
+          const allTasks = mockApi.getTasks(1, 1000).data;
+          const subtask = allTasks.find(t => t.parentId === taskId && t.departmentId === deptId);
+          if (subtask) {
+            effectiveStatus = subtask.status;
+          }
+        }
+        
         // Mode: PUBLISH and WITHDRAWN are editable
-        setIsReadOnly(!(foundTask.status === "PUBLISH" || foundTask.status === "WITHDRAWN"));
+        setIsReadOnly(!(effectiveStatus === "PUBLISH" || effectiveStatus === "WITHDRAWN"));
         
         const templates = mockApi.getTemplates();
         const foundTemplate = templates.find(tpl => tpl.id === foundTask.templateId);
@@ -545,39 +556,38 @@ export function FillReportDetail() {
       fixed: "right" as const,
       width: "300px",
       render: (r: any) => {
-        const isDisabled = isReadOnly;
-        return (
-          <div className="flex items-center gap-1">
-            {[8, 2, 6].includes(r.fillStatus) && (
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                onClick={() => {
-                  handleRowFill(r, true);
-                }}
-                className="text-blue-600 hover:text-blue-700 font-medium px-2"
-              >
-                查看
-              </Button>
-            )}
-            {[0, 5, 1, 3].includes(r.fillStatus) && (
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                disabled={isDisabled}
-                onClick={() => {
-                  if (!isDisabled) {
-                    handleRowFill(r, false);
-                  }
-                }}
-                className={cn(
-                  "font-medium px-2", 
-                  isDisabled ? "text-slate-400 opacity-50 cursor-not-allowed" : "text-blue-600 hover:text-blue-700"
+            const isViewOnlyStatus = [8, 2, 6].includes(Number(r.fillStatus));
+            const isReadonlyRow = isReadOnly || isViewOnlyStatus;
+            
+            return (
+              <div className="flex items-center gap-1">
+                {isViewOnlyStatus ? (
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={() => handleRowFill(r, true)}
+                    className="text-blue-600 hover:text-blue-700 font-medium px-2"
+                  >
+                    查看
+                  </Button>
+                ) : (
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    disabled={isReadOnly}
+                    onClick={() => {
+                      if (!isReadOnly) {
+                        handleRowFill(r, false);
+                      }
+                    }}
+                    className={cn(
+                      "font-medium px-2", 
+                      isReadOnly ? "text-slate-400 opacity-50 cursor-not-allowed" : "text-blue-600 hover:text-blue-700"
+                    )}
+                  >
+                    填报
+                  </Button>
                 )}
-              >
-                填报
-              </Button>
-            )}
             {r.fillStatus === 5 && (
               <Button 
                 variant="ghost" 

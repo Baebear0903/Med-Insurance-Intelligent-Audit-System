@@ -80,7 +80,7 @@ const INITIAL_TASKS: Task[] = [
   { id: "T_2024_03_GZ_0", parentId: "T_2024_03_GZ", name: "2024年03月广州医保线下反馈核查 - 外科", year: "2024", departmentId: 3, templateId: "TPL_GZ_YB", templateName: "广州医保（线下）反馈", status: "END", creator: "管理员", createTime: "2024-03-01 09:00", updateTime: "2024-03-10 09:00", dueDate: "2024-03-31" },
   { id: "T_2024_03_GZ_1", parentId: "T_2024_03_GZ", name: "2024年03月广州医保线下反馈核查 - 内科", year: "2024", departmentId: 4, templateId: "TPL_GZ_YB", templateName: "广州医保（线下）反馈", status: "END", creator: "管理员", createTime: "2024-03-01 09:00", updateTime: "2024-03-10 09:00", dueDate: "2024-03-31" },
   
-  { id: "T_2024_04_GZ", name: "2024年04月广州医保线下反馈核查", year: "2024", departmentId: 1, templateId: "TPL_GZ_YB", templateName: "广州医保（线下）反馈", status: "SUBMITTED", creator: "管理员", createTime: "2024-04-01 09:00", updateTime: "2024-04-10 09:00", dueDate: "2024-04-30" },
+  { id: "T_2024_04_GZ", name: "2024年04月广州医保线下反馈核查", year: "2024", departmentId: 1, templateId: "TPL_GZ_YB", templateName: "广州医保（线下）反馈", status: "PUBLISH", creator: "管理员", createTime: "2024-04-01 09:00", updateTime: "2024-04-10 09:00", dueDate: "2024-04-30" },
   { id: "T_2024_04_GZ_0", parentId: "T_2024_04_GZ", name: "2024年04月广州医保线下反馈核查 - 外科", year: "2024", departmentId: 3, templateId: "TPL_GZ_YB", templateName: "广州医保（线下）反馈", status: "SUBMITTED", creator: "管理员", createTime: "2024-04-01 09:00", updateTime: "2024-04-10 09:00", dueDate: "2024-04-30" },
   { id: "T_2024_04_GZ_1", parentId: "T_2024_04_GZ", name: "2024年04月广州医保线下反馈核查 - 内科", year: "2024", departmentId: 4, templateId: "TPL_GZ_YB", templateName: "广州医保（线下）反馈", status: "PUBLISH", creator: "管理员", createTime: "2024-04-01 09:00", updateTime: "2024-04-10 09:00", dueDate: "2024-04-30" },
   
@@ -231,7 +231,7 @@ const ALL_MOCK_DETAILS: Record<string, any[]> = {
     "task_records_T_2024_01_GZ": generate12Records("1").map((r, i) => i % 3 === 0 ? { ...r, fillStatus: 6, auditStatus: 9 } : r),
     "task_records_T_2024_02_GZ": generate12Records("2").map((r, i) => i % 3 === 0 ? { ...r, fillStatus: 6, auditStatus: 9 } : r),
     "task_records_T_2024_03_GZ": generate12Records("3").map((r, i) => i % 3 === 0 ? { ...r, fillStatus: 6, auditStatus: 9 } : r),
-    "task_records_T_2024_04_GZ": generate12Records("4").map((r) => r.data.DEPARTMENT_NAME === "内科" ? { ...r, fillStatus: 51, auditStatus: 7, submitter: "-", submitTime: "-", auditor: "-", auditTime: "-" } : { ...r, fillStatus: 1, auditStatus: 8, submitter: "专管员", submitTime: "2024-04-15 14:00" }),
+    "task_records_T_2024_04_GZ": generate12Records("4").map((r) => r.data.DEPARTMENT_NAME === "内科" ? { ...r, fillStatus: 0, auditStatus: 7, submitter: "-", submitTime: "-", auditor: "-", auditTime: "-" } : { ...r, fillStatus: 8, auditStatus: 8, submitter: "专管员", submitTime: "2024-04-15 14:00" }),
     "task_records_T_2024_05_GZ": generate12Records("5").map((r) => r.data.DEPARTMENT_NAME === "内科" ? { ...r, fillStatus: 1, auditStatus: 8, submitter: "专管员", submitTime: "2024-05-15 14:00", auditor: "-", auditTime: "-" } : { ...r, fillStatus: 0, auditStatus: 7, submitter: "-", submitTime: "-", auditor: "-", auditTime: "-" }),
     "task_records_T_2024_06_GZ": generate12Records("6").map((r) => ({ ...r, fillStatus: 0, auditStatus: 7, submitter: "-", submitTime: "-", auditor: "-", auditTime: "-" })),
 };
@@ -379,7 +379,32 @@ export const mockApi = {
          localStorage.setItem(key, JSON.stringify(ALL_MOCK_DETAILS[key]));
       });
     }
-    
+
+    // Dynamically calculate parent status based on children before filtering
+    tasks.forEach((task: Task) => {
+        if (!task.parentId) {
+            const children = tasks.filter((t: Task) => t.parentId === task.id);
+            if (children.length > 0) {
+                // If there are children, the parent status is determined by children
+                const allEnd = children.every((c: Task) => c.status === "END");
+                const allSubmittedOrEnd = children.every((c: Task) => c.status === "SUBMITTED" || c.status === "END");
+                
+                if (allEnd) {
+                    task.status = "END";
+                } else if (allSubmittedOrEnd) {
+                    task.status = "SUBMITTED";
+                } else {
+                    // if not all submitted, and at least some children exist, task is PUBLISH
+                    if (task.status !== "END" && task.status !== "SUBMITTED" && task.status !== "PUBLISH") {
+                        task.status = "PUBLISH";
+                    } else if (task.status === "SUBMITTED" || task.status === "END") {
+                        task.status = "PUBLISH";
+                    }
+                }
+            }
+        }
+    });
+
     let filtered = [...tasks].sort((a, b) => new Date(b.createTime).getTime() - new Date(a.createTime).getTime());
     if (filters.name) {
       filtered = filtered.filter((t:any) => t.name.includes(filters.name));
@@ -404,7 +429,25 @@ export const mockApi = {
   getTaskById: (id: string): Task | null => {
     let tasks = JSON.parse(localStorage.getItem("tasks_v21") || "null");
     if (!tasks) tasks = INITIAL_TASKS;
-    return tasks.find((t: Task) => t.id === id) || null;
+    const task = tasks.find((t: Task) => t.id === id);
+    if (!task) return null;
+    
+    if (!task.parentId) {
+        const children = tasks.filter((t: Task) => t.parentId === task.id);
+        if (children.length > 0) {
+            const allEnd = children.every((c: Task) => c.status === "END");
+            const allSubmittedOrEnd = children.every((c: Task) => c.status === "SUBMITTED" || c.status === "END");
+            
+            if (allEnd) {
+                task.status = "END";
+            } else if (allSubmittedOrEnd) {
+                task.status = "SUBMITTED";
+            } else {
+                task.status = "PUBLISH";
+            }
+        }
+    }
+    return task;
   },
 
   getReviewRecords: (taskId?: string): ReviewRecord[] => {
