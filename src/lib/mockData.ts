@@ -255,7 +255,7 @@ export const mockApi = {
       }
     }
     const realTaskId = isSubtask ? parentId : taskId;
-    const key = `task_records_${realTaskId}`;
+    const key = `task_records_v21_${realTaskId}`;
     let data = JSON.parse(localStorage.getItem(key) || "null");
     if (data) {
       if (restart) {
@@ -343,7 +343,7 @@ export const mockApi = {
       }
     }
     const realTaskId = isSubtask ? parentId : taskId;
-    const key = `task_records_${realTaskId}`;
+    const key = `task_records_v21_${realTaskId}`;
     
     if (activeIntervals[key]) {
       clearInterval(activeIntervals[key]);
@@ -521,7 +521,7 @@ export const mockApi = {
       }
     }
     const realTaskId = isSubtask ? parentId : taskId;
-    const key = `task_records_${realTaskId}`;
+    const key = `task_records_v21_${realTaskId}`;
     let data = JSON.parse(localStorage.getItem(key) || "null");
     if (!data) return;
     const idx = data.findIndex((d: any) => d.id === record.id);
