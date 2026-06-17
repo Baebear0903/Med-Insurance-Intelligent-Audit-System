@@ -82,9 +82,9 @@ export function TaskFillReport() {
       const deptName = role === "DEP_SURGERY" ? "外科" : "内科";
       filteredData = filteredData.filter(t => {
         const details = mockApi.getTaskDetailRecords(t.id);
-        return details.some((d: any) => d.data && d.data.DEPARTMENT_NAME === deptName);
+        return details.some((d: any) => d.data && d.data.DISPATCH_DEPT === deptName);
       }).map(t => {
-        const details = mockApi.getTaskDetailRecords(t.id).filter((d: any) => d.data && d.data.DEPARTMENT_NAME === deptName);
+        const details = mockApi.getTaskDetailRecords(t.id).filter((d: any) => d.data && d.data.DISPATCH_DEPT === deptName);
         let aggStatus: string | number = 0; // Or UNFILLED
         if (details.length > 0) {
             const hasReject = details.some((d: any) => d.fillStatus === 3);

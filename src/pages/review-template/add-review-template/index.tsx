@@ -34,11 +34,15 @@ const STANDARD_FIELDS = [
 const DEFAULT_FEEDBACK_FIELDS: TemplateField[] = [
   { id: "DF_ORDER_DEPT", name: "ORDER_DEPT", comment: "开单科室", type: "VARCHAR", length: 100, decimal: 0, isPrimaryKey: false, isNotNull: false, isRequired: false, isShow: true, displayName: "开单科室", isQueryable: false, isFeedback: false, noUpdate: true },
   { id: "DF_EXECUTE_DEPT", name: "EXECUTE_DEPT", comment: "执行科室", type: "VARCHAR", length: 100, decimal: 0, isPrimaryKey: false, isNotNull: false, isRequired: false, isShow: true, displayName: "执行科室", isQueryable: false, isFeedback: false, noUpdate: true },
-  { id: "DF_DEPARTMENT_NAME", name: "DEPARTMENT_NAME", comment: "科室名称", type: "VARCHAR", length: 100, decimal: 0, isPrimaryKey: false, isNotNull: false, isRequired: false, isShow: true, displayName: "科室名称", isQueryable: true, isFeedback: false, noUpdate: true },
+  { id: "DF_DISPATCH_DEPT", name: "DISPATCH_DEPT", comment: "下发科室", type: "VARCHAR", length: 100, decimal: 0, isPrimaryKey: false, isNotNull: false, isRequired: false, isShow: true, displayName: "下发科室", isQueryable: true, isFeedback: false, noUpdate: true },
   { id: "DF_IS_APPEAL", name: "IS_APPEAL", comment: "是/否申诉", type: "VARCHAR", length: 10, decimal: 0, isPrimaryKey: false, isNotNull: false, isRequired: false, isShow: true, displayName: "是/否申诉", isQueryable: false, isFeedback: true, noUpdate: false },
   { id: "DF_APPEAL_REASON", name: "APPEAL_REASON", comment: "申诉原因", type: "VARCHAR", length: 500, decimal: 0, isPrimaryKey: false, isNotNull: false, isRequired: false, isShow: true, displayName: "申诉原因", isQueryable: false, isFeedback: true, noUpdate: false },
   { id: "DF_APPEAL_ATTACHMENT", name: "APPEAL_ATTACHMENT", comment: "申诉附件", type: "VARCHAR", length: 500, decimal: 0, isPrimaryKey: false, isNotNull: false, isRequired: false, isShow: true, displayName: "申诉附件", isQueryable: false, isFeedback: true, noUpdate: false },
   { id: "DF_APPEAL_REMARK", name: "APPEAL_REMARK", comment: "申诉备注", type: "VARCHAR", length: 500, decimal: 0, isPrimaryKey: false, isNotNull: false, isRequired: false, isShow: true, displayName: "申诉备注", isQueryable: false, isFeedback: true, noUpdate: true },
+];
+
+const DEFAULT_DISPATCH_FIELDS: TemplateField[] = [
+  { id: "DF_DISPATCH_DEPT", name: "DISPATCH_DEPT", comment: "下发科室", type: "VARCHAR", length: 100, decimal: 0, isPrimaryKey: false, isNotNull: false, isRequired: false, isShow: true, displayName: "下发科室", isQueryable: true, isFeedback: false, noUpdate: true },
 ];
 
 export function AddReviewTemplate() {
@@ -91,21 +95,25 @@ export function AddReviewTemplate() {
   const handleTemplateTypeChange = (value: any) => {
     let currentFields = formData.fields || [];
     let newFields = [...currentFields];
-    if (value === "医保审核反馈") {
-       // add default fields if not exist
-       const defaultNames = DEFAULT_FEEDBACK_FIELDS.map(f => f.name);
-       const existingNames = new Set(newFields.map(f => f.name));
-       const missingDefaults = DEFAULT_FEEDBACK_FIELDS.filter(f => !existingNames.has(f.name));
-       if (missingDefaults.length > 0) {
-          newFields = [...newFields, ...JSON.parse(JSON.stringify(missingDefaults))];
-       }
-    } else {
-       // remove default fields, assuming they haven't been heavily modified or we just let them be, but wait, the requirement says "如选中其他，无特殊逻辑" (no special logic if others are selected). 
-       // So do we remove them? The requirement says "不可删除；如选中其他，无特殊逻辑". It implies they can be deleted if we switch to others. 
-       // Let's just remove the ones that came from DEFAULT_FEEDBACK_FIELDS if they are exactly matching or we can just leave them alone and allow user to delete them. 
-       // If no special logic, we just do not add/remove automatically, or do we? "如选中其他，无特殊逻辑" means we don't automatically add them.
-       // It's better to remove them if they were added automatically, or just unlock them so they can be deleted. 
+    
+    const prevType = formData.templateType || "医保审核反馈";
+    
+    const oldDefaults = prevType === "医保审核反馈" ? DEFAULT_FEEDBACK_FIELDS : DEFAULT_DISPATCH_FIELDS;
+    const newDefaults = value === "医保审核反馈" ? DEFAULT_FEEDBACK_FIELDS : DEFAULT_DISPATCH_FIELDS;
+    
+    const newDefaultNames = new Set(newDefaults.map(f => f.name));
+    const oldDefaultNames = new Set(oldDefaults.map(f => f.name));
+
+    const namesToRemove = new Set([...oldDefaultNames].filter(x => !newDefaultNames.has(x)));
+    newFields = newFields.filter(f => !namesToRemove.has(f.name));
+
+    const existingNames = new Set(newFields.map(f => f.name));
+    const missingDefaults = newDefaults.filter(f => !existingNames.has(f.name));
+    
+    if (missingDefaults.length > 0) {
+      newFields = [...JSON.parse(JSON.stringify(missingDefaults)), ...newFields];
     }
+
     setFormData({ ...formData, templateType: value, fields: newFields });
     setHasChanges(true);
   };
@@ -178,7 +186,13 @@ export function AddReviewTemplate() {
       if ((formData.templateType || "医保审核反馈") === "医保审核反馈") {
         const defaultNames = DEFAULT_FEEDBACK_FIELDS.map(f => f.name);
         if (defaultNames.includes(fieldToDelete.name)) {
-          toast(`模板类型为“医保审核反馈”时，【${fieldToDelete.comment || fieldToDelete.name}】为必填字段，不可删除`, "error");
+          toast(`模板类型为“医保审核反馈”时，【${fieldToDelete.comment || fieldToDelete.name}】为固定字段，不可删除`, "error");
+          return;
+        }
+      } else if (formData.templateType === "医保明细下发") {
+        const defaultNames = DEFAULT_DISPATCH_FIELDS.map(f => f.name);
+        if (defaultNames.includes(fieldToDelete.name)) {
+          toast(`模板类型为“医保明细下发”时，【${fieldToDelete.comment || fieldToDelete.name}】为固定字段，不可删除`, "error");
           return;
         }
       }
@@ -309,7 +323,6 @@ export function AddReviewTemplate() {
               >
                 <option value="医保审核反馈">医保审核反馈</option>
                 <option value="医保明细下发">医保明细下发</option>
-                <option value="医保院内扣减">医保院内扣减</option>
               </select>
             </div>
             <div className="space-y-2">
@@ -399,15 +412,18 @@ export function AddReviewTemplate() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 divide-x divide-slate-100">
-                {(formData.fields || []).map((field, idx) => (
+                {(formData.fields || []).map((field, idx) => {
+                  const isDispatchDeptFixed = field.name === "DISPATCH_DEPT" && (formData.templateType === "医保审核反馈" || formData.templateType === "医保明细下发");
+                  return (
                   <tr key={field.id} className="group hover:bg-blue-50 transition-colors">
                     <td className="px-3 py-2 text-center text-slate-400 font-mono italic">{idx + 1}</td>
                     <td className="px-2 py-1.5">
                       <input 
                         type="text" 
                         value={field.name} 
+                        disabled={isDispatchDeptFixed}
                         onChange={(e) => handleUpdateField(idx, { name: e.target.value })}
-                        className="w-full h-8 px-2 border border-transparent focus:border-blue-300 focus:bg-white rounded outline-none bg-slate-50/10" 
+                        className={cn("w-full h-8 px-2 border border-transparent focus:border-blue-300 focus:bg-white rounded outline-none bg-slate-50/10", isDispatchDeptFixed && "opacity-60 bg-slate-100 cursor-not-allowed")} 
                       />
                     </td>
                     <td className="px-2 py-1.5">
@@ -415,8 +431,9 @@ export function AddReviewTemplate() {
                         <input 
                           type="text" 
                           value={field.comment} 
+                          disabled={isDispatchDeptFixed}
                           onChange={(e) => handleUpdateField(idx, { comment: e.target.value })}
-                          className="w-full h-8 px-2 border border-transparent focus:border-blue-300 focus:bg-white rounded outline-none bg-slate-50/10" 
+                          className={cn("w-full h-8 px-2 border border-transparent focus:border-blue-300 focus:bg-white rounded outline-none bg-slate-50/10", isDispatchDeptFixed && "opacity-60 bg-slate-100 cursor-not-allowed")} 
                         />
                         {field.mappedStandardField && (
                           <div className="w-4 h-4 text-green-500 shrink-0" title={`已关联: ${field.mappedStandardField}`}>
@@ -429,8 +446,9 @@ export function AddReviewTemplate() {
                       <input 
                         type="text" 
                         value={field.displayName || ""} 
+                        disabled={isDispatchDeptFixed}
                         onChange={(e) => handleUpdateField(idx, { displayName: e.target.value })}
-                        className="w-full h-8 px-2 border border-transparent focus:border-blue-300 focus:bg-white rounded outline-none bg-slate-50/10 placeholder-slate-300"
+                        className={cn("w-full h-8 px-2 border border-transparent focus:border-blue-300 focus:bg-white rounded outline-none bg-slate-50/10 placeholder-slate-300", isDispatchDeptFixed && "opacity-60 bg-slate-100 cursor-not-allowed")}
                         placeholder="非必填"
                       />
                     </td>
@@ -488,7 +506,8 @@ export function AddReviewTemplate() {
                       <div className="flex items-center justify-start gap-1.5">
                         <button onClick={() => handleOpenStandardFields(idx)} className="p-1 text-emerald-500 hover:bg-emerald-50 rounded" title="关联标准表字段"><Link2 className="w-3.5 h-3.5"/></button>
                         <button onClick={() => handleAction(idx, "copy")} className="p-1 text-blue-500 hover:bg-blue-50 rounded" title="复制一行"><Copy className="w-3.5 h-3.5"/></button>
-                        {((formData.templateType || "医保审核反馈") !== "医保审核反馈" || !DEFAULT_FEEDBACK_FIELDS.map(f => f.name).includes(field.name)) && (
+                        {((formData.templateType === "医保审核反馈" && !DEFAULT_FEEDBACK_FIELDS.map(f => f.name).includes(field.name)) || 
+                          (formData.templateType === "医保明细下发" && !DEFAULT_DISPATCH_FIELDS.map(f => f.name).includes(field.name))) && (
                           <button onClick={() => handleAction(idx, "delete")} className="p-1 text-red-500 hover:bg-red-50 rounded" title="删除"><Trash2 className="w-3.5 h-3.5"/></button>
                         )}
                         <button onClick={() => handleAction(idx, "up")} disabled={idx === 0} className="p-1 text-slate-400 hover:bg-slate-100 rounded disabled:opacity-20"><ArrowUp className="w-3.5 h-3.5"/></button>
@@ -496,7 +515,8 @@ export function AddReviewTemplate() {
                       </div>
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
                 {(!formData.fields || formData.fields.length === 0) && (
                   <tr>
                     <td colSpan={16} className="px-4 py-8 text-center text-slate-400 bg-slate-50/30">

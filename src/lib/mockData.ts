@@ -1,9 +1,9 @@
 import { TASK_STATUS, AUDIT_STATUS, FILL_STATUS, DEPARTMENTS } from "./constants";
 
 if (typeof window !== 'undefined') {
-  if (localStorage.getItem("mock_data_version") !== "v24") {
+  if (localStorage.getItem("mock_data_version") !== "v25") {
       localStorage.clear();
-      localStorage.setItem("mock_data_version", "v24");
+      localStorage.setItem("mock_data_version", "v25");
   }
 }
 
@@ -58,7 +58,7 @@ export interface TemplateField {
 export interface ReviewTemplate {
   id: string;
   name: string;
-  templateType: "医保审核反馈" | "医保明细下发" | "医保院内扣减";
+  templateType: "医保审核反馈" | "医保明细下发";
   status: "ENABLED" | "DISABLED";
   desc: string;
   creator: string;
@@ -134,7 +134,7 @@ const INITIAL_TEMPLATES: ReviewTemplate[] = [
       { id: "F9", name: "VIOLATION_DESC", comment: "违规描述", type: "VARCHAR", length: 500, decimal: 0, isPrimaryKey: false, isNotNull: false, isRequired: false, isQueryable: false, isFeedback: false, noUpdate: true, isShow: true, displayName: "" },
       { id: "F16", name: "ORDER_DEPT", comment: "开单科室", type: "VARCHAR", length: 100, decimal: 0, isPrimaryKey: false, isNotNull: false, isRequired: false, isQueryable: true, isFeedback: false, noUpdate: true, isShow: true, displayName: "开单科室" },
       { id: "F17", name: "EXECUTE_DEPT", comment: "执行科室", type: "VARCHAR", length: 100, decimal: 0, isPrimaryKey: false, isNotNull: false, isRequired: false, isQueryable: true, isFeedback: false, noUpdate: true, isShow: true, displayName: "执行科室" },
-      { id: "F10", name: "DEPARTMENT_NAME", comment: "科室名称", type: "VARCHAR", length: 100, decimal: 0, isPrimaryKey: false, isNotNull: false, isRequired: false, isQueryable: true, isFeedback: false, noUpdate: true, isShow: true, displayName: "科室名称" },
+      { id: "F10", name: "DISPATCH_DEPT", comment: "下发科室", type: "VARCHAR", length: 100, decimal: 0, isPrimaryKey: false, isNotNull: false, isRequired: false, isQueryable: true, isFeedback: false, noUpdate: true, isShow: true, displayName: "下发科室" },
       { id: "F11", name: "DOCTOR_NAME", comment: "医生名称", type: "VARCHAR", length: 100, decimal: 0, isPrimaryKey: false, isNotNull: false, isRequired: false, isQueryable: true, isFeedback: false, noUpdate: true, isShow: true, displayName: "" },
       { id: "F15", name: "REMARK", comment: "备注", type: "VARCHAR", length: 500, decimal: 0, isPrimaryKey: false, isNotNull: false, isRequired: false, isQueryable: false, isFeedback: false, noUpdate: true, isShow: true, displayName: "" },
       { id: "F12", name: "IS_APPEAL", comment: "是/否申诉", type: "VARCHAR", length: 10, decimal: 0, isPrimaryKey: false, isNotNull: false, isRequired: false, isQueryable: false, isFeedback: true, noUpdate: false, isShow: true, displayName: "是/否申诉" },
@@ -146,7 +146,7 @@ const INITIAL_TEMPLATES: ReviewTemplate[] = [
   {
     id: "TPL_DED",
     name: "医保院内扣减",
-    templateType: "医保院内扣减",
+    templateType: "医保明细下发",
     status: "ENABLED",
     desc: "医保院内扣减台账。",
     creator: "管理员",
@@ -164,7 +164,7 @@ const INITIAL_TEMPLATES: ReviewTemplate[] = [
       { id: "F9", name: "PROJECT_NAME", comment: "扣款项目", type: "VARCHAR", length: 100, decimal: 0, isPrimaryKey: false, isNotNull: false, isRequired: false, isQueryable: false, isFeedback: false, noUpdate: true, isShow: true, displayName: "" },
       { id: "F10", name: "VIOLATION_AMOUNT", comment: "违规金额（单位：元）", type: "DECIMAL", length: 10, decimal: 2, isPrimaryKey: false, isNotNull: false, isRequired: false, isQueryable: false, isFeedback: false, noUpdate: true, isShow: true, displayName: "" },
       { id: "F11", name: "VIOLATION_DESC", comment: "扣减原因", type: "VARCHAR", length: 500, decimal: 0, isPrimaryKey: false, isNotNull: false, isRequired: false, isQueryable: false, isFeedback: false, noUpdate: true, isShow: true, displayName: "" },
-      { id: "F12", name: "ORDER_DEPT", comment: "涉及科室", type: "VARCHAR", length: 100, decimal: 0, isPrimaryKey: false, isNotNull: false, isRequired: false, isQueryable: true, isFeedback: false, noUpdate: true, isShow: true, displayName: "" },
+      { id: "F12", name: "DISPATCH_DEPT", comment: "下发科室", type: "VARCHAR", length: 100, decimal: 0, isPrimaryKey: false, isNotNull: false, isRequired: false, isQueryable: true, isFeedback: false, noUpdate: true, isShow: true, displayName: "下发科室" },
       { id: "F13", name: "DOCTOR_NAME", comment: "涉及医生", type: "VARCHAR", length: 100, decimal: 0, isPrimaryKey: false, isNotNull: false, isRequired: false, isQueryable: true, isFeedback: false, noUpdate: true, isShow: true, displayName: "" },
       { id: "F14", name: "_DEDUCTION_TARGET", comment: "扣减科室或个人", type: "VARCHAR", length: 100, decimal: 0, isPrimaryKey: false, isNotNull: false, isRequired: false, isQueryable: false, isFeedback: false, noUpdate: true, isShow: true, displayName: "" },
       { id: "F15", name: "VIOLATION_AMOUNT_2", comment: "违规金额", type: "DECIMAL", length: 10, decimal: 2, isPrimaryKey: false, isNotNull: false, isRequired: false, isQueryable: false, isFeedback: false, noUpdate: true, isShow: true, displayName: "" },
@@ -206,7 +206,7 @@ function generate12Records(month: string) {
                 VIOLATION_DESC: "高频检查", 
                 ORDER_DEPT: depts[i % 2], 
                 EXECUTE_DEPT: "检验科", 
-                DEPARTMENT_NAME: depts[i % 2], 
+                DISPATCH_DEPT: depts[i % 2], 
                 DOCTOR_NAME: i % 2 === 0 ? "赵医生" : "钱医生", 
                 IS_APPEAL: isAppeal ? "是" : "否", 
                 APPEAL_REASON: isAppeal ? "符合规范，建议申诉。" : "", 
@@ -238,8 +238,8 @@ const ALL_MOCK_DETAILS: Record<string, any[]> = {
     "task_records_T_2024_01_GZ": generate12Records("1").map((r, i) => i % 3 === 0 ? { ...r, fillStatus: 6, auditStatus: 9 } : r),
     "task_records_T_2024_02_GZ": generate12Records("2").map((r, i) => i % 3 === 0 ? { ...r, fillStatus: 6, auditStatus: 9 } : r),
     "task_records_T_2024_03_GZ": generate12Records("3").map((r, i) => i % 3 === 0 ? { ...r, fillStatus: 6, auditStatus: 9 } : r),
-    "task_records_T_2024_04_GZ": generate12Records("4").map((r) => r.data.DEPARTMENT_NAME === "内科" ? { ...r, fillStatus: 0, auditStatus: 7, submitter: "-", submitTime: "-", auditor: "-", auditTime: "-" } : { ...r, fillStatus: 8, auditStatus: 8, submitter: "专管员", submitTime: "2024-04-15 14:00" }),
-    "task_records_T_2024_05_GZ": generate12Records("5").map((r) => r.data.DEPARTMENT_NAME === "内科" ? { ...r, fillStatus: 1, auditStatus: 8, submitter: "专管员", submitTime: "2024-05-15 14:00", auditor: "-", auditTime: "-" } : { ...r, fillStatus: 0, auditStatus: 7, submitter: "-", submitTime: "-", auditor: "-", auditTime: "-" }),
+    "task_records_T_2024_04_GZ": generate12Records("4").map((r) => r.data.DISPATCH_DEPT === "内科" ? { ...r, fillStatus: 0, auditStatus: 7, submitter: "-", submitTime: "-", auditor: "-", auditTime: "-" } : { ...r, fillStatus: 8, auditStatus: 8, submitter: "专管员", submitTime: "2024-04-15 14:00" }),
+    "task_records_T_2024_05_GZ": generate12Records("5").map((r) => r.data.DISPATCH_DEPT === "内科" ? { ...r, fillStatus: 1, auditStatus: 8, submitter: "专管员", submitTime: "2024-05-15 14:00", auditor: "-", auditTime: "-" } : { ...r, fillStatus: 0, auditStatus: 7, submitter: "-", submitTime: "-", auditor: "-", auditTime: "-" }),
     "task_records_T_2024_06_GZ": generate12Records("6").map((r) => ({ ...r, fillStatus: 0, auditStatus: 7, submitter: "-", submitTime: "-", auditor: "-", auditTime: "-" })),
 };
 
@@ -541,7 +541,7 @@ export const mockApi = {
     if (!data) data = [];
 
     if (isSubtask && currentDeptName) {
-      return data.filter((d: any) => d.data.DEPARTMENT_NAME === currentDeptName || d.data.DEPARTMENT_NAME === currentDeptName?.replace("专管员", ""));
+      return data.filter((d: any) => d.data.DISPATCH_DEPT === currentDeptName || d.data.DISPATCH_DEPT === currentDeptName?.replace("专管员", ""));
     }
     return data;
   },

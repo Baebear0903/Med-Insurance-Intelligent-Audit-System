@@ -151,7 +151,7 @@ export default function DataQuery() {
     
     records.forEach((r: any) => {
       if (selectedIds.includes(r.id)) {
-        r.data.DEPARTMENT_NAME = selectedDept;
+        r.data.DISPATCH_DEPT = selectedDept;
         mockApi.saveTaskDetailRecord(task!.id, r);
         updatedCount++;
       }
@@ -274,7 +274,7 @@ export default function DataQuery() {
       "PATIENT_NAME",
       "PROJECT_NAME",
       "RULE_NAME",
-      "DEPARTMENT_NAME",
+      "DISPATCH_DEPT",
       "DOCTOR",
       "MEDICAL_MODE",
     ].includes(field.name);

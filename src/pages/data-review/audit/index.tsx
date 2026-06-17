@@ -78,7 +78,7 @@ export function Audit() {
           const deptRef = parseInt(deptId) as keyof typeof DEPARTMENTS;
           const deptName = DEPARTMENTS[deptRef];
           if (deptName) {
-             detailRecords = detailRecords.filter(r => r.data.DEPARTMENT_NAME === deptName || r.data.DEPARTMENT_NAME === deptName + "专管员");
+             detailRecords = detailRecords.filter(r => r.data.DISPATCH_DEPT === deptName || r.data.DISPATCH_DEPT === deptName + "专管员");
              const allTasks = mockApi.getTasks(1, 1000).data;
              const foundSubTask = allTasks.find(t => t.parentId === taskId && t.departmentId === deptRef);
              if (foundSubTask) {
@@ -128,7 +128,7 @@ export function Audit() {
 预览状态: 加载成功 (沙箱演示模式)
 归属患者: ${activeRecord?.data?.PATIENT_NAME || "张三"}
 住院号/登记号: ${activeRecord?.data?.HOSPITAL_NO || "ZY1002"}
-经办/病区: ${activeRecord?.data?.DEPARTMENT_NAME || "专管科室"}
+经办/病区: ${activeRecord?.data?.DISPATCH_DEPT || "专管科室"}
 对应项目: ${activeRecord?.data?.PROJECT_NAME || "关联诊疗项目"}
 涉及违规金额: ¥${activeRecord?.data?.VIOLATION_AMOUNT ? Number(activeRecord?.data?.VIOLATION_AMOUNT).toFixed(2) : "0.00"}
 
@@ -162,7 +162,7 @@ export function Audit() {
     
     // Check subtask
     if (subtask && deptName) {
-      const subtaskDetails = allDetails.filter(r => r.data.DEPARTMENT_NAME === deptName || r.data.DEPARTMENT_NAME === deptName + "专管员");
+      const subtaskDetails = allDetails.filter(r => r.data.DISPATCH_DEPT === deptName || r.data.DISPATCH_DEPT === deptName + "专管员");
       const subtaskAllAudited = subtaskDetails.every(r => r.auditStatus === 1 || r.auditStatus === 9);
       if (subtaskAllAudited && subtaskDetails.length > 0) {
         const idx = tasksList.findIndex(t => t.id === subtask.id);
@@ -395,7 +395,7 @@ export function Audit() {
     
     // Find subtask matching the department and set its status to WITHDRAWN
     const allTasks = mockApi.getTasks(1, 1000).data;
-    const subtask = allTasks.find(t => t.parentId === taskId && DEPARTMENTS[t.departmentId as keyof typeof DEPARTMENTS] === activeRecord.data.DEPARTMENT_NAME);
+    const subtask = allTasks.find(t => t.parentId === taskId && DEPARTMENTS[t.departmentId as keyof typeof DEPARTMENTS] === activeRecord.data.DISPATCH_DEPT);
     if (subtask) {
       mockApi.updateTaskStatus(subtask.id, "WITHDRAWN");
     }

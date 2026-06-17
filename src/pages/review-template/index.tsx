@@ -95,7 +95,6 @@ export function ReviewTemplate() {
             <option value="" className="text-slate-400">全部类型</option>
             <option value="医保审核反馈" className="text-slate-700">医保审核反馈</option>
             <option value="医保明细下发" className="text-slate-700">医保明细下发</option>
-            <option value="医保院内扣减" className="text-slate-700">医保院内扣减</option>
           </select>
           <select
             value={statusFilter}

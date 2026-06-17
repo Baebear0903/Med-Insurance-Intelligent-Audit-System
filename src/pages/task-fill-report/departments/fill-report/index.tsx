@@ -144,9 +144,9 @@ export function FillReportDetail() {
         
         // Security rule: specific departments can only see their own data
         if (role === "DEP_SURGERY") {
-          detailRecords = detailRecords.filter((d: any) => d.data.DEPARTMENT_NAME === "外科");
+          detailRecords = detailRecords.filter((d: any) => d.data.DISPATCH_DEPT === "外科");
         } else if (role === "DEP_INTERNAL") {
-          detailRecords = detailRecords.filter((d: any) => d.data.DEPARTMENT_NAME === "内科");
+          detailRecords = detailRecords.filter((d: any) => d.data.DISPATCH_DEPT === "内科");
         }
 
         setRecords(detailRecords);
