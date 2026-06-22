@@ -220,18 +220,33 @@ export function TaskList() {
     const dispatchAction = { label: "下发", onClick: () => { setActiveTask(r); setIsDispatchModalOpen(true); } };
     const downloadDataAction = { label: "下载数据", onClick: () => handleDownloadTask(r) };
 
+    const template = templates.find(t => t.id === r.templateId);
+    const isDispatchTemplate = template?.templateType === "医保明细下发";
+
     // Normal logic for all master tasks
     switch(r.status) {
       case "CREATE": // 待下发
-        actions.push(importAction, issueData, matchVisit, intelligentFill, dispatchAction, endTask); break;
+        actions.push(importAction, issueData, dispatchAction, endTask);
+        if (!isDispatchTemplate) {
+          actions.push(matchVisit, intelligentFill);
+        }
+        break;
       case "PUBLISH": // 填报中
       case "SUBMITTED": // 已提交
       case "COMPLETE": // 审核完成
       case "CANCELLATION": // 已撤回
       case "BACK": // 已取消
-        actions.push(matchVisit, intelligentFill, endTask); break;
+        actions.push(endTask); 
+        if (!isDispatchTemplate) {
+          actions.push(matchVisit, intelligentFill);
+        }
+        break;
       case "END": // 已结束
-        actions.push(downloadDataAction, resultImport); break;
+        actions.push(downloadDataAction); 
+        if (!isDispatchTemplate) {
+          actions.push(resultImport);
+        }
+        break;
       case "WITHDRAWN": // 已驳回 弃用
       default:
         break;

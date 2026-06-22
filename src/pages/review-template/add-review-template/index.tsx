@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { ArrowLeft, Save, Plus, Copy, Trash2, ArrowUp, ArrowDown, HelpCircle, AlertCircle, Link2 } from "lucide-react";
+import { ArrowLeft, Save, Plus, Copy, Trash2, ArrowUp, ArrowDown, HelpCircle, AlertCircle, Link2, X } from "lucide-react";
 import { Button } from "@/src/components/ui/Button";
 import { toast } from "@/src/components/ui/Toast";
 import { Drawer } from "@/src/components/ui/Drawer";
@@ -365,6 +365,43 @@ export function AddReviewTemplate() {
                     <option key={cat} value={cat}>{cat}</option>
                   ))}
                 </select>
+              </div>
+            )}
+            {formData.templateType === "医保明细下发" && (
+              <div className="md:col-span-3 space-y-2">
+                <label className="text-sm font-medium text-slate-700 flex items-center">
+                  下发备注
+                </label>
+                <div>
+                  <div className="relative">
+                    <select
+                      className="w-full h-10 px-3 pr-8 rounded border border-slate-300 focus:ring-2 focus:ring-blue-500 outline-none text-sm bg-white"
+                      value={formData.dispatchRemark || ""}
+                      onChange={(e) => { setFormData({ ...formData, dispatchRemark: e.target.value }); setHasChanges(true); }}
+                    >
+                      <option value="" disabled hidden>请选择</option>
+                      <option value="一般明细下发">一般明细下发</option>
+                      <option value="院内扣减公示">院内扣减公示</option>
+                    </select>
+                    {formData.dispatchRemark && (
+                      <button
+                        type="button"
+                        className="absolute inset-y-0 right-6 flex items-center bg-transparent text-slate-400 hover:text-slate-600 focus:outline-none"
+                        onClick={(e) => { 
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setFormData({ ...formData, dispatchRemark: "" }); 
+                          setHasChanges(true); 
+                        }}
+                      >
+                        <div className="bg-white rounded-full"><X className="w-4 h-4 rounded-full" /></div>
+                      </button>
+                    )}
+                  </div>
+                  {formData.dispatchRemark === "院内扣减公示" && (
+                    <p className="text-xs text-blue-500 mt-1">该模板关联任务将纳入医保院内扣减台历监控任务进度</p>
+                  )}
+                </div>
               </div>
             )}
             <div className="md:col-span-3 space-y-2">

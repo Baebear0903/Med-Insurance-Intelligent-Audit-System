@@ -179,33 +179,42 @@ export default function DeductionCalendar() {
 
       {/* 详情抽屉 */}
       <Drawer
-        title={<span className="font-bold text-slate-800">{selectedCell ? `${year}年${selectedCell.month}月 - ${selectedCell.category} 相关关联任务` : "相关任务"}</span>}
+        title={selectedCell ? `${year}年${selectedCell.month}月 - ${selectedCell.category} 相关关联任务` : "相关任务"}
         isOpen={isDrawerOpen}
         onClose={() => setIsDrawerOpen(false)}
+        width="max-w-[500px]"
       >
         <div className="p-4">
             {drawerTasks.length > 0 ? (
                 <div className="space-y-4">
                     {drawerTasks.map(task => (
-                        <div key={task.id} className="p-4 border border-slate-200 rounded-md bg-slate-50">
-                            <div className="font-semibold text-slate-800 mb-2">{task.name}</div>
-                            <div className="grid grid-cols-2 gap-y-2 text-sm text-slate-600">
-                                <div><span className="text-slate-400">任务状态：</span>{task.status === "END" ? "已结束" : "进行中"}</div>
-                                <div><span className="text-slate-400">下发时间：</span>{task.publishTime}</div>
-                                <div>
-                                    <span className="text-slate-400">全院确认：</span>
-                                    <span className={task.confirmedStatus === "已全部确认" ? "text-emerald-600" : "text-sky-600"}>
-                                        {task.confirmedStatus}
-                                    </span>
+                        <div key={task.id} className="p-5 border border-slate-200 rounded-lg bg-white shadow-sm flex flex-col space-y-3 relative overflow-hidden transition-all hover:shadow-md">
+                            <div className={`absolute left-0 top-0 bottom-0 w-1 ${task.status === "END" ? "bg-slate-300" : "bg-sky-500"}`}></div>
+                            
+                            <div className="font-semibold text-slate-800 text-base">{task.name}</div>
+                            
+                            <div className="flex items-center justify-between text-sm text-slate-600 bg-slate-50 px-3 py-2.5 rounded-md border border-slate-100">
+                                <div><span className="text-slate-400">任务状态：</span>
+                                  <span className={task.status === "END" ? "text-slate-500" : "text-sky-600 font-medium"}>
+                                    {task.status === "END" ? "已结束" : "进行中"}
+                                  </span>
                                 </div>
-                                <div><span className="text-slate-400">扣减金额合计：</span><span className="text-rose-600 font-medium">￥{task.totalDeduction}</span></div>
+                                <div><span className="text-slate-400">下发时间：</span>{task.publishTime}</div>
+                            </div>
+                            
+                            <div className="flex items-center justify-between text-sm pt-1">
+                                <span className="text-slate-500 font-medium">扣减金额合计</span>
+                                <span className="text-rose-600 font-bold text-lg">￥{task.totalDeduction}</span>
                             </div>
                         </div>
                     ))}
                 </div>
             ) : (
-                <div className="py-12 text-center text-slate-400">
-                    <p className="text-base">暂无相关院内扣减任务</p>
+                <div className="py-16 text-center text-slate-400 flex flex-col items-center">
+                    <div className="w-16 h-16 mb-4 rounded-full bg-slate-50 flex items-center justify-center border border-slate-100 shadow-sm">
+                        <span className="text-2xl opacity-60">📅</span>
+                    </div>
+                    <p className="text-base text-slate-500">暂无相关院内扣减任务</p>
                 </div>
             )}
         </div>

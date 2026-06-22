@@ -66,6 +66,7 @@ export interface ReviewTemplate {
   createTime: string;
   fields: TemplateField[];
   businessCategory?: string;
+  dispatchRemark?: string; // "一般明细下发" | "院内扣减公示" | ""
 }
 
 const INITIAL_TASKS: Task[] = [
@@ -148,6 +149,7 @@ const INITIAL_TEMPLATES: ReviewTemplate[] = [
     name: "医保院内扣减",
     templateType: "医保明细下发",
     status: "ENABLED",
+    dispatchRemark: "院内扣减公示",
     desc: "医保院内扣减台账。",
     creator: "管理员",
     taskCount: 2,
