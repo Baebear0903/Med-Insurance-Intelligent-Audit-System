@@ -21,6 +21,12 @@ interface TaskSummary {
   isNew: boolean;
 }
 
+const BUSINESS_CATEGORIES = [
+  "广州医保（线上）", "广州医保（线下）", "省内异地（线上）", "省内异地（线下）",
+  "跨省异地（线上）", "跨省异地（线下）", "市直医保", "省直医保",
+  "荔湾公医", "白云公医", "海珠公医", "从化公医", "花都公医", "黄埔公医"
+];
+
 // --- Helper Functions ---
 const extractMonthFromTaskName = (name: string) => {
   const match = name.match(/\d{4}年\d{2}月/);
@@ -142,7 +148,7 @@ export default function DeductionDetails() {
   ]);
 
   const filteredTasks = tasks.filter(t => 
-    (filterMonth ? t.businessCategory.includes(filterMonth) : true) &&
+    (filterMonth ? t.businessCategory === filterMonth : true) &&
     (filterName ? t.name.includes(filterName) : true)
   );
 
@@ -198,14 +204,16 @@ export default function DeductionDetails() {
       <div className="bg-white p-4 rounded-md shadow-sm border border-slate-200 flex flex-wrap items-center justify-between gap-4">
          <div className="flex items-center space-x-4">
             <div className="flex items-center bg-slate-50 border border-slate-200 rounded-md px-3 py-1.5 focus-within:ring-1 focus-within:ring-blue-500 transition-shadow">
-              <Search className="w-4 h-4 text-slate-400 mr-2" />
-              <input 
-                type="text" 
-                placeholder="医保业务分类" 
+              <select 
                 value={filterMonth}
                 onChange={e => setFilterMonth(e.target.value)}
-                className="bg-transparent text-sm w-32 outline-none text-slate-700" 
-              />
+                className="bg-transparent text-sm w-36 outline-none text-slate-700" 
+              >
+                <option value="">全部业务分类</option>
+                {BUSINESS_CATEGORIES.map(cat => (
+                  <option key={cat} value={cat}>{cat}</option>
+                ))}
+              </select>
             </div>
             <div className="flex items-center bg-slate-50 border border-slate-200 rounded-md px-3 py-1.5 focus-within:ring-1 focus-within:ring-blue-500 transition-shadow">
               <Search className="w-4 h-4 text-slate-400 mr-2" />
