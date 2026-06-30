@@ -16,6 +16,7 @@ import DeductionManagement from "@/src/pages/deduction-management/index";
 // Hidden
 import { AddReviewTemplate } from "@/src/pages/review-template/add-review-template/index";
 import { FillReportDetail } from "@/src/pages/task-fill-report/departments/fill-report/index";
+import { ChargeDetails } from "@/src/pages/task-fill-report/departments/fill-report/charge-details/index";
 import IssueData from "@/src/pages/task-management/task-list/issue-data/index";
 import DataQuery from "@/src/pages/task-management/task-list/data-query/index";
 import { Audit } from "@/src/pages/data-review/audit/index";
@@ -45,6 +46,7 @@ export default function App() {
             <Route path="task-management/task-list/issue-data/index" element={<IssueData />} />
             <Route path="task-management/task-list/data-query/index" element={<DataQuery />} />
             <Route path="task-fill-report/departments/fill-report/index" element={<FillReportDetail />} />
+            <Route path="task-fill-report/departments/fill-report/charge-details" element={<ChargeDetails />} />
             <Route path="data-review/audit/index" element={<Audit />} />
             <Route path="data-review/historical-data/index" element={<HistoricalData />} />
             <Route path="review-template/add-review-template/index" element={<AddReviewTemplate />} />

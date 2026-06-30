@@ -610,7 +610,7 @@ export function FillReportDetail() {
             <Button 
               variant="ghost" 
               size="sm" 
-              onClick={() => toast("正在跳转HIS系统：患者收费明细", "success")} 
+              onClick={() => navigate(`/task-fill-report/departments/fill-report/charge-details?recordId=${r.id}`)} 
               className="text-blue-600 font-medium px-2"
             >
               收费明细
