@@ -165,6 +165,19 @@ export default function DataQuery() {
     setIsSwitchDeptOpen(false);
   };
 
+  const isAllDoNotIssue = selectedIds.length > 0 && selectedIds.every(id => {
+    const record = data.find(d => d.id === id);
+    return record?.doNotIssue;
+  });
+
+  const handleToggleDoNotIssue = () => {
+    if (selectedIds.length === 0) return;
+    mockApi.toggleDoNotIssue(task!.id, selectedIds, !isAllDoNotIssue);
+    toast(isAllDoNotIssue ? "已重新下发" : "已设为不下发", "success");
+    fetchTaskData();
+    setSelectedIds([]);
+  };
+
   const fetchTaskData = () => {
     const allTasks = mockApi.getTasks(1, 1000).data;
     const t = allTasks.find((t) => t.id === id) || allTasks[0];
@@ -181,7 +194,13 @@ export default function DataQuery() {
         ...rec.data,
         id: rec.id,
         fillStatus: rec.fillStatus,
+        doNotIssue: rec.doNotIssue,
       }));
+      tableData.sort((a: any, b: any) => {
+        if (a.doNotIssue && !b.doNotIssue) return 1;
+        if (!a.doNotIssue && b.doNotIssue) return -1;
+        return 0;
+      });
       setData(tableData);
     }
   };
@@ -465,6 +484,21 @@ export default function DataQuery() {
               <Button
                 variant="outline"
                 size="sm"
+                onClick={handleToggleDoNotIssue}
+                disabled={selectedIds.length === 0}
+                className={
+                  selectedIds.length === 0
+                    ? "opacity-50 cursor-not-allowed bg-slate-50 text-slate-400 border-slate-200"
+                    : isAllDoNotIssue
+                      ? "text-blue-600 border-blue-200 hover:bg-blue-50"
+                      : "text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700"
+                }
+              >
+                {isAllDoNotIssue ? "重新下发" : "不下发"}
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
                 onClick={handleOpenSwitchDeptModal}
                 disabled={selectedIds.length === 0}
                 className={
@@ -558,6 +592,7 @@ export default function DataQuery() {
             columns={columns}
             data={currentData}
             rowKey={(r: any) => r.id}
+            rowClassName={(r: any) => r.doNotIssue ? "text-slate-400 bg-slate-50/50" : ""}
           />
         </div>
 

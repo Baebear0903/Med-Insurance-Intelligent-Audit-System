@@ -1,9 +1,9 @@
 import { TASK_STATUS, AUDIT_STATUS, FILL_STATUS, DEPARTMENTS } from "./constants";
 
 if (typeof window !== 'undefined') {
-  if (localStorage.getItem("mock_data_version") !== "v25") {
+  if (localStorage.getItem("mock_data_version") !== "v26") {
       localStorage.clear();
-      localStorage.setItem("mock_data_version", "v25");
+      localStorage.setItem("mock_data_version", "v26");
   }
 }
 
@@ -48,6 +48,7 @@ export interface TemplateField {
   isRequired: boolean;
   isShow?: boolean;
   adminVisible?: boolean;
+  isAuxiliary?: boolean;
   displayName?: string;
   isQueryable: boolean;
   isFeedback: boolean;
@@ -237,12 +238,12 @@ function generate12Records(month: string) {
 }
 
 const ALL_MOCK_DETAILS: Record<string, any[]> = {
-    "task_records_T_2024_01_GZ": generate12Records("1").map((r, i) => i % 3 === 0 ? { ...r, fillStatus: 6, auditStatus: 9 } : r),
-    "task_records_T_2024_02_GZ": generate12Records("2").map((r, i) => i % 3 === 0 ? { ...r, fillStatus: 6, auditStatus: 9 } : r),
-    "task_records_T_2024_03_GZ": generate12Records("3").map((r, i) => i % 3 === 0 ? { ...r, fillStatus: 6, auditStatus: 9 } : r),
-    "task_records_T_2024_04_GZ": generate12Records("4").map((r) => r.data.DISPATCH_DEPT === "内科" ? { ...r, fillStatus: 0, auditStatus: 7, submitter: "-", submitTime: "-", auditor: "-", auditTime: "-" } : { ...r, fillStatus: 8, auditStatus: 8, submitter: "专管员", submitTime: "2024-04-15 14:00" }),
-    "task_records_T_2024_05_GZ": generate12Records("5").map((r) => r.data.DISPATCH_DEPT === "内科" ? { ...r, fillStatus: 1, auditStatus: 8, submitter: "专管员", submitTime: "2024-05-15 14:00", auditor: "-", auditTime: "-" } : { ...r, fillStatus: 0, auditStatus: 7, submitter: "-", submitTime: "-", auditor: "-", auditTime: "-" }),
-    "task_records_T_2024_06_GZ": generate12Records("6").map((r) => ({ ...r, fillStatus: 0, auditStatus: 7, submitter: "-", submitTime: "-", auditor: "-", auditTime: "-" })),
+    "task_records_T_2024_01_GZ": generate12Records("1").map((r, i) => i % 3 === 0 ? { ...r, fillStatus: 6, auditStatus: 9 } : r).map((r, i) => i === 11 ? { ...r, doNotIssue: true } : r),
+    "task_records_T_2024_02_GZ": generate12Records("2").map((r, i) => i % 3 === 0 ? { ...r, fillStatus: 6, auditStatus: 9 } : r).map((r, i) => i === 11 ? { ...r, doNotIssue: true } : r),
+    "task_records_T_2024_03_GZ": generate12Records("3").map((r, i) => i % 3 === 0 ? { ...r, fillStatus: 6, auditStatus: 9 } : r).map((r, i) => i === 11 ? { ...r, doNotIssue: true } : r),
+    "task_records_T_2024_04_GZ": generate12Records("4").map((r) => r.data.DISPATCH_DEPT === "内科" ? { ...r, fillStatus: 0, auditStatus: 7, submitter: "-", submitTime: "-", auditor: "-", auditTime: "-" } : { ...r, fillStatus: 8, auditStatus: 8, submitter: "专管员", submitTime: "2024-04-15 14:00" }).map((r, i) => i === 11 ? { ...r, doNotIssue: true } : r),
+    "task_records_T_2024_05_GZ": generate12Records("5").map((r) => r.data.DISPATCH_DEPT === "内科" ? { ...r, fillStatus: 1, auditStatus: 8, submitter: "专管员", submitTime: "2024-05-15 14:00", auditor: "-", auditTime: "-" } : { ...r, fillStatus: 0, auditStatus: 7, submitter: "-", submitTime: "-", auditor: "-", auditTime: "-" }).map((r, i) => i === 11 ? { ...r, doNotIssue: true } : r),
+    "task_records_T_2024_06_GZ": generate12Records("6").map((r) => ({ ...r, fillStatus: 0, auditStatus: 7, submitter: "-", submitTime: "-", auditor: "-", auditTime: "-" })).map((r, i) => i === 11 ? { ...r, doNotIssue: true } : r),
 };
 
 // 复用反馈核查任务中所生成的扣减明细 (IS_APPEAL === "否")
@@ -543,7 +544,7 @@ export const mockApi = {
     }
   },
 
-  getTaskDetailRecords: (taskId: string) => {
+  getTaskDetailRecords: (taskId: string, includeDoNotIssue: boolean = true) => {
     let tasks = JSON.parse(localStorage.getItem("tasks_v21") || "null");
     let isSubtask = false;
     let parentId = null;
@@ -567,6 +568,10 @@ export const mockApi = {
     }
     
     if (!data) data = [];
+
+    if (!includeDoNotIssue) {
+      data = data.filter((d: any) => !d.doNotIssue);
+    }
 
     if (isSubtask && currentDeptName) {
       return data.filter((d: any) => d.data.DISPATCH_DEPT === currentDeptName || d.data.DISPATCH_DEPT === currentDeptName?.replace("专管员", ""));
@@ -607,6 +612,30 @@ export const mockApi = {
       data[idx] = record;
       localStorage.setItem(key, JSON.stringify(data));
     }
+  },
+  toggleDoNotIssue: (taskId: string, ids: string[], doNotIssue: boolean) => {
+    let tasks = JSON.parse(localStorage.getItem("tasks_v21") || "null");
+    let isSubtask = false;
+    let parentId = null;
+    if (tasks) {
+      const t = tasks.find((t: Task) => t.id === taskId);
+      if (t && t.parentId) {
+        isSubtask = true;
+        parentId = t.parentId;
+      }
+    }
+    const realTaskId = isSubtask ? parentId : taskId;
+    const key = `task_records_v21_${realTaskId}`;
+    let data = JSON.parse(localStorage.getItem(key) || "null");
+    if (!data) return;
+    data = data.map((d: any) => {
+      if (ids.includes(d.id)) {
+        return { ...d, doNotIssue };
+      }
+      return d;
+    });
+    localStorage.setItem(key, JSON.stringify(data));
+    window.dispatchEvent(new Event("task_updated"));
   },
   deleteTaskDetailRecords: (taskId: string, ids: string[]) => {}
 };

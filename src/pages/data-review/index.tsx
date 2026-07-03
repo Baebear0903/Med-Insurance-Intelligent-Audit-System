@@ -123,7 +123,7 @@ export function DataReview() {
 
       // calculate amounts just for demo, or mock it?
       // "违规金额" in deduction tasks.
-      const details = mockApi.getTaskDetailRecords(c.id);
+      const details = mockApi.getTaskDetailRecords(c.id, false);
       let total = 0;
       details.forEach((d: any) => {
         const val = parseFloat(d.data.TOTAL_AMOUNT || 0);

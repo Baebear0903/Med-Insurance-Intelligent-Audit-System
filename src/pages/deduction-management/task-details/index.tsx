@@ -79,7 +79,7 @@ export default function DeductionTaskDetails() {
       const allTasks = mockApi.getTasks(1, 1000).data;
       const t = allTasks.find(t => t.id === taskId);
       
-      const details = mockApi.getTaskDetailRecords(taskId);
+      const details = mockApi.getTaskDetailRecords(taskId, false);
       const validDetails = details.filter(d => d.data && d.data.IS_APPEAL === "否").map(d => ({...d.data, id: d.id})).sort((a,b) => (a.ADMIT_DATE > b.ADMIT_DATE ? -1 : 1));
       
       if (t) {
@@ -113,7 +113,7 @@ export default function DeductionTaskDetails() {
 
   const handleExport = () => {
     if (!taskId) return;
-    const details = mockApi.getTaskDetailRecords(taskId);
+    const details = mockApi.getTaskDetailRecords(taskId, false);
     const exportData = details.filter(d => d.data && d.data.IS_APPEAL === "否").map(d => d.data);
 
     if (exportData.length === 0) {

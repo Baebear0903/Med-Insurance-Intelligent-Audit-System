@@ -22,6 +22,7 @@ interface TableProps<T> {
   selectable?: boolean;
   selectedRowKeys?: string[];
   onSelectChange?: (keys: string[]) => void;
+  rowClassName?: (record: T, index: number) => string;
 }
 
 export function Table<T>({ 
@@ -33,7 +34,8 @@ export function Table<T>({
   emptyText = "暂无数据",
   selectable,
   selectedRowKeys = [],
-  onSelectChange
+  onSelectChange,
+  rowClassName
 }: TableProps<T>) {
   const handleSelectAll = (checked: boolean) => {
     if (!onSelectChange) return;
@@ -112,6 +114,7 @@ export function Table<T>({
             data.map((row, rowIndex) => {
               const key = rowKey(row);
               const isSelected = selectedRowKeys.includes(key);
+              const customClass = rowClassName ? rowClassName(row, rowIndex) : "";
               const cellBgClass = isSelected 
                 ? "bg-blue-50" 
                 : "bg-white group-hover:bg-slate-50 transition-colors";
@@ -120,8 +123,9 @@ export function Table<T>({
                 <tr 
                   key={key} 
                   className={cn(
-                    "group bg-white hover:bg-slate-50 transition-colors",
-                    isSelected && "bg-blue-50 hover:bg-blue-50"
+                    "group bg-white hover:bg-slate-50 transition-colors text-slate-700",
+                    isSelected && "bg-blue-50 hover:bg-blue-50",
+                    customClass
                   )}
                 >
                   {selectable && (
@@ -138,7 +142,7 @@ export function Table<T>({
                     <td
                       key={c.key}
                       className={cn(
-                        "px-4 py-3 text-slate-700",
+                        "px-4 py-3",
                         (c.fixed === "right" || c.fixed === "left") ? cellBgClass : "bg-inherit",
                         c.align === "center" && "text-center",
                         c.align === "right" && "text-right",

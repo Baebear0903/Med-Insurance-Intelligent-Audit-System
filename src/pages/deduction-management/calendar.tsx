@@ -85,29 +85,75 @@ export default function DeductionCalendar() {
     setIsDrawerOpen(true);
   };
 
-  // Get matching tasks for Drawer based on clicked cell
-  const drawerTasks = useMemo(() => {
-    if (!selectedCell) return [];
+  // 辅助函数：判断记录是否匹配选中的日历格（所属月份 + 医保业务分类）
+  const isRecordMatchCell = (record: any, cell: { category: string, month: number }, yearStr: string) => {
+    const data = record.data;
+    if (!data) return false;
+
+    // 匹配医保业务分类
+    let recCategory = data._PERSON_CATEGORY || "";
+    if (data._IS_ONLINE) {
+      recCategory += `（${data._IS_ONLINE}）`;
+    }
+    if (recCategory !== cell.category && !cell.category.includes(data._PERSON_CATEGORY || "NO_MATCH")) {
+      return false;
+    }
+
+    // 匹配出院时间所属月份和年份
+    const dischargeDate = data.DISCHARGE_DATE || "";
+    if (!dischargeDate) return false;
+    const dateParts = dischargeDate.split("-");
+    if (dateParts.length >= 2) {
+      const dYear = dateParts[0];
+      const dMonth = parseInt(dateParts[1], 10);
+      if (dYear !== yearStr || dMonth !== cell.month) return false;
+    } else {
+      return false;
+    }
+
+    return true;
+  };
+
+  // Get matching tasks and calculate summary for Drawer based on clicked cell
+  const drawerData = useMemo(() => {
+    if (!selectedCell) return { tasks: [], totalViolation: "0.00", totalDeduction: "0.00" };
     const monthStr = selectedCell.month.toString().padStart(2, '0');
     const yearMonth = `${year}年${monthStr}月`;
     
     // Parent deduction tasks for the period
     const parentTasks = tasks.filter(t => !t.parentId && t.name.includes(yearMonth));
     
-    return parentTasks.map(parent => {
-       const subtasks = tasks.filter(t => t.parentId === parent.id);
+    let globalViolation = 0;
+    let globalDeduction = 0;
+
+    const mappedTasks = parentTasks.map(parent => {
        const isAllConfirmed = parent.status === "END"; // If parent is END, meaning all sub tasks ended
+       
+       const records = mockApi.getTaskDetailRecords(parent.id, false);
+       const cellRecords = records.filter((r: any) => isRecordMatchCell(r, selectedCell, year));
+
+       const taskViolation = cellRecords.reduce((sum: number, d: any) => sum + (Number(d.data?.VIOLATION_AMOUNT || 0)), 0);
+       const taskDeduction = cellRecords.reduce((sum: number, d: any) => sum + (Number(d.data?._DEDUCTION_AMOUNT || 0)), 0);
+
+       globalViolation += taskViolation;
+       globalDeduction += taskDeduction;
+
        return {
            id: parent.id,
            name: parent.name,
            status: parent.status,
            publishTime: parent.createTime,
            confirmedStatus: isAllConfirmed ? "已全部确认" : "部分确认/未确认", 
-           totalDeduction: mockApi.getTaskDetailRecords(parent.id)
-                              .reduce((sum, d) => sum + (Number(d.data?.VIOLATION_AMOUNT || 0)), 0)
-                              .toFixed(2) // mocking an aggregation
+           violationAmount: taskViolation.toFixed(2),
+           deductionAmount: taskDeduction.toFixed(2)
        };
     });
+
+    return {
+       tasks: mappedTasks,
+       totalViolation: globalViolation.toFixed(2),
+       totalDeduction: globalDeduction.toFixed(2)
+    };
   }, [selectedCell, tasks, year]);
 
   const columns: Column<any>[] = [
@@ -185,9 +231,29 @@ export default function DeductionCalendar() {
         width="max-w-[500px]"
       >
         <div className="p-4">
-            {drawerTasks.length > 0 ? (
+            {drawerData.tasks.length > 0 ? (
                 <div className="space-y-4">
-                    {drawerTasks.map(task => (
+                    {/* 日历格整体统计汇总 */}
+                    <div className="bg-sky-50/50 rounded-lg p-4 border border-sky-100 mb-6">
+                        <div className="text-sm font-semibold text-sky-900 mb-3 flex items-center">
+                            <span className="w-1.5 h-4 bg-sky-500 rounded-sm mr-2"></span>
+                            台历格汇总
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="bg-white p-3 rounded shadow-sm border border-slate-100 flex flex-col justify-between">
+                                <span className="text-xs text-slate-500 mb-1">违规金额汇总</span>
+                                <span className="text-rose-600 font-bold text-lg">￥{drawerData.totalViolation}</span>
+                            </div>
+                            <div className="bg-white p-3 rounded shadow-sm border border-slate-100 flex flex-col justify-between">
+                                <span className="text-xs text-slate-500 mb-1">扣减金额汇总</span>
+                                <span className="text-rose-600 font-bold text-lg">￥{drawerData.totalDeduction}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="text-sm font-medium text-slate-700 pb-2 border-b border-slate-100">关联任务列表</div>
+
+                    {drawerData.tasks.map(task => (
                         <div key={task.id} className="p-5 border border-slate-200 rounded-lg bg-white shadow-sm flex flex-col space-y-3 relative overflow-hidden transition-all hover:shadow-md">
                             <div className={`absolute left-0 top-0 bottom-0 w-1 ${task.status === "END" ? "bg-slate-300" : "bg-sky-500"}`}></div>
                             
@@ -202,9 +268,15 @@ export default function DeductionCalendar() {
                                 <div><span className="text-slate-400">下发时间：</span>{task.publishTime}</div>
                             </div>
                             
-                            <div className="flex items-center justify-between text-sm pt-1">
-                                <span className="text-slate-500 font-medium">扣减金额合计</span>
-                                <span className="text-rose-600 font-bold text-lg">￥{task.totalDeduction}</span>
+                            <div className="grid grid-cols-2 gap-3 pt-2">
+                                <div className="flex flex-col">
+                                    <span className="text-slate-500 text-xs mb-1">违规金额合计</span>
+                                    <span className="text-slate-800 font-semibold">￥{task.violationAmount}</span>
+                                </div>
+                                <div className="flex flex-col">
+                                    <span className="text-slate-500 text-xs mb-1">扣减金额合计</span>
+                                    <span className="text-rose-600 font-semibold">￥{task.deductionAmount}</span>
+                                </div>
                             </div>
                         </div>
                     ))}

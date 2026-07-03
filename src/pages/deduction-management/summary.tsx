@@ -273,7 +273,7 @@ export default function DeductionSummary() {
       
       let allDetails: any[] = [];
       endedTasks.forEach(task => {
-        allDetails = allDetails.concat(mockApi.getTaskDetailRecords(task.id));
+        allDetails = allDetails.concat(mockApi.getTaskDetailRecords(task.id, false));
       });
       
       const recordsToDeduct = allDetails

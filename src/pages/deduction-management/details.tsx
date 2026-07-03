@@ -63,7 +63,7 @@ export default function DeductionDetails() {
       const viewedIds = JSON.parse(localStorage.getItem("viewed_deduction_tasks") || "[]");
 
       const taskSummaries: TaskSummary[] = validTasks.map(t => {
-        const details = mockApi.getTaskDetailRecords(t.id);
+        const details = mockApi.getTaskDetailRecords(t.id, false);
         const validDetails = details.filter(d => d.data && d.data.IS_APPEAL === "否").map(d => d.data);
         const template = allTemplates.find(tpl => tpl.id === t.templateId);
         
@@ -104,7 +104,7 @@ export default function DeductionDetails() {
   };
 
   const handleMockDownload = (task: TaskSummary) => {
-    const details = mockApi.getTaskDetailRecords(task.id);
+    const details = mockApi.getTaskDetailRecords(task.id, false);
     const validDetails = details.filter(d => d.data && d.data.IS_APPEAL === "否").map(d => d.data);
     exportToExcel(validDetails, `${task.name}明细.xlsx`);
     toast("下载完成", "success");
@@ -122,7 +122,7 @@ export default function DeductionDetails() {
     const selectedTasks = tasks.filter(t => selectedRowKeys.includes(t.id));
     let allDetails: any[] = [];
     selectedTasks.forEach(task => {
-      const details = mockApi.getTaskDetailRecords(task.id);
+      const details = mockApi.getTaskDetailRecords(task.id, false);
       const validDetails = details.filter(d => d.data && d.data.IS_APPEAL === "否").map(d => d.data);
       allDetails = allDetails.concat(validDetails);
     });

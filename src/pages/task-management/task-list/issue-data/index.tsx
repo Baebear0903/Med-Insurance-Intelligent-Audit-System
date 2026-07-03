@@ -26,7 +26,7 @@ export default function IssueData() {
       const tpl = allTemplates.find(tpl => tpl.id === t.templateId) || allTemplates[0];
       if (tpl) {
         setTemplate(tpl);
-        const details = mockApi.getTaskDetailRecords(t.id);
+        const details = mockApi.getTaskDetailRecords(t.id, false);
         const tableData = details.map((rec: any) => ({
           ...rec.data,
           id: rec.id

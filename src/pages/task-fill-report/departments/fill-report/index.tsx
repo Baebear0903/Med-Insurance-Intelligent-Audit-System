@@ -140,7 +140,7 @@ export function FillReportDetail() {
           toast("未找到对应填报模板", "error");
         }
 
-        let detailRecords = mockApi.getTaskDetailRecords(taskId);
+        let detailRecords = mockApi.getTaskDetailRecords(taskId, false);
         
         // Security rule: specific departments can only see their own data
         if (role === "DEP_SURGERY") {

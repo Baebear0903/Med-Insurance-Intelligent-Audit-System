@@ -442,6 +442,7 @@ export function AddReviewTemplate() {
                   <th className="px-2 py-3 w-12 text-center">必填</th>
                   <th className="px-2 py-3 w-12 text-center">展示</th>
                   <th className="px-2 py-3 w-16 text-center">管理可见</th>
+                  <th className="px-2 py-3 w-14 text-center">辅助</th>
                   <th className="px-2 py-3 w-12 text-center">查询</th>
                   <th className="px-2 py-3 w-14 text-center">反馈</th>
                   <th className="px-2 py-3 w-14 text-center">不更新</th>
@@ -531,6 +532,9 @@ export function AddReviewTemplate() {
                       <input type="checkbox" checked={field.adminVisible || false} onChange={(e) => handleUpdateField(idx, { adminVisible: e.target.checked })} />
                     </td>
                     <td className="px-2 py-2 text-center">
+                      <input type="checkbox" checked={field.isAuxiliary || false} onChange={(e) => handleUpdateField(idx, { isAuxiliary: e.target.checked })} title="勾选的字段属于原始导入模板中不存在的辅助字段，而不是原始导入字段" />
+                    </td>
+                    <td className="px-2 py-2 text-center">
                       <input type="checkbox" checked={field.isQueryable} onChange={(e) => handleUpdateField(idx, { isQueryable: e.target.checked })} />
                     </td>
                     <td className="px-2 py-2 text-center">
@@ -556,7 +560,7 @@ export function AddReviewTemplate() {
                 })}
                 {(!formData.fields || formData.fields.length === 0) && (
                   <tr>
-                    <td colSpan={16} className="px-4 py-8 text-center text-slate-400 bg-slate-50/30">
+                    <td colSpan={17} className="px-4 py-8 text-center text-slate-400 bg-slate-50/30">
                       <div className="flex flex-col items-center gap-2">
                         <AlertCircle className="w-8 h-8 opacity-20" />
                         <span>未设计任何字段，请点击“新增字段”按钮</span>

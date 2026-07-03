@@ -71,7 +71,7 @@ export function Audit() {
           toast("未找到对应填报模板", "error");
         }
         // fetch mock details
-        let detailRecords = mockApi.getTaskDetailRecords(taskId);
+        let detailRecords = mockApi.getTaskDetailRecords(taskId, false);
         
         // Filter by deptId if provided
         if (deptId && deptId !== "all") {
@@ -158,7 +158,7 @@ export function Audit() {
     const subtask = deptRef ? tasksList.find(t => t.parentId === tId && t.departmentId === deptRef) : null;
     
     // Fetch all detail records under the parent task from database
-    const allDetails = mockApi.getTaskDetailRecords(tId);
+    const allDetails = mockApi.getTaskDetailRecords(tId, false);
     
     // Check subtask
     if (subtask && deptName) {

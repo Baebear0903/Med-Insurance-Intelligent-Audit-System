@@ -81,10 +81,10 @@ export function TaskFillReport() {
     if (role === "DEP_SURGERY" || role === "DEP_INTERNAL") {
       const deptName = role === "DEP_SURGERY" ? "外科" : "内科";
       filteredData = filteredData.filter(t => {
-        const details = mockApi.getTaskDetailRecords(t.id);
+        const details = mockApi.getTaskDetailRecords(t.id, false);
         return details.some((d: any) => d.data && d.data.DISPATCH_DEPT === deptName);
       }).map(t => {
-        const details = mockApi.getTaskDetailRecords(t.id).filter((d: any) => d.data && d.data.DISPATCH_DEPT === deptName);
+        const details = mockApi.getTaskDetailRecords(t.id, false).filter((d: any) => d.data && d.data.DISPATCH_DEPT === deptName);
         let aggStatus: string | number = 0; // Or UNFILLED
         if (details.length > 0) {
             const hasReject = details.some((d: any) => d.fillStatus === 3);
@@ -183,7 +183,7 @@ export function TaskFillReport() {
     toast("正在准备打包数据...", "info");
     
     // 获取该任务的所有记录
-    const allRecords = mockApi.getTaskDetailRecords(t.id);
+    const allRecords = mockApi.getTaskDetailRecords(t.id, false);
     if (!allRecords || allRecords.length === 0) {
       toast("该任务暂无可用填报明细数据", "info");
       return;
