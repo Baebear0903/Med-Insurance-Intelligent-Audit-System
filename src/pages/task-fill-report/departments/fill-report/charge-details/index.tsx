@@ -2,6 +2,61 @@ import React, { useState, useMemo } from "react";
 import { Table } from "@/src/components/ui/Table";
 import { Button } from "@/src/components/ui/Button";
 import { useNavigate } from "react-router-dom";
+import { Settings } from "lucide-react";
+
+function ColumnSettings({
+  columns,
+  visibleKeys,
+  onChange
+}: {
+  columns: { key: string, title: string }[];
+  visibleKeys: string[];
+  onChange: (keys: string[]) => void;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+
+  const toggleColumn = (key: string) => {
+    if (visibleKeys.includes(key)) {
+      onChange(visibleKeys.filter(k => k !== key));
+    } else {
+      onChange([...visibleKeys, key]);
+    }
+  };
+
+  const selectAll = () => onChange(columns.map(c => c.key));
+
+  return (
+    <div className="relative">
+      <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-500 hover:text-slate-700 bg-white border border-slate-200 shadow-sm" onClick={() => setIsOpen(!isOpen)}>
+        <Settings className="h-4 w-4" />
+      </Button>
+      {isOpen && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)} />
+          <div className="absolute right-0 top-full mt-2 w-64 bg-white border border-slate-200 shadow-lg rounded-md z-50 p-4">
+            <div className="flex items-center justify-between mb-3 pb-2 border-b border-slate-100">
+              <span className="text-sm font-medium text-slate-800">自定义列显示</span>
+              <button className="text-xs text-blue-600 hover:underline" onClick={selectAll}>全选</button>
+            </div>
+            <div className="max-h-64 overflow-y-auto flex flex-col gap-2">
+              {columns.map(c => (
+                <label key={c.key} className="flex items-center gap-2 cursor-pointer group">
+                  <input 
+                    type="checkbox" 
+                    checked={visibleKeys.includes(c.key)} 
+                    onChange={() => toggleColumn(c.key)}
+                    className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                  />
+                  <span className="text-sm text-slate-600 group-hover:text-slate-900">{c.title}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
 
 const majorData = [
   { id: 1, code: "01", name: "西药费", amount: "670.39", classifiedPay: "0.00", selfPay: "543.29", reimbursable: "127.10", discount: "0.00", settlementNo: "162795.00", infantAmount: "0.00", dxmdm2: "", dxmmc2: "", status: "已结算" },
@@ -28,7 +83,12 @@ const minorData = [
   { id: 6, idmCode: "0.00", projectCode: "010001", projectNameSpec: "阿莫西林胶囊 0.25g", unit: "盒", quantity: "2.00", unitPrice: "25.00", amount: "50.00", prescribeDept: "消化内科", execDept: "药房", execWard: "", classifiedPay: "0.00", selfPay: "50.00", discount: "0.00", majorCode: "01", majorName: "西药费" },
   { id: 7, idmCode: "0.00", projectCode: "01420001", projectNameSpec: "普通针刺", unit: "次", quantity: "3.00", unitPrice: "194.00", amount: "582.00", prescribeDept: "针灸科", execDept: "针灸科", execWard: "", classifiedPay: "0.00", selfPay: "0.00", discount: "0.00", majorCode: "014200", majorName: "针法" },
   { id: 8, idmCode: "0.00", projectCode: "020001", projectNameSpec: "连花清瘟胶囊 0.35g", unit: "盒", quantity: "1.00", unitPrice: "68.62", amount: "68.62", prescribeDept: "呼吸内科", execDept: "药房", execWard: "", classifiedPay: "0.00", selfPay: "0.00", discount: "0.00", majorCode: "02", majorName: "中成药费" },
-  { id: 9, idmCode: "0.00", projectCode: "040001", projectNameSpec: "黄芪 10g", unit: "付", quantity: "5.00", unitPrice: "64.06", amount: "320.32", prescribeDept: "中医科", execDept: "中药房", execWard: "", classifiedPay: "0.00", selfPay: "0.00", discount: "0.00", majorCode: "04", majorName: "中草药费" },
+  { id: 9, idmCode: "7323.00", projectCode: "02004", projectNameSpec: "紫苏子 ※5g,10g", unit: "g", quantity: "100.00", unitPrice: "0.06", amount: "5.81", prescribeDept: "中医科", execDept: "中药房", execWard: "天河8楼骨科病区", classifiedPay: "0.00", selfPay: "0.00", discount: "0.00", majorCode: "04", majorName: "中草药费" },
+  { id: 91, idmCode: "7326.00", projectCode: "02007", projectNameSpec: "盐菟丝子 ※10g,15g", unit: "g", quantity: "100.00", unitPrice: "0.13", amount: "13.13", prescribeDept: "中医科", execDept: "中药房", execWard: "天河8楼骨科病区", classifiedPay: "0.00", selfPay: "0.00", discount: "0.00", majorCode: "04", majorName: "中草药费" },
+  { id: 92, idmCode: "7342.00", projectCode: "02018", projectNameSpec: "莱菔子 ※10g,15g", unit: "g", quantity: "100.00", unitPrice: "0.05", amount: "5.00", prescribeDept: "中医科", execDept: "中药房", execWard: "天河8楼骨科病区", classifiedPay: "0.00", selfPay: "0.00", discount: "0.00", majorCode: "04", majorName: "中草药费" },
+  { id: 93, idmCode: "7344.00", projectCode: "02019", projectNameSpec: "芥子 ※5g,10g", unit: "g", quantity: "100.00", unitPrice: "0.03", amount: "3.13", prescribeDept: "中医科", execDept: "中药房", execWard: "天河8楼骨科病区", classifiedPay: "0.00", selfPay: "0.00", discount: "0.00", majorCode: "04", majorName: "中草药费" },
+  { id: 94, idmCode: "7386.00", projectCode: "02049", projectNameSpec: "吴茱萸 ※3g,5g", unit: "g", quantity: "60.00", unitPrice: "0.14", amount: "8.29", prescribeDept: "中医科", execDept: "中药房", execWard: "天河8楼骨科病区", classifiedPay: "0.00", selfPay: "0.00", discount: "0.00", majorCode: "04", majorName: "中草药费" },
+  { id: 95, idmCode: "0.00", projectCode: "", projectNameSpec: "△△以上：中草药费 ※", unit: "", quantity: "460.00", unitPrice: "", amount: "35.36", prescribeDept: "", execDept: "", execWard: "", classifiedPay: "0.00", selfPay: "0.00", discount: "0.00", majorCode: "04", majorName: "中草药费", isSubtotal: true },
   { id: 10, idmCode: "0.00", projectCode: "1102001", projectNameSpec: "专家门诊诊查费", unit: "次", quantity: "1.00", unitPrice: "150.00", amount: "150.00", prescribeDept: "专家门诊", execDept: "门诊部", execWard: "", classifiedPay: "0.00", selfPay: "0.00", discount: "0.00", majorCode: "1102_C", majorName: "门急诊诊查费" },
   { id: 11, idmCode: "0.00", projectCode: "1109001", projectNameSpec: "普通病房床位费", unit: "日", quantity: "3.00", unitPrice: "100.00", amount: "300.00", prescribeDept: "住院部", execDept: "住院部", execWard: "同德8楼病区", classifiedPay: "0.00", selfPay: "0.00", discount: "0.00", majorCode: "1109", majorName: "床位费" },
   { id: 12, idmCode: "0.00", projectCode: "1110001", projectNameSpec: "院内会诊费", unit: "次", quantity: "1.00", unitPrice: "20.00", amount: "20.00", prescribeDept: "住院部", execDept: "各科室", execWard: "同德8楼病区", classifiedPay: "0.00", selfPay: "20.00", discount: "0.00", majorCode: "1110", majorName: "会诊费" },
@@ -40,59 +100,72 @@ const minorData = [
 
 export function ChargeDetails() {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<"major" | "minor">("major");
-  const [selectedMajorCode, setSelectedMajorCode] = useState<string>("");
+  const [level, setLevel] = useState<"major" | "minor" | "detail">("major");
+  const [selectedMajor, setSelectedMajor] = useState<any>(null);
+  const [selectedMinor, setSelectedMinor] = useState<any>(null);
 
   return (
     <div className="flex flex-col h-full bg-slate-50 relative">
       <div className="flex items-center justify-between px-6 py-4 bg-white border-b border-slate-200 shrink-0">
         <div className="flex items-center gap-4">
-          <Button variant="outline" size="sm" onClick={() => navigate(-1)}>
-            返回
-          </Button>
-          <h1 className="text-xl font-bold text-slate-800">收费明细</h1>
+          <div className="flex items-center text-slate-600 text-sm font-medium">
+            <span 
+              className={`cursor-pointer hover:text-blue-600 ${level === 'major' ? 'text-slate-900 font-bold' : ''}`}
+              onClick={() => setLevel("major")}
+            >
+              费用大项
+            </span>
+            {level !== 'major' && (
+              <>
+                <span className="mx-2 text-slate-400">/</span>
+                <span 
+                  className={`cursor-pointer hover:text-blue-600 ${level === 'minor' ? 'text-slate-900 font-bold' : ''}`}
+                  onClick={() => {
+                     setLevel("minor");
+                     setSelectedMinor(null);
+                  }}
+                >
+                  费用细项
+                </span>
+              </>
+            )}
+            {level === 'detail' && (
+              <>
+                <span className="mx-2 text-slate-400">/</span>
+                <span className="text-slate-900 font-bold">
+                  费用明细
+                </span>
+              </>
+            )}
+          </div>
         </div>
-      </div>
-      
-      {/* Tabs */}
-      <div className="flex gap-4 border-b border-slate-200 px-6 pt-4 bg-white shrink-0">
-        <button
-          className={`pb-3 px-2 text-sm font-bold border-b-2 transition-colors ${
-            activeTab === "major"
-              ? "border-blue-600 text-blue-600"
-              : "border-transparent text-slate-500 hover:text-slate-700"
-          }`}
-          onClick={() => setActiveTab("major")}
-        >
-          费用大项信息
-        </button>
-        <button
-          className={`pb-3 px-2 text-sm font-bold border-b-2 transition-colors ${
-            activeTab === "minor"
-              ? "border-blue-600 text-blue-600"
-              : "border-transparent text-slate-500 hover:text-slate-700"
-          }`}
-          onClick={() => setActiveTab("minor")}
-        >
-          费用细项信息
-        </button>
+        <Button variant="outline" size="sm" onClick={() => navigate(-1)}>
+          返回填报
+        </Button>
       </div>
 
       {/* Content */}
       <div className="flex-1 overflow-hidden p-6">
         <div className="h-full bg-white border border-slate-200 rounded-lg overflow-hidden flex flex-col shadow-sm">
-          {activeTab === "major" ? (
+          {level === "major" && (
             <MajorChargeTable 
-              onViewMinor={(majorCode) => {
-                setSelectedMajorCode(majorCode);
-                setActiveTab("minor");
+              onViewMinor={(major) => {
+                setSelectedMajor(major);
+                setLevel("minor");
               }} 
             />
-          ) : (
+          )}
+          {level === "minor" && (
             <MinorChargeTable 
-              majorCodeFilter={selectedMajorCode} 
-              onMajorCodeFilterChange={setSelectedMajorCode}
+              selectedMajor={selectedMajor}
+              onViewDetail={(minor) => {
+                setSelectedMinor(minor);
+                setLevel("detail");
+              }}
             />
+          )}
+          {level === "detail" && (
+            <DetailChargeTable minorItem={selectedMinor} />
           )}
         </div>
       </div>
@@ -100,10 +173,10 @@ export function ChargeDetails() {
   );
 }
 
-function MajorChargeTable({ onViewMinor }: { onViewMinor: (code: string) => void }) {
+function MajorChargeTable({ onViewMinor }: { onViewMinor: (major: any) => void }) {
   const [filterName, setFilterName] = useState("");
 
-  const columns = [
+  const allColumns = useMemo(() => [
     { key: "code", title: "项目代码", width: "100px" },
     { key: "name", title: "项目名称", width: "150px" },
     { key: "amount", title: "项目金额", width: "100px" },
@@ -120,19 +193,22 @@ function MajorChargeTable({ onViewMinor }: { onViewMinor: (code: string) => void
       key: "action", 
       title: "操作", 
       width: "100px",
-      fixed: "right",
+      fixed: "right" as const,
       render: (r: any) => (
         <Button 
           variant="ghost" 
           size="sm" 
           className="text-blue-600"
-          onClick={() => onViewMinor(r.code)}
+          onClick={() => onViewMinor(r)}
         >
           查看细项
         </Button>
       )
     },
-  ];
+  ], [onViewMinor]);
+
+  const [visibleKeys, setVisibleKeys] = useState<string[]>(allColumns.map(c => c.key));
+  const columns = useMemo(() => allColumns.filter(c => visibleKeys.includes(c.key)), [allColumns, visibleKeys]);
 
   const filteredData = useMemo(() => {
     return majorData.filter(item => {
@@ -143,7 +219,7 @@ function MajorChargeTable({ onViewMinor }: { onViewMinor: (code: string) => void
 
   return (
     <div className="flex flex-col h-full">
-      <div className="p-4 border-b border-slate-200 flex items-center gap-4 shrink-0 bg-slate-50">
+      <div className="p-4 border-b border-slate-200 flex items-center justify-between gap-4 shrink-0 bg-slate-50">
         <div className="flex items-center gap-2">
           <label className="text-sm font-medium text-slate-700 whitespace-nowrap">项目名称:</label>
           <div className="relative">
@@ -164,12 +240,18 @@ function MajorChargeTable({ onViewMinor }: { onViewMinor: (code: string) => void
             )}
           </div>
         </div>
+        <ColumnSettings columns={allColumns} visibleKeys={visibleKeys} onChange={setVisibleKeys} />
       </div>
-      <div className="flex-1 overflow-auto">
+      <div className="flex-1 min-h-0">
         <Table
+          className="h-full border-none rounded-none"
           columns={columns}
           data={filteredData}
-          rowKey={(r) => r.id}
+          rowKey={(r: any) => r.id}
+          rowClassName={(r: any) => {
+            if (r.code === "01") return "bg-orange-100 hover:bg-orange-200";
+            return "";
+          }}
         />
       </div>
     </div>
@@ -177,18 +259,16 @@ function MajorChargeTable({ onViewMinor }: { onViewMinor: (code: string) => void
 }
 
 function MinorChargeTable({ 
-  majorCodeFilter, 
-  onMajorCodeFilterChange 
+  selectedMajor, 
+  onViewDetail
 }: { 
-  majorCodeFilter: string, 
-  onMajorCodeFilterChange: (val: string) => void 
+  selectedMajor: any, 
+  onViewDetail: (minor: any) => void
 }) {
+  const majorCodeFilter = selectedMajor?.code || "";
   const [filterNameSpec, setFilterNameSpec] = useState("");
 
-  const columns = [
-    { key: "majorName", title: "所属费用大项", width: "120px" },
-    { key: "majorCode", title: "大项目代码", width: "120px" },
-    { key: "idmCode", title: "idm代码", width: "100px" },
+  const allColumns = useMemo(() => [
     { key: "projectCode", title: "项目代码", width: "120px" },
     { key: "projectNameSpec", title: "项目名称规格", width: "220px" },
     { key: "unit", title: "单位", width: "80px" },
@@ -201,18 +281,29 @@ function MinorChargeTable({
     { key: "classifiedPay", title: "分类支付金额", width: "120px" },
     { key: "selfPay", title: "自费金额", width: "100px" },
     { key: "discount", title: "减免金额", width: "100px" },
-  ];
-
-  const majorOptions = useMemo(() => {
-    const optionsMap = new Map<string, string>();
-    optionsMap.set("", "全部");
-    minorData.forEach(item => {
-      if (item.majorCode) {
-        optionsMap.set(item.majorCode, item.majorName);
+    { 
+      key: "action", 
+      title: "操作", 
+      width: "100px",
+      fixed: "right" as const,
+      render: (r: any) => {
+        if (r.isSubtotal || !r.projectCode) return null;
+        return (
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className="text-blue-600"
+            onClick={() => onViewDetail(r)}
+          >
+            查看明细
+          </Button>
+        );
       }
-    });
-    return Array.from(optionsMap.entries()).map(([value, label]) => ({ value, label }));
-  }, []);
+    },
+  ], [onViewDetail]);
+
+  const [visibleKeys, setVisibleKeys] = useState<string[]>(allColumns.map(c => c.key));
+  const columns = useMemo(() => allColumns.filter(c => visibleKeys.includes(c.key)), [allColumns, visibleKeys]);
 
   const filteredData = useMemo(() => {
     return minorData.filter(item => {
@@ -224,46 +315,197 @@ function MinorChargeTable({
 
   return (
     <div className="flex flex-col h-full">
-      <div className="p-4 border-b border-slate-200 flex items-center gap-6 shrink-0 bg-slate-50">
-        <div className="flex items-center gap-2">
-          <label className="text-sm font-medium text-slate-700 whitespace-nowrap">所属费用大项:</label>
-          <select
-            value={majorCodeFilter}
-            onChange={(e) => onMajorCodeFilterChange(e.target.value)}
-            className="h-8 px-2 border border-slate-300 rounded text-sm w-48 focus:outline-none focus:border-blue-500 bg-white"
-          >
-            {majorOptions.map(opt => (
-              <option key={opt.value} value={opt.value}>{opt.label}</option>
-            ))}
-          </select>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <label className="text-sm font-medium text-slate-700 whitespace-nowrap">项目名称规格:</label>
-          <div className="relative">
-            <input
-              type="text"
-              value={filterNameSpec}
-              onChange={(e) => setFilterNameSpec(e.target.value)}
-              className="h-8 px-3 pr-8 border border-slate-300 rounded text-sm w-64 focus:outline-none focus:border-blue-500"
-              placeholder="请输入项目名称规格"
-            />
-            {filterNameSpec && (
-              <button
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                onClick={() => setFilterNameSpec("")}
-              >
-                ✕
-              </button>
+      <div className="p-4 border-b border-slate-200 flex flex-row items-start justify-between shrink-0 bg-slate-50">
+        <div className="flex flex-col gap-4">
+          {selectedMajor && (
+            <div className="flex items-center gap-2">
+              <h3 className="text-base font-bold text-slate-800">
+                {selectedMajor.name}
+              </h3>
+            </div>
+          )}
+          <div className="flex items-center gap-6">
+            {majorCodeFilter === "" && (
+              <div className="flex items-center gap-2">
+                <label className="text-sm font-medium text-slate-700 whitespace-nowrap">所属费用大项:</label>
+                <select
+                  value={majorCodeFilter}
+                  disabled
+                  className="h-8 px-2 border border-slate-300 rounded text-sm w-48 focus:outline-none focus:border-blue-500 bg-slate-100 text-slate-500"
+                >
+                  <option value="">全部</option>
+                </select>
+              </div>
             )}
+
+            <div className="flex items-center gap-2">
+              <label className="text-sm font-medium text-slate-700 whitespace-nowrap">项目名称规格:</label>
+              <div className="relative">
+                <input
+                  type="text"
+                  value={filterNameSpec}
+                  onChange={(e) => setFilterNameSpec(e.target.value)}
+                  className="h-8 px-3 pr-8 border border-slate-300 rounded text-sm w-64 focus:outline-none focus:border-blue-500"
+                  placeholder="请输入项目名称规格"
+                />
+                {filterNameSpec && (
+                  <button
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                    onClick={() => setFilterNameSpec("")}
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
+            </div>
           </div>
         </div>
+        <ColumnSettings columns={allColumns} visibleKeys={visibleKeys} onChange={setVisibleKeys} />
       </div>
-      <div className="flex-1 overflow-auto">
+      <div className="flex-1 min-h-0">
         <Table
+          className="h-full border-none rounded-none"
           columns={columns}
           data={filteredData}
-          rowKey={(r) => r.id}
+          rowKey={(r: any) => r.id}
+          rowClassName={(r: any) => {
+            if (r.isSubtotal || !r.projectCode) return "bg-orange-50 font-medium text-orange-900 hover:bg-orange-50";
+            if (r.projectCode === "010001") return "bg-orange-100 hover:bg-orange-200";
+            return "";
+          }}
+        />
+      </div>
+    </div>
+  );
+}
+
+const detailData = [
+  { id: 1, requestDate: "2026.07.05 08:30", chargeDate: "2026.07.04 20:30", projectCode: "600103", projectNameSpec: "(集采)0.9%氯化钠注射液250ml ※250ml*1瓶/瓶", unit: "瓶", quantity: "1.00", unitPrice: "2.25", amount: "2.25", chargeDept: "珠玑心血管科(心病科)住院", execDept: "珠玑西药房", classifiedPay: "0.00", selfPay: "0.00", discount: "0.00", category: "长期医嘱", operatorCode: "Y00303", operator: "邓建勇", ward: "珠玑13楼病区", dateGroup: "2026.07.04" },
+  { id: 2, requestDate: "2026.07.06 08:30", chargeDate: "2026.07.05 11:30", projectCode: "600103", projectNameSpec: "(集采)0.9%氯化钠注射液250ml ※250ml*1瓶/瓶", unit: "瓶", quantity: "1.00", unitPrice: "2.25", amount: "2.25", chargeDept: "珠玑心血管科(心病科)住院", execDept: "珠玑西药房", classifiedPay: "0.00", selfPay: "0.00", discount: "0.00", category: "长期医嘱", operatorCode: "007276", operator: "杨丽君", ward: "珠玑13楼病区", dateGroup: "2026.07.05" },
+  { id: 3, requestDate: "2026.07.07 08:30", chargeDate: "2026.07.06 12:30", projectCode: "600103", projectNameSpec: "(集采)0.9%氯化钠注射液250ml ※250ml*1瓶/瓶", unit: "瓶", quantity: "1.00", unitPrice: "2.25", amount: "2.25", chargeDept: "珠玑心血管科(心病科)住院", execDept: "珠玑西药房", classifiedPay: "0.00", selfPay: "0.00", discount: "0.00", category: "长期医嘱", operatorCode: "000749", operator: "严玉翠", ward: "珠玑13楼病区", dateGroup: "2026.07.06" },
+  { id: 4, requestDate: "2026.07.08 08:30", chargeDate: "2026.07.07 12:30", projectCode: "600103", projectNameSpec: "(集采)0.9%氯化钠注射液250ml ※250ml*1瓶/瓶", unit: "瓶", quantity: "1.00", unitPrice: "2.25", amount: "2.25", chargeDept: "珠玑心血管科(心病科)住院", execDept: "珠玑西药房", classifiedPay: "0.00", selfPay: "0.00", discount: "0.00", category: "长期医嘱", operatorCode: "000500", operator: "谭燕仪", ward: "珠玑13楼病区", dateGroup: "2026.07.07" },
+  { id: 5, requestDate: "2026.07.09 08:30", chargeDate: "2026.07.08 12:30", projectCode: "600103", projectNameSpec: "(集采)0.9%氯化钠注射液250ml ※250ml*1瓶/瓶", unit: "瓶", quantity: "1.00", unitPrice: "2.25", amount: "2.25", chargeDept: "珠玑心血管科(心病科)住院", execDept: "珠玑西药房", classifiedPay: "0.00", selfPay: "0.00", discount: "0.00", category: "长期医嘱", operatorCode: "006481", operator: "董水燕", ward: "珠玑13楼病区", dateGroup: "2026.07.08" }
+];
+
+function DetailChargeTable({ minorItem }: { minorItem: any }) {
+  const processedData = useMemo(() => {
+    const groups: any = {};
+    detailData.forEach(item => {
+      if (!groups[item.dateGroup]) {
+        groups[item.dateGroup] = [];
+      }
+      groups[item.dateGroup].push(item);
+    });
+    
+    const result: any[] = [];
+    let grandTotalQty = 0;
+    let grandTotalAmount = 0;
+    let grandTotalClassifiedPay = 0;
+    let grandTotalSelfPay = 0;
+    let grandTotalDiscount = 0;
+
+    Object.keys(groups).sort().forEach(date => {
+      let subQty = 0;
+      let subAmount = 0;
+      let subClassifiedPay = 0;
+      let subSelfPay = 0;
+      let subDiscount = 0;
+
+      groups[date].forEach((item: any) => {
+        subQty += Number(item.quantity) || 0;
+        subAmount += Number(item.amount) || 0;
+        subClassifiedPay += Number(item.classifiedPay) || 0;
+        subSelfPay += Number(item.selfPay) || 0;
+        subDiscount += Number(item.discount) || 0;
+        result.push({
+          ...item,
+          projectNameSpec: minorItem ? minorItem.projectNameSpec : item.projectNameSpec
+        });
+      });
+
+      result.push({
+        id: `subtotal-${date}`,
+        isSubtotal: true,
+        requestDate: `${date}~`,
+        projectNameSpec: `△△以上: ${date}`,
+        quantity: subQty.toFixed(2),
+        amount: subAmount.toFixed(2),
+        classifiedPay: subClassifiedPay.toFixed(2),
+        selfPay: subSelfPay.toFixed(2),
+        discount: subDiscount.toFixed(2),
+      });
+
+      grandTotalQty += subQty;
+      grandTotalAmount += subAmount;
+      grandTotalClassifiedPay += subClassifiedPay;
+      grandTotalSelfPay += subSelfPay;
+      grandTotalDiscount += subDiscount;
+    });
+
+    if (result.length > 0) {
+      const today = new Date();
+      const todayStr = `${today.getFullYear()}.${String(today.getMonth() + 1).padStart(2, '0')}.${String(today.getDate()).padStart(2, '0')}`;
+      result.push({
+        id: 'grand-total',
+        isGrandTotal: true,
+        requestDate: `至 ${todayStr}~`,
+        projectNameSpec: `△△总计: ※`,
+        quantity: grandTotalQty.toFixed(2),
+        amount: grandTotalAmount.toFixed(2),
+        classifiedPay: grandTotalClassifiedPay.toFixed(2),
+        selfPay: grandTotalSelfPay.toFixed(2),
+        discount: grandTotalDiscount.toFixed(2),
+      });
+    }
+
+    return result;
+  }, [minorItem]);
+
+  const allColumns = useMemo(() => [
+    { key: "chargeDate", title: "收费日期", width: "160px" },
+    { key: "requestDate", title: "请求日期", width: "160px" },
+    { key: "projectCode", title: "项目代码", width: "120px" },
+    { key: "projectNameSpec", title: "项目名称规格", width: "300px" },
+    { key: "unit", title: "单位", width: "80px", align: "center" as const },
+    { key: "quantity", title: "数量", width: "80px", align: "right" as const },
+    { key: "unitPrice", title: "单价", width: "100px", align: "right" as const },
+    { key: "amount", title: "金额", width: "100px", align: "right" as const },
+    { key: "chargeDept", title: "发生费用病区所在科室", width: "200px" },
+    { key: "execDept", title: "执行科室", width: "120px" },
+    { key: "classifiedPay", title: "分类支付金额", width: "120px", align: "right" as const },
+    { key: "selfPay", title: "自费金额", width: "100px", align: "right" as const },
+    { key: "discount", title: "减免金额", width: "100px", align: "right" as const },
+    { key: "category", title: "费用类别", width: "100px" },
+    { key: "operatorCode", title: "操作员代码", width: "100px" },
+    { key: "operator", title: "操作员", width: "100px" },
+    { key: "ward", title: "病区", width: "120px" },
+  ], []);
+
+  const [visibleKeys, setVisibleKeys] = useState<string[]>(allColumns.map(c => c.key));
+  const columns = useMemo(() => allColumns.filter(c => visibleKeys.includes(c.key)), [allColumns, visibleKeys]);
+
+  return (
+    <div className="flex flex-col h-full">
+      <div className="p-4 border-b border-slate-200 flex items-center justify-between shrink-0 bg-slate-50">
+        <div className="flex items-center gap-2">
+           <h3 className="text-base font-bold text-slate-800">
+             {minorItem ? minorItem.projectNameSpec : "明细列表"}
+           </h3>
+           <span className="text-xs text-slate-500">按日期进行分类汇总</span>
+        </div>
+        <ColumnSettings columns={allColumns} visibleKeys={visibleKeys} onChange={setVisibleKeys} />
+      </div>
+      <div className="flex-1 min-h-0">
+        <Table
+          className="h-full border-none rounded-none"
+          columns={columns}
+          data={processedData}
+          rowKey={(r: any) => r.id}
+          rowClassName={(r: any) => {
+            if (r.isSubtotal) return "bg-orange-50 font-medium text-orange-900 hover:bg-orange-50";
+            if (r.isGrandTotal) return "bg-orange-100 font-bold text-orange-900 hover:bg-orange-100";
+            return "";
+          }}
         />
       </div>
     </div>

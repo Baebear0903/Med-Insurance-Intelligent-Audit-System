@@ -23,6 +23,7 @@ interface TableProps<T> {
   selectedRowKeys?: string[];
   onSelectChange?: (keys: string[]) => void;
   rowClassName?: (record: T, index: number) => string;
+  stickyHeader?: boolean;
 }
 
 export function Table<T>({ 
@@ -35,7 +36,8 @@ export function Table<T>({
   selectable,
   selectedRowKeys = [],
   onSelectChange,
-  rowClassName
+  rowClassName,
+  stickyHeader = true
 }: TableProps<T>) {
   const handleSelectAll = (checked: boolean) => {
     if (!onSelectChange) return;
@@ -64,12 +66,19 @@ export function Table<T>({
   const headerBgClass = getHeaderBgClass();
 
   return (
-    <div className={cn("overflow-x-auto rounded-md border border-slate-200", className)}>
+    <div className={cn("overflow-auto rounded-md border border-slate-200", className)}>
       <table className="w-full text-sm text-left whitespace-nowrap">
-        <thead className={cn("bg-slate-50 text-slate-600 font-medium border-b border-slate-200", headerClassName)}>
+        <thead className={cn("bg-slate-50 text-slate-600 font-medium", !stickyHeader && "border-b border-slate-200", headerClassName)}>
           <tr>
             {selectable && (
-              <th className={cn("px-4 py-3 w-10 sticky left-0 z-20 shadow-[1px_0_0_#e2e8f0]", headerBgClass)}>
+              <th className={cn(
+                "px-4 py-3 w-10", 
+                stickyHeader && "sticky top-0 shadow-[0_1px_0_#e2e8f0,1px_0_0_#e2e8f0]",
+                !stickyHeader && "sticky left-0 shadow-[1px_0_0_#e2e8f0]",
+                stickyHeader && "z-30",
+                !stickyHeader && "z-20",
+                headerBgClass
+              )}>
                 <input 
                   type="checkbox" 
                   className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
@@ -83,11 +92,15 @@ export function Table<T>({
                 key={c.key}
                 className={cn(
                   "px-4 py-3",
-                  (c.fixed === "right" || c.fixed === "left") ? headerBgClass : "bg-inherit",
+                  (c.fixed === "right" || c.fixed === "left" || stickyHeader) ? headerBgClass : "bg-inherit",
                   c.align === "center" && "text-center",
                   c.align === "right" && "text-right",
-                  c.fixed === "right" && "sticky right-0 z-10 shadow-[-1px_0_0_#e2e8f0]",
-                  c.fixed === "left" && "sticky left-0 z-10 shadow-[1px_0_0_#e2e8f0]"
+                  stickyHeader && "sticky top-0 shadow-[0_1px_0_#e2e8f0]",
+                  c.fixed === "right" && stickyHeader && "z-30 shadow-[0_1px_0_#e2e8f0,-1px_0_0_#e2e8f0]",
+                  c.fixed === "right" && !stickyHeader && "sticky right-0 z-10 shadow-[-1px_0_0_#e2e8f0]",
+                  c.fixed === "left" && stickyHeader && "z-30 shadow-[0_1px_0_#e2e8f0,1px_0_0_#e2e8f0]",
+                  c.fixed === "left" && !stickyHeader && "sticky left-0 z-10 shadow-[1px_0_0_#e2e8f0]",
+                  !c.fixed && stickyHeader && "z-20"
                 )}
                 style={{ 
                   width: c.width,
@@ -115,9 +128,7 @@ export function Table<T>({
               const key = rowKey(row);
               const isSelected = selectedRowKeys.includes(key);
               const customClass = rowClassName ? rowClassName(row, rowIndex) : "";
-              const cellBgClass = isSelected 
-                ? "bg-blue-50" 
-                : "bg-white group-hover:bg-slate-50 transition-colors";
+              const cellBgClass = "bg-inherit";
 
               return (
                 <tr 
