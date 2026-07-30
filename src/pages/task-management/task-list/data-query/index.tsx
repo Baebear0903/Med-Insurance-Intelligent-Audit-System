@@ -9,6 +9,8 @@ import {
   ChevronUp,
   ChevronDown,
   Upload,
+  FileText,
+  AlertCircle,
 } from "lucide-react";
 import { Link, useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "motion/react";
@@ -18,6 +20,8 @@ import { Badge } from "@/src/components/ui/Badge";
 import { Pagination } from "@/src/components/ui/Pagination";
 import { toast } from "@/src/components/ui/Toast";
 import { Modal } from "@/src/components/ui/Modal";
+import { Drawer } from "@/src/components/ui/Drawer";
+import { cn } from "@/src/lib/utils";
 import {
   mockApi,
   Task,
@@ -40,6 +44,7 @@ export default function DataQuery() {
   const [data, setData] = useState<any[]>([]);
   const [page, setPage] = useState(1);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [selectedRecord, setSelectedRecord] = useState<any>(null);
   const [showFilters, setShowFilters] = useState(false);
   const pageSize = 20;
   const [isSwitchDeptOpen, setIsSwitchDeptOpen] = useState(false);
@@ -380,6 +385,25 @@ export default function DataQuery() {
         );
       },
     })),
+    {
+      key: "actions",
+      title: "操作",
+      fixed: "right" as const,
+      width: "90px",
+      render: (r: any) => (
+        <Button 
+          variant="ghost" 
+          size="sm" 
+          onClick={(e) => {
+            e.stopPropagation();
+            setSelectedRecord(r);
+          }}
+          className="text-blue-600 hover:text-blue-700 font-medium px-2"
+        >
+          查看详情
+        </Button>
+      )
+    }
   ];
 
   const currentData = data.slice((page - 1) * pageSize, page * pageSize);
@@ -593,6 +617,7 @@ export default function DataQuery() {
             data={currentData}
             rowKey={(r: any) => r.id}
             rowClassName={(r: any) => r.doNotIssue ? "text-slate-400 bg-slate-50/50" : ""}
+            onRowClick={(record) => setSelectedRecord(record)}
           />
         </div>
 
@@ -693,6 +718,93 @@ export default function DataQuery() {
           columns={configurableColumns}
           onSave={handleSaveColumns}
         />
+        
+        <Drawer
+          isOpen={!!selectedRecord}
+          onClose={() => setSelectedRecord(null)}
+          title="填报详情对比"
+          width="600px"
+          placement="right"
+        >
+          {selectedRecord && template && (
+            <div className="p-6 space-y-8 bg-white h-full overflow-y-auto">
+              {/* 基本信息 */}
+              <section>
+                <h4 className="text-sm font-semibold text-slate-800 mb-4 pb-2 border-b border-slate-100 flex items-center gap-2">
+                  <FileText className="w-4 h-4 text-slate-400" />
+                  数据摘要
+                </h4>
+                <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 grid grid-cols-2 gap-x-4 gap-y-3 text-[13px]">
+                  {[
+                    "HOSPITAL_NO",
+                    "PATIENT_NAME",
+                    "ADMIT_DATE",
+                    "DISCHARGE_DATE",
+                    "PROJECT_NAME",
+                    "VIOLATION_AMOUNT",
+                    "VIOLATION_DESC"
+                  ].map(fieldName => {
+                    const field = template.fields.find(f => f.name === fieldName);
+                    if (!field) return null;
+                    const isFullWidth = fieldName === "VIOLATION_DESC";
+                    const val = selectedRecord[fieldName];
+                    const label = field.displayName || field.comment || field.name;
+                    
+                    return (
+                      <div className={cn("flex flex-col gap-1", isFullWidth ? "col-span-2 mt-1" : "")} key={field.id}>
+                        <span className="text-slate-400">{label}</span>
+                        <span 
+                          className={cn(
+                            "text-slate-700 font-medium", 
+                            isFullWidth ? "text-xs leading-relaxed max-h-40 overflow-y-auto w-full break-words whitespace-pre-wrap" : "truncate"
+                          )} 
+                          title={String(val || "")}
+                        >
+                          {fieldName === "VIOLATION_AMOUNT" ? (val ? `¥${Number(val).toFixed(2)}` : "-") : (val || "-")}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </section>
+              
+              {/* AI填报结果 - 仅当记录为AI填报时显示 */}
+              {(selectedRecord.fillStatus === 5 || selectedRecord.fillStatus === 51 || selectedRecord.fillStatus === 52) && (
+                <section>
+                  <div className="flex items-center justify-between mb-4 pb-2 border-b border-slate-100">
+                    <h4 className="text-sm font-semibold text-slate-800">AI填报结果</h4>
+                    <div className="flex items-center gap-2">
+                      <Badge status="success">AI已填报</Badge>
+                      {selectedRecord.doNotIssue && (
+                         <Badge status="default">不下发</Badge>
+                      )}
+                    </div>
+                  </div>
+                  
+                  {selectedRecord.doNotIssue && (
+                    <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg text-amber-700 text-sm flex items-start gap-2">
+                      <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                      <span>该AI审核结果仅用于参考，不影响实际数据填报</span>
+                    </div>
+                  )}
+
+                  <div className="bg-blue-50/50 rounded-lg p-5 border border-blue-100">
+                    <div className="grid grid-cols-1 gap-y-5">
+                      {template.fields.filter(f => f.isFeedback && (role === "ADMIN" || !f.adminVisible)).map(f => (
+                        <div key={f.name} className="flex flex-col gap-1.5">
+                          <span className="text-xs font-medium text-slate-600">{f.displayName || f.comment || f.name}</span>
+                          <span className={cn("text-sm break-all", selectedRecord[f.name] ? "text-slate-900 font-medium" : "text-slate-400")}>
+                            {selectedRecord[f.name] || "未填报"}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </section>
+              )}
+            </div>
+          )}
+        </Drawer>
       </div>
     </div>
   );

@@ -110,7 +110,7 @@ export function DataReview() {
 
     const children = allRawTasksRef.current?.filter((t: any) => t.parentId === task.id) || [];
     const pData = children.map((c: any, index: number) => {
-      let progress = TASK_STATUS[c.status as keyof typeof TASK_STATUS] || "填报中";
+      let progress: string = TASK_STATUS[c.status as keyof typeof TASK_STATUS] || "填报中";
       
       // Since it's a DED (扣减) task where there's no real "审核通过", 
       // let's follow the wording in the prompt:

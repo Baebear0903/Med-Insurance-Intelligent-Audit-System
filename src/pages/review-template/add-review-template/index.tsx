@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { ArrowLeft, Save, Plus, Copy, Trash2, ArrowUp, ArrowDown, HelpCircle, AlertCircle, Link2, X } from "lucide-react";
+import { ArrowLeft, Save, Plus, Copy, Trash2, ArrowUp, ArrowDown, HelpCircle, AlertCircle, Link2, X, Settings } from "lucide-react";
 import { Button } from "@/src/components/ui/Button";
 import { toast } from "@/src/components/ui/Toast";
 import { Drawer } from "@/src/components/ui/Drawer";
@@ -45,6 +45,15 @@ const DEFAULT_DISPATCH_FIELDS: TemplateField[] = [
   { id: "DF_DISPATCH_DEPT", name: "DISPATCH_DEPT", comment: "下发科室", type: "VARCHAR", length: 100, decimal: 0, isPrimaryKey: false, isNotNull: false, isRequired: false, isShow: true, displayName: "下发科室", isQueryable: true, isFeedback: false, noUpdate: true },
 ];
 
+const FRIENDLY_TYPES = [
+  { label: "单行文本", value: "VARCHAR", defaultProps: { length: 255, decimal: 0 } },
+  { label: "多行文本", value: "TEXT", defaultProps: { length: 0, decimal: 0 } },
+  { label: "整数", value: "INT", defaultProps: { length: 0, decimal: 0 } },
+  { label: "小数", value: "DECIMAL", defaultProps: { length: 10, decimal: 2 } },
+  { label: "日期", value: "DATE", defaultProps: { length: 0, decimal: 0 } },
+  { label: "日期时间", value: "DATETIME", defaultProps: { length: 0, decimal: 0 } },
+];
+
 export function AddReviewTemplate() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -53,6 +62,7 @@ export function AddReviewTemplate() {
   const [showConfirmBack, setShowConfirmBack] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [activeFieldIndex, setActiveFieldIndex] = useState<number | null>(null);
+  const [settingsFieldIndex, setSettingsFieldIndex] = useState<number | null>(null);
   const [searchStdKeyword, setSearchStdKeyword] = useState("");
 
   const [formData, setFormData] = useState<Partial<ReviewTemplate>>({
@@ -431,21 +441,9 @@ export function AddReviewTemplate() {
               <thead className="bg-slate-50 text-slate-600 font-bold border-b">
                 <tr>
                   <th className="px-3 py-3 w-12 text-center">序号</th>
-                  <th className="px-3 py-3 min-w-[120px]">字段名称<span className="text-red-500 ml-1">*</span></th>
-                  <th className="px-3 py-3 min-w-[120px]">字段注释<span className="text-red-500 ml-1">*</span></th>
-                  <th className="px-3 py-3 min-w-[120px]">展示名称</th>
-                  <th className="px-3 py-3 w-28">字段类型</th>
-                  <th className="px-3 py-3 w-20">长度</th>
-                  <th className="px-3 py-3 w-16">小数点</th>
-                  <th className="px-2 py-3 w-12 text-center">主键</th>
-                  <th className="px-2 py-3 w-12 text-center">非空</th>
-                  <th className="px-2 py-3 w-12 text-center">必填</th>
-                  <th className="px-2 py-3 w-12 text-center">展示</th>
-                  <th className="px-2 py-3 w-16 text-center">管理可见</th>
-                  <th className="px-2 py-3 w-14 text-center">辅助</th>
-                  <th className="px-2 py-3 w-12 text-center">查询</th>
-                  <th className="px-2 py-3 w-14 text-center">反馈</th>
-                  <th className="px-2 py-3 w-14 text-center">不更新</th>
+                  <th className="px-3 py-3 min-w-[240px]">字段名称 & 标识<span className="text-red-500 ml-1">*</span></th>
+                  <th className="px-3 py-3 w-32">数据类型</th>
+                  <th className="px-3 py-3 min-w-[200px]">功能配置</th>
                   <th className="px-3 py-3 w-40 text-left sticky right-0 bg-slate-50 shadow-[-4px_0_4px_-4px_rgba(0,0,0,0.1)]">操作</th>
                 </tr>
               </thead>
@@ -455,96 +453,75 @@ export function AddReviewTemplate() {
                   return (
                   <tr key={field.id} className="group hover:bg-blue-50 transition-colors">
                     <td className="px-3 py-2 text-center text-slate-400 font-mono italic">{idx + 1}</td>
-                    <td className="px-2 py-1.5">
-                      <input 
-                        type="text" 
-                        value={field.name} 
-                        disabled={isDispatchDeptFixed}
-                        onChange={(e) => handleUpdateField(idx, { name: e.target.value })}
-                        className={cn("w-full h-8 px-2 border border-transparent focus:border-blue-300 focus:bg-white rounded outline-none bg-slate-50/10", isDispatchDeptFixed && "opacity-60 bg-slate-100 cursor-not-allowed")} 
-                      />
-                    </td>
-                    <td className="px-2 py-1.5">
-                      <div className="flex items-center gap-1.5">
+                    <td className="px-2 py-2">
+                      <div className="flex flex-col gap-1.5">
+                        <div className="flex items-center gap-1.5">
+                          <input 
+                            type="text" 
+                            placeholder="字段名称 (例如: 入院日期)"
+                            value={field.comment} 
+                            disabled={isDispatchDeptFixed}
+                            onChange={(e) => handleUpdateField(idx, { comment: e.target.value })}
+                            className={cn("w-full h-8 px-2 border border-slate-200 focus:border-blue-500 rounded outline-none transition-colors", isDispatchDeptFixed && "opacity-60 bg-slate-100 cursor-not-allowed")} 
+                          />
+                          {field.mappedStandardField && (
+                            <div className="w-4 h-4 text-green-500 shrink-0" title={`已关联标准字段: ${field.mappedStandardField}`}>
+                              <Link2 className="w-4 h-4" />
+                            </div>
+                          )}
+                        </div>
                         <input 
                           type="text" 
-                          value={field.comment} 
+                          placeholder="英文标识 (例如: ADMIT_DATE)"
+                          value={field.name} 
                           disabled={isDispatchDeptFixed}
-                          onChange={(e) => handleUpdateField(idx, { comment: e.target.value })}
-                          className={cn("w-full h-8 px-2 border border-transparent focus:border-blue-300 focus:bg-white rounded outline-none bg-slate-50/10", isDispatchDeptFixed && "opacity-60 bg-slate-100 cursor-not-allowed")} 
+                          onChange={(e) => handleUpdateField(idx, { name: e.target.value })}
+                          className={cn("w-full h-7 px-2 border border-transparent hover:border-slate-200 focus:border-blue-500 rounded outline-none text-xs font-mono text-slate-500 transition-colors bg-slate-50/50", isDispatchDeptFixed && "opacity-60 bg-slate-100 cursor-not-allowed")} 
                         />
-                        {field.mappedStandardField && (
-                          <div className="w-4 h-4 text-green-500 shrink-0" title={`已关联: ${field.mappedStandardField}`}>
-                            <Link2 className="w-4 h-4" />
-                          </div>
-                        )}
                       </div>
                     </td>
-                    <td className="px-2 py-1.5">
-                      <input 
-                        type="text" 
-                        value={field.displayName || ""} 
-                        disabled={isDispatchDeptFixed}
-                        onChange={(e) => handleUpdateField(idx, { displayName: e.target.value })}
-                        className={cn("w-full h-8 px-2 border border-transparent focus:border-blue-300 focus:bg-white rounded outline-none bg-slate-50/10 placeholder-slate-300", isDispatchDeptFixed && "opacity-60 bg-slate-100 cursor-not-allowed")}
-                        placeholder="非必填"
-                      />
-                    </td>
-                    <td className="px-2 py-1.5">
+                    <td className="px-2 py-2 align-top pt-3">
                       <select 
-                        value={field.type} 
-                        onChange={(e) => handleUpdateField(idx, { type: e.target.value })}
-                        className="w-full h-8 px-1 border border-transparent focus:border-blue-300 bg-transparent rounded outline-none"
+                        value={FRIENDLY_TYPES.find(t => t.value === field.type)?.value || "VARCHAR"} 
+                        onChange={(e) => {
+                          const matched = FRIENDLY_TYPES.find(t => t.value === e.target.value);
+                          if (matched) {
+                            handleUpdateField(idx, { type: matched.value, ...matched.defaultProps });
+                          } else {
+                            handleUpdateField(idx, { type: e.target.value });
+                          }
+                        }}
+                        className="w-full h-8 px-1 border border-slate-200 focus:border-blue-500 rounded outline-none bg-white text-slate-700"
                       >
-                        {FIELD_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                        {FRIENDLY_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+                        {!FRIENDLY_TYPES.find(t => t.value === field.type) && (
+                          <option value={field.type}>{field.type}</option>
+                        )}
                       </select>
                     </td>
-                    <td className="px-2 py-1.5">
-                      <input 
-                        type="number" 
-                        value={field.length} 
-                        onChange={(e) => handleUpdateField(idx, { length: parseInt(e.target.value) || 0 })}
-                        className="w-full h-8 px-2 border border-transparent focus:border-blue-300 bg-transparent rounded outline-none" 
-                      />
+                    <td className="px-2 py-2 align-top pt-3">
+                      <div className="flex flex-wrap gap-x-4 gap-y-2">
+                        <label className="flex items-center gap-1.5 cursor-pointer text-slate-600 hover:text-slate-800 transition-colors">
+                          <input type="checkbox" className="w-3.5 h-3.5 text-blue-600 rounded border-slate-300 focus:ring-blue-500" checked={field.isRequired} onChange={(e) => handleUpdateField(idx, { isRequired: e.target.checked })} />
+                          <span className="text-xs">必填</span>
+                        </label>
+                        <label className="flex items-center gap-1.5 cursor-pointer text-slate-600 hover:text-slate-800 transition-colors">
+                          <input type="checkbox" className="w-3.5 h-3.5 text-blue-600 rounded border-slate-300 focus:ring-blue-500" checked={field.isShow !== false} onChange={(e) => handleUpdateField(idx, { isShow: e.target.checked })} />
+                          <span className="text-xs">列表展示</span>
+                        </label>
+                        <label className="flex items-center gap-1.5 cursor-pointer text-slate-600 hover:text-slate-800 transition-colors">
+                          <input type="checkbox" className="w-3.5 h-3.5 text-blue-600 rounded border-slate-300 focus:ring-blue-500" checked={field.isQueryable} onChange={(e) => handleUpdateField(idx, { isQueryable: e.target.checked })} />
+                          <span className="text-xs">支持查询</span>
+                        </label>
+                        <label className="flex items-center gap-1.5 cursor-pointer text-slate-600 hover:text-slate-800 transition-colors">
+                          <input type="checkbox" className="w-3.5 h-3.5 text-blue-600 rounded border-slate-300 focus:ring-blue-500" checked={field.isFeedback} onChange={(e) => handleUpdateField(idx, { isFeedback: e.target.checked })} />
+                          <span className="text-xs">反馈字段</span>
+                        </label>
+                      </div>
                     </td>
-                    <td className="px-2 py-1.5">
-                      <input 
-                        type="number" 
-                        disabled={!["DECIMAL", "DOUBLE", "FLOAT"].includes(field.type)}
-                        value={field.decimal} 
-                        onChange={(e) => handleUpdateField(idx, { decimal: parseInt(e.target.value) || 0 })}
-                        className="w-full h-8 px-2 border border-transparent focus:border-blue-300 bg-transparent rounded outline-none disabled:opacity-30" 
-                      />
-                    </td>
-                    <td className="px-2 py-2 text-center">
-                      <input type="checkbox" checked={field.isPrimaryKey} onChange={(e) => handleUpdateField(idx, { isPrimaryKey: e.target.checked })} />
-                    </td>
-                    <td className="px-2 py-2 text-center">
-                      <input type="checkbox" checked={field.isNotNull} onChange={(e) => handleUpdateField(idx, { isNotNull: e.target.checked })} />
-                    </td>
-                    <td className="px-2 py-2 text-center">
-                      <input type="checkbox" checked={field.isRequired} onChange={(e) => handleUpdateField(idx, { isRequired: e.target.checked })} />
-                    </td>
-                    <td className="px-2 py-2 text-center">
-                      <input type="checkbox" checked={field.isShow !== false} onChange={(e) => handleUpdateField(idx, { isShow: e.target.checked })} />
-                    </td>
-                    <td className="px-2 py-2 text-center">
-                      <input type="checkbox" checked={field.adminVisible || false} onChange={(e) => handleUpdateField(idx, { adminVisible: e.target.checked })} />
-                    </td>
-                    <td className="px-2 py-2 text-center">
-                      <input type="checkbox" checked={field.isAuxiliary || false} onChange={(e) => handleUpdateField(idx, { isAuxiliary: e.target.checked })} title="勾选的字段属于原始导入模板中不存在的辅助字段，而不是原始导入字段" />
-                    </td>
-                    <td className="px-2 py-2 text-center">
-                      <input type="checkbox" checked={field.isQueryable} onChange={(e) => handleUpdateField(idx, { isQueryable: e.target.checked })} />
-                    </td>
-                    <td className="px-2 py-2 text-center">
-                      <input type="checkbox" checked={field.isFeedback} onChange={(e) => handleUpdateField(idx, { isFeedback: e.target.checked })} />
-                    </td>
-                    <td className="px-2 py-2 text-center">
-                      <input type="checkbox" checked={field.noUpdate} onChange={(e) => handleUpdateField(idx, { noUpdate: e.target.checked })} />
-                    </td>
-                    <td className="px-3 py-2 text-left sticky right-0 bg-white group-hover:bg-blue-50 shadow-[-4px_0_4px_-4px_rgba(0,0,0,0.1)]">
+                    <td className="px-3 py-2 text-left sticky right-0 bg-white group-hover:bg-blue-50 shadow-[-4px_0_4px_-4px_rgba(0,0,0,0.1)] align-top pt-3">
                       <div className="flex items-center justify-start gap-1.5">
+                        <button onClick={() => setSettingsFieldIndex(idx)} className="p-1 text-slate-600 hover:bg-slate-100 rounded" title="高级设置"><Settings className="w-3.5 h-3.5"/></button>
                         <button onClick={() => handleOpenStandardFields(idx)} className="p-1 text-emerald-500 hover:bg-emerald-50 rounded" title="关联标准表字段"><Link2 className="w-3.5 h-3.5"/></button>
                         <button onClick={() => handleAction(idx, "copy")} className="p-1 text-blue-500 hover:bg-blue-50 rounded" title="复制一行"><Copy className="w-3.5 h-3.5"/></button>
                         {((formData.templateType === "医保审核反馈" && !DEFAULT_FEEDBACK_FIELDS.map(f => f.name).includes(field.name)) || 
@@ -560,7 +537,7 @@ export function AddReviewTemplate() {
                 })}
                 {(!formData.fields || formData.fields.length === 0) && (
                   <tr>
-                    <td colSpan={17} className="px-4 py-8 text-center text-slate-400 bg-slate-50/30">
+                    <td colSpan={5} className="px-4 py-8 text-center text-slate-400 bg-slate-50/30">
                       <div className="flex flex-col items-center gap-2">
                         <AlertCircle className="w-8 h-8 opacity-20" />
                         <span>未设计任何字段，请点击“新增字段”按钮</span>
@@ -672,6 +649,91 @@ export function AddReviewTemplate() {
             </div>
           </div>
         </div>
+      </Drawer>
+
+      <Drawer
+        isOpen={settingsFieldIndex !== null}
+        onClose={() => setSettingsFieldIndex(null)}
+        title={settingsFieldIndex !== null && formData.fields ? `字段高级设置: ${formData.fields[settingsFieldIndex].comment || formData.fields[settingsFieldIndex].name}` : "字段高级设置"}
+        width="w-[500px]"
+        placement="right"
+      >
+        {settingsFieldIndex !== null && formData.fields && formData.fields[settingsFieldIndex] && (
+          <div className="p-6 space-y-6">
+            <div className="space-y-4">
+              <h4 className="text-sm font-bold text-slate-800 border-b border-slate-100 pb-2">基础设置</h4>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5 col-span-2">
+                  <label className="text-xs font-medium text-slate-700">展示名称 <span className="text-slate-400 font-normal">(用于表头等展示)</span></label>
+                  <input 
+                    type="text" 
+                    value={formData.fields[settingsFieldIndex].displayName || ""} 
+                    onChange={(e) => handleUpdateField(settingsFieldIndex, { displayName: e.target.value })}
+                    className="w-full h-9 px-3 rounded border border-slate-300 focus:ring-2 focus:ring-blue-500 outline-none text-sm"
+                    placeholder="不填则默认使用字段注释"
+                  />
+                </div>
+                
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-slate-700">字段长度</label>
+                  <input 
+                    type="number" 
+                    value={formData.fields[settingsFieldIndex].length} 
+                    onChange={(e) => handleUpdateField(settingsFieldIndex, { length: parseInt(e.target.value) || 0 })}
+                    className="w-full h-9 px-3 rounded border border-slate-300 focus:ring-2 focus:ring-blue-500 outline-none text-sm" 
+                  />
+                </div>
+                
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-slate-700">小数点位数</label>
+                  <input 
+                    type="number" 
+                    disabled={!["DECIMAL", "DOUBLE", "FLOAT"].includes(formData.fields[settingsFieldIndex].type)}
+                    value={formData.fields[settingsFieldIndex].decimal} 
+                    onChange={(e) => handleUpdateField(settingsFieldIndex, { decimal: parseInt(e.target.value) || 0 })}
+                    className="w-full h-9 px-3 rounded border border-slate-300 focus:ring-2 focus:ring-blue-500 outline-none text-sm disabled:bg-slate-50 disabled:text-slate-400" 
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <h4 className="text-sm font-bold text-slate-800 border-b border-slate-100 pb-2">属性开关</h4>
+              
+              <div className="grid grid-cols-2 gap-y-4">
+                <label className="flex items-center gap-2 cursor-pointer text-sm text-slate-700 hover:text-slate-900 transition-colors">
+                  <input type="checkbox" className="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500" checked={formData.fields[settingsFieldIndex].isPrimaryKey} onChange={(e) => handleUpdateField(settingsFieldIndex, { isPrimaryKey: e.target.checked })} />
+                  <span>设置为主键</span>
+                </label>
+                
+                <label className="flex items-center gap-2 cursor-pointer text-sm text-slate-700 hover:text-slate-900 transition-colors">
+                  <input type="checkbox" className="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500" checked={formData.fields[settingsFieldIndex].isNotNull} onChange={(e) => handleUpdateField(settingsFieldIndex, { isNotNull: e.target.checked })} />
+                  <span>数据库非空</span>
+                </label>
+                
+                <label className="flex items-center gap-2 cursor-pointer text-sm text-slate-700 hover:text-slate-900 transition-colors">
+                  <input type="checkbox" className="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500" checked={formData.fields[settingsFieldIndex].adminVisible || false} onChange={(e) => handleUpdateField(settingsFieldIndex, { adminVisible: e.target.checked })} />
+                  <span>仅管理可见</span>
+                </label>
+                
+                <label className="flex items-center gap-2 cursor-pointer text-sm text-slate-700 hover:text-slate-900 transition-colors" title="勾选的字段属于原始导入模板中不存在的辅助字段，而不是原始导入字段">
+                  <input type="checkbox" className="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500" checked={formData.fields[settingsFieldIndex].isAuxiliary || false} onChange={(e) => handleUpdateField(settingsFieldIndex, { isAuxiliary: e.target.checked })} />
+                  <span>设为辅助字段</span>
+                </label>
+                
+                <label className="flex items-center gap-2 cursor-pointer text-sm text-slate-700 hover:text-slate-900 transition-colors">
+                  <input type="checkbox" className="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500" checked={formData.fields[settingsFieldIndex].noUpdate} onChange={(e) => handleUpdateField(settingsFieldIndex, { noUpdate: e.target.checked })} />
+                  <span>禁止更新 (只读)</span>
+                </label>
+              </div>
+            </div>
+            
+            <div className="pt-6 flex justify-end">
+              <Button variant="primary" onClick={() => setSettingsFieldIndex(null)}>完成</Button>
+            </div>
+          </div>
+        )}
       </Drawer>
     </div>
   );

@@ -24,6 +24,7 @@ interface TableProps<T> {
   onSelectChange?: (keys: string[]) => void;
   rowClassName?: (record: T, index: number) => string;
   stickyHeader?: boolean;
+  onRowClick?: (record: T) => void;
 }
 
 export function Table<T>({ 
@@ -37,7 +38,8 @@ export function Table<T>({
   selectedRowKeys = [],
   onSelectChange,
   rowClassName,
-  stickyHeader = true
+  stickyHeader = true,
+  onRowClick
 }: TableProps<T>) {
   const handleSelectAll = (checked: boolean) => {
     if (!onSelectChange) return;
@@ -133,8 +135,10 @@ export function Table<T>({
               return (
                 <tr 
                   key={key} 
+                  onClick={() => onRowClick?.(row)}
                   className={cn(
                     "group bg-white hover:bg-slate-50 transition-colors text-slate-700",
+                    onRowClick && "cursor-pointer",
                     isSelected && "bg-blue-50 hover:bg-blue-50",
                     customClass
                   )}
