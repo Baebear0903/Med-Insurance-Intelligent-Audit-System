@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Plus, LayoutTemplate, MoreHorizontal, FileText, CheckCircle2, Search, Filter, Trash2, Edit3, Copy, User, AlertCircle } from "lucide-react";
+import { Plus, LayoutTemplate, FileText, Search, Trash2, Edit3, Copy, User, AlertCircle } from "lucide-react";
 import { Button } from "@/src/components/ui/Button";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "@/src/components/ui/Toast";

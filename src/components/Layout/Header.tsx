@@ -6,12 +6,17 @@ import { useUser } from "@/src/lib/userContext";
 export function Header() {
   const { role, setRole } = useUser();
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const confirmRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setDropdownOpen(false);
+      }
+      if (confirmRef.current && !confirmRef.current.contains(event.target as Node)) {
+        setShowConfirm(false);
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
@@ -32,9 +37,38 @@ export function Header() {
           <Bell className="w-5 h-5" />
           <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-400 rounded-full border border-blue-600"></span>
         </button>
-        <button className="hover:bg-white/10 p-1.5 rounded-full transition-colors">
-          <Settings className="w-5 h-5" />
-        </button>
+        <div className="relative" ref={confirmRef}>
+          <button 
+            className="hover:bg-white/10 p-1.5 rounded-full transition-colors"
+            title="清空缓存并重置数据"
+            onClick={() => setShowConfirm(!showConfirm)}
+          >
+            <Settings className="w-5 h-5" />
+          </button>
+          
+          {showConfirm && (
+            <div className="absolute top-12 right-0 w-64 bg-white rounded-lg shadow-xl border border-slate-200 p-4 z-50 text-slate-800 text-sm">
+              <p className="mb-3 font-medium text-slate-700">确定要清空本地缓存并重置所有演示数据吗？</p>
+              <div className="flex justify-end gap-2">
+                <button 
+                  className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 rounded text-slate-600 transition-colors"
+                  onClick={() => setShowConfirm(false)}
+                >
+                  取消
+                </button>
+                <button 
+                  className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded transition-colors"
+                  onClick={() => {
+                    localStorage.clear();
+                    window.location.reload();
+                  }}
+                >
+                  确定清空
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
         <div className="relative" ref={dropdownRef}>
           <div 
             className="flex items-center gap-2 ml-2 pl-4 border-l border-white/20 cursor-pointer hover:bg-white/10 py-1 px-2 rounded transition-colors"

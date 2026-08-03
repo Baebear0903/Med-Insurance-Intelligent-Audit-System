@@ -1,8 +1,7 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect } from "react";
 import { Table, Column } from "@/src/components/ui/Table";
 import { Button } from "@/src/components/ui/Button";
-import { Pagination } from "@/src/components/ui/Pagination";
-import { Download, Search, Settings, RotateCcw, ArrowLeft, ArrowDownToLine } from "lucide-react";
+import { Search, Settings, RotateCcw, ArrowDownToLine } from "lucide-react";
 import { mockApi } from "@/src/lib/mockData";
 import { toast } from "@/src/components/ui/Toast";
 import { exportToExcel } from "@/src/lib/exportUtils";
@@ -28,15 +27,11 @@ const BUSINESS_CATEGORIES = [
 ];
 
 // --- Helper Functions ---
-const extractMonthFromTaskName = (name: string) => {
-  const match = name.match(/\d{4}年\d{2}月/);
-  return match ? match[0] : "";
-};
 
 export default function DeductionDetails() {
   const navigate = useNavigate();
   const [tasks, setTasks] = useState<TaskSummary[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  
   
   // Filters
   const [filterMonth, setFilterMonth] = useState("");
@@ -53,7 +48,7 @@ export default function DeductionDetails() {
   }, []);
 
   const loadTasks = () => {
-    setIsLoading(true);
+    
     setTimeout(() => {
       const allTasks = mockApi.getTasks(1, 1000).data;
       const allTemplates = mockApi.getTemplates();
@@ -88,7 +83,7 @@ export default function DeductionDetails() {
       });
 
       setTasks(taskSummaries);
-      setIsLoading(false);
+      
     }, 300);
   };
 
@@ -154,7 +149,6 @@ export default function DeductionDetails() {
 
   const selectedTaskObjects = tasks.filter(t => selectedRowKeys.includes(t.id));
   const mergeTotalRecords = selectedTaskObjects.reduce((acc, t) => acc + t.deductibleCount, 0);
-  const mergeTotalViolation = selectedTaskObjects.reduce((acc, t) => acc + t.totalViolationAmount, 0);
   const mergeTotalDeduction = selectedTaskObjects.reduce((acc, t) => acc + t.totalDeductionAmount, 0);
   const uniqueMonths = Array.from(new Set(selectedTaskObjects.map(t => t.businessCategory))).join("、");
 

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { ColumnSettingsModal, ColumnItem } from "@/src/components/ColumnSettingsModal";
-import { Info, LayoutList, XCircle, Search, Filter, Settings, ChevronRight, ChevronDown, CheckCircle2, Clock, AlertCircle, Bell, ChevronLeft } from "lucide-react";
-import { Link, useNavigate } from "react-router-dom";
+import { Info, LayoutList, Search, Filter, Settings, ChevronRight, ChevronDown, CheckCircle2, Clock, AlertCircle, Bell } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/src/components/ui/Button";
 import { Modal } from "@/src/components/ui/Modal";
 import { Badge } from "@/src/components/ui/Badge";
@@ -11,10 +11,6 @@ import { mockApi } from "@/src/lib/mockData";
 import { DEPARTMENTS, TASK_STATUS } from "@/src/lib/constants";
 import { cn } from "@/src/lib/utils";
 
-const PROGRESS_DATA = [
-  { id: "P1", index: 1, department: "外科", amount: "5,000.00", manager: "外科", progress: "审核通过" },
-  { id: "P3", index: 2, department: "内科", amount: "1,000.00", manager: "内科", progress: "填报中" },
-];
 
 export function DataReview() {
   const [isColumnSettingsOpen, setIsColumnSettingsOpen] = useState(false);
@@ -28,7 +24,7 @@ export function DataReview() {
   ]);
 
   const [tasks, setTasks] = useState<any[]>([]);
-  const [loading, setLoading] = useState(false);
+  
   const allRawTasksRef = React.useRef<any[]>([]);
   
   const [progressModalOpen, setProgressModalOpen] = useState(false);
@@ -44,7 +40,7 @@ export function DataReview() {
 
   useEffect(() => {
     const loadTasks = () => {
-      setLoading(true);
+      
       const allTasksRes = mockApi.getTasks(1, 1000);
       const allTasks = allTasksRes.data;
       allRawTasksRef.current = allTasks;
@@ -79,7 +75,7 @@ export function DataReview() {
       });
 
       setTasks(treeData);
-      setLoading(false);
+      
     };
 
     loadTasks();
@@ -180,7 +176,7 @@ export function DataReview() {
     setSelectedProgressIds([]);
   };
 
-  const handleSingleUrge = (id: string) => {
+  const handleSingleUrge = () => {
     setConfirmModalOpen(true);
   };
 
@@ -227,7 +223,7 @@ export function DataReview() {
     dueDate: <td key="dueDate" className="p-3 text-slate-600">{row.dueDate}</td>,
   });
 
-  const colChildCellMap = (child: any, row: any): Record<string, React.ReactNode> => ({
+  const colChildCellMap = (child: any): Record<string, React.ReactNode> => ({
     name: (
       <td key="name" className="p-3 text-slate-600 pl-10 flex items-center gap-2 relative">
         <div className="absolute left-5 top-0 w-3 h-1/2 border-l-2 border-b-2 border-slate-200 rounded-bl"></div>
@@ -472,7 +468,7 @@ export function DataReview() {
                       >
                         <td className="p-3 border-l-2 border-blue-500/20"></td>
                         <td className="p-3"></td>
-                        {configurableColumns.filter(c => c.visible).map(c => colChildCellMap(child, row)[c.key])}
+                        {configurableColumns.filter(c => c.visible).map(c => colChildCellMap(child)[c.key])}
                         <td className="p-3 sticky right-0 bg-slate-50 group-hover:bg-slate-100 transition-colors z-10 shadow-[-1px_0_0_#e2e8f0]">
                           <Button 
                             variant="primary" 
@@ -613,7 +609,7 @@ export function DataReview() {
                           <button 
                             className={`text-sm font-medium transition-opacity ${isUnfilled ? 'text-blue-600 hover:text-blue-800' : 'text-slate-300 cursor-not-allowed'}`}
                             disabled={!isUnfilled}
-                            onClick={() => handleSingleUrge(row.id)}
+                            onClick={() => handleSingleUrge()}
                           >
                             催办
                           </button>

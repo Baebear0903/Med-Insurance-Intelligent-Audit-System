@@ -58,7 +58,6 @@ export default function IssueData() {
   ];
 
   const currentData = data.slice((page - 1) * pageSize, page * pageSize);
-  const totalPages = Math.ceil(data.length / pageSize) || 1;
 
   return (
     <div className="flex flex-col h-full bg-slate-50 relative">

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { ArrowLeft, Save, Plus, Copy, Trash2, ArrowUp, ArrowDown, HelpCircle, AlertCircle, Link2, X, ChevronRight } from "lucide-react";
 import { Button } from "@/src/components/ui/Button";
 import { toast } from "@/src/components/ui/Toast";
@@ -8,7 +8,6 @@ import { mockApi, ReviewTemplate, TemplateField } from "@/src/lib/mockData";
 import { cn } from "@/src/lib/utils";
 import { pinyin } from "pinyin-pro";
 
-const FIELD_TYPES = ["BIGINT", "INT", "VARCHAR", "DECIMAL", "DATE", "DATETIME", "TEXT", "DOUBLE", "FLOAT", "CHAR", "TIMESTAMP", "LONGTEXT"];
 
 const BUSINESS_CATEGORIES = [
   "广州医保（线上）", "广州医保（线下）", "省内异地（线上）", "省内异地（线下）",
@@ -46,25 +45,6 @@ const DEFAULT_DISPATCH_FIELDS: TemplateField[] = [
   { id: "DF_DISPATCH_DEPT", name: "DISPATCH_DEPT", comment: "下发科室", type: "VARCHAR", length: 100, decimal: 0, isPrimaryKey: false, isNotNull: false, isRequired: false, isShow: true, displayName: "下发科室", isQueryable: true, isFeedback: false, noUpdate: true },
 ];
 
-function ToggleChip({ label, checked, onChange, disabled, title }: { label: string, checked: boolean, onChange: (v: boolean) => void, disabled?: boolean, title?: string }) {
-  return (
-    <button
-      type="button"
-      title={title}
-      disabled={disabled}
-      onClick={() => onChange(!checked)}
-      className={cn(
-        "px-2.5 py-1 rounded-md text-xs font-medium transition-all border outline-none focus:ring-2 focus:ring-blue-500/20 whitespace-nowrap",
-        checked 
-          ? "bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100 shadow-sm" 
-          : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50",
-        disabled && "opacity-50 cursor-not-allowed hover:bg-transparent"
-      )}
-    >
-      {label}
-    </button>
-  );
-}
 
 export function AddReviewTemplate() {
   const navigate = useNavigate();

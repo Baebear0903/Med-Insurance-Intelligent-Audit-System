@@ -1,12 +1,10 @@
 import React, { useState, useEffect, useRef } from "react";
 import {
-  ArrowLeft,
   Search,
   Download,
   RefreshCw,
   Settings,
   Filter,
-  ChevronUp,
   ChevronDown,
   Upload,
   FileText,
@@ -28,7 +26,7 @@ import {
   ReviewTemplate,
   TemplateField,
 } from "@/src/lib/mockData";
-import { TASK_STATUS, DEPARTMENTS } from "@/src/lib/constants";
+import { TASK_STATUS } from "@/src/lib/constants";
 import { downloadZipWithExcel } from "@/src/lib/exportUtils";
 import { ColumnSettingsModal, ColumnItem } from "@/src/components/ColumnSettingsModal";
 import { useUser } from "@/src/lib/userContext";
@@ -868,14 +866,34 @@ export default function DataQuery() {
 
                   <div className="bg-blue-50/50 rounded-lg p-5 border border-blue-100">
                     <div className="grid grid-cols-1 gap-y-5">
-                      {template.fields.filter(f => f.isFeedback && (role === "ADMIN" || !f.adminVisible)).map(f => (
-                        <div key={f.name} className="flex flex-col gap-1.5">
-                          <span className="text-xs font-medium text-slate-600">{f.displayName || f.comment || f.name}</span>
-                          <span className={cn("text-sm break-all", selectedRecord[f.name] ? "text-slate-900 font-medium" : "text-slate-400")}>
-                            {selectedRecord[f.name] || "未填报"}
-                          </span>
-                        </div>
-                      ))}
+                      {template.fields.filter(f => f.isFeedback && (role === "ADMIN" || !f.adminVisible)).map(f => {
+                        const val = selectedRecord[f.name];
+                        const isAttachment = f.name.includes("ATTACHMENT") || f.comment?.includes("附件");
+                        return (
+                          <div key={f.name} className="flex flex-col gap-1.5">
+                            <span className="text-xs font-medium text-slate-600">{f.displayName || f.comment || f.name}</span>
+                            {val ? (
+                              isAttachment ? (
+                                <a 
+                                  href="#" 
+                                  className="text-sm font-medium text-blue-600 hover:underline break-all" 
+                                  onClick={(e) => { e.preventDefault(); /* Mock download */ }}
+                                >
+                                  {val}
+                                </a>
+                              ) : (
+                                <span className="text-sm break-all text-slate-900 font-medium">
+                                  {val}
+                                </span>
+                              )
+                            ) : (
+                              <span className="text-sm break-all text-slate-400">
+                                未填报
+                              </span>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
                 </section>

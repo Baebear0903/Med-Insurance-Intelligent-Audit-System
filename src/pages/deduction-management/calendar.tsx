@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { mockApi } from "@/src/lib/mockData";
-import { RefreshCw, Search } from "lucide-react";
+import { RefreshCw } from "lucide-react";
 import { Table, Column } from "@/src/components/ui/Table";
 import { Button } from "@/src/components/ui/Button";
 import { Drawer } from "@/src/components/ui/Drawer";
@@ -50,8 +50,6 @@ export default function DeductionCalendar() {
     return CATEGORIES.map((category, index) => {
       const row: any = { id: category, index: index + 1, category };
       for (let m = 1; m <= 12; m++) {
-        const monthStr = m.toString().padStart(2, '0');
-        const yearMonth = `${year}年${monthStr}月`;
         
         let status = "";
         
@@ -68,7 +66,6 @@ export default function DeductionCalendar() {
         
         // Find if this category+month really has any deduction tasks in the mock
         if (!status) {
-           const relatedDeductions = tasks.filter(t => !t.parentId && t.name.includes(yearMonth));
            // (In a real system, we look at the tasks' underlying records to see if they match the `category`)
            // We bypass assigning status for other categories here so they remain empty as expected.
         }
@@ -118,9 +115,9 @@ export default function DeductionCalendar() {
   const drawerData = useMemo(() => {
     if (!selectedCell) return { tasks: [], totalViolation: "0.00", totalDeduction: "0.00" };
     const monthStr = selectedCell.month.toString().padStart(2, '0');
-    const yearMonth = `${year}年${monthStr}月`;
     
     // Parent deduction tasks for the period
+    const yearMonth = `${year}年${monthStr}月`;
     const parentTasks = tasks.filter(t => !t.parentId && t.name.includes(yearMonth));
     
     let globalViolation = 0;

@@ -5,18 +5,13 @@ import {
   Filter, 
   Settings, 
   AlertCircle, 
-  Download, 
-  Upload, 
-  Send, 
   RotateCcw, 
   FileText,
   CheckCircle2,
   Clock,
   AlertTriangle,
   FileSearch,
-  MessageSquare,
-  MoreVertical
-} from "lucide-react";
+  MessageSquare} from "lucide-react";
 import { Table, Column } from "@/src/components/ui/Table";
 import { Badge } from "@/src/components/ui/Badge";
 import { Button } from "@/src/components/ui/Button";
@@ -25,7 +20,7 @@ import { Modal } from "@/src/components/ui/Modal";
 import { toast } from "@/src/components/ui/Toast";
 import { mockApi, Task } from "@/src/lib/mockData";
 import { TASK_STATUS, DEPARTMENTS } from "@/src/lib/constants";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { motion, AnimatePresence } from "motion/react";
 import { cn } from "@/src/lib/utils";
 import { downloadZipWithExcel } from "@/src/lib/exportUtils";
@@ -44,9 +39,8 @@ export function TaskFillReport() {
     { key: "dueDate", title: "截止时间", visible: true }
   ]);
 
-  const navigate = useNavigate();
   const { role } = useUser();
-  const [loading, setLoading] = useState(false);
+  
   const [tasks, setTasks] = useState<Task[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -65,7 +59,7 @@ export function TaskFillReport() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const fetchData = () => {
-    setLoading(true);
+    
     // Use either group search or detailed filter
     const name = showDetailedFilter ? filterTaskName : searchText;
     const res = mockApi.getTasks(page, 100, { name }); // Fetch more for local filter
@@ -112,7 +106,7 @@ export function TaskFillReport() {
     const startIndex = (page - 1) * 10;
     setTasks(filteredData.slice(startIndex, startIndex + 10));
     setTotal(filteredData.length);
-    setLoading(false);
+    
   };
 
   useEffect(() => {

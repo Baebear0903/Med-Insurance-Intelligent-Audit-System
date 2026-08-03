@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
-import { ArrowLeft, Search, CheckCircle2, XCircle, Info, Filter, Settings, FileText, X, Image as ImageIcon, Upload, AlertCircle } from "lucide-react";
+import { ArrowLeft, Search, CheckCircle2, Info, Filter, Settings, FileText, X, Image as ImageIcon, Upload } from "lucide-react";
 import { ColumnSettingsModal, ColumnItem } from "@/src/components/ColumnSettingsModal";
-import { Link, useSearchParams, useNavigate } from "react-router-dom";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import { Button } from "@/src/components/ui/Button";
 import { Table } from "@/src/components/ui/Table";
 import { Badge } from "@/src/components/ui/Badge";
@@ -149,7 +149,7 @@ export function Audit() {
   };
 
   const checkAndCompleteTaskStatus = (tId: string, dId?: string | null) => {
-    let tasksList = JSON.parse(localStorage.getItem("tasks_v21") || "null") as Task[];
+    let tasksList = JSON.parse(localStorage.getItem("tasks_v23") || "null") as Task[];
     if (!tasksList) return;
     
     const deptRef = dId && dId !== "all" ? parseInt(dId) : null;
@@ -191,7 +191,7 @@ export function Audit() {
       });
     }
     
-    localStorage.setItem("tasks_v21", JSON.stringify(tasksList));
+    localStorage.setItem("tasks_v23", JSON.stringify(tasksList));
   };
 
   const handleConfirmAudit = () => {
@@ -360,7 +360,6 @@ export function Audit() {
   ] : [];
 
   const filteredRecords = records.filter(r => {
-    const isUnchecked = r.auditStatus === 0 || r.auditStatus === 8;
     if (filterStatus === "填报中") return r.auditStatus === 7;
     if (filterStatus === "待审核") return r.auditStatus === 8;
     if (filterStatus === "已驳回") return r.auditStatus === 2;

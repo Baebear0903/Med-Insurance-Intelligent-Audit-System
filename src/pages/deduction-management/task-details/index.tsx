@@ -10,10 +10,6 @@ import { ColumnSettingsModal, ColumnItem } from "@/src/components/ColumnSettings
 import { useNavigate, useSearchParams } from "react-router-dom";
 
 // --- Helper Functions ---
-const extractMonthFromTaskName = (name: string) => {
-  const match = name.match(/\d{4}年\d{2}月/);
-  return match ? match[0] : "";
-};
 
 interface TaskSummary {
   id: string;
@@ -59,7 +55,7 @@ export default function DeductionTaskDetails() {
   const [data, setData] = useState<any[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
+  const [pageSize] = useState(10);
   const [isLoading, setIsLoading] = useState(false);
   const [taskSummary, setTaskSummary] = useState<TaskSummary | null>(null);
   

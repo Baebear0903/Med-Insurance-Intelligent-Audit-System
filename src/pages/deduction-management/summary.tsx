@@ -12,9 +12,6 @@ const COLORS = [
   '#06b6d4', '#ec4899', '#f43f5e', '#14b8a6', '#f97316', '#64748b'
 ];
 
-interface RecordData {
-  [key: string]: any;
-}
 
 // A helpful mock patcher
 const ensureChartData = (record: any, index: number) => {
@@ -378,28 +375,12 @@ export default function DeductionSummary() {
     const summaryResultArr = Object.values(summaryMap).sort((a,b) => b.totalDeduction - a.totalDeduction);
     
     // Default mocks if data is empty
-    const ensureChartFallback = (data: any[], defaultMocks: any[]) => {
-       if (data.length > 0) return data;
-       return [];
-    };
 
     const targetChartData = summaryResultArr.map(item => ({
       name: item.target,
       value: item.totalDeduction
     }));
     
-    const fallbackTarget = [
-       {name: "儿科（小儿内科）", value: 17017.00},
-       {name: "呼吸与危重症医学科", value: 17017.00},
-       {name: "耳鼻咽喉头颈外科学科", value: 17017.00},
-       {name: "耳鼻喉科", value: 17017.00},
-       {name: "口腔科", value: 17017.00},
-       {name: "全科门诊", value: 17017.00},
-       {name: "疑难肝病与感染性疾病诊疗中心", value: 17017.00},
-       {name: "临床药理与药物临床试验专科", value: 17017.00},
-       {name: "高压氧康复与预脑损伤治疗科", value: 17017.00},
-       {name: "中医科", value: 17017.00},
-    ];
 
     const medCategoryData = processDistributionData(medCategoryMap);
     
@@ -412,31 +393,8 @@ export default function DeductionSummary() {
     const medComProjectData = processDistributionData(medComProjectMap);
     const otherProjectData = processDistributionData(otherProjectMap);
 
-    const fallbackMedCategory = ensureChartFallback([], [
-       {name: "普通门诊", value: 30},
-       {name: "门诊慢特病", value: 30},
-       {name: "普通住院", value: 40},
-    ]);
 
-    const fallbackBusinessCategory = ensureChartFallback([], [
-       {name: "广州医保 (线上)", value: 1048, valueLabel: 1048},
-       {name: "广州医保 (线下)", value: 735, valueLabel: 735},
-       {name: "省内异地 (线上)", value: 580, valueLabel: 580},
-       {name: "省内异地 (线下)", value: 484, valueLabel: 484},
-       {name: "跨省异地 (线上)", value: 300, valueLabel: 300},
-       {name: "跨省异地 (线下)", value: 200, valueLabel: 200},
-       {name: "市直医保", value: 150, valueLabel: 150},
-    ]);
 
-    const fallbackProject = ensureChartFallback([], [
-       {name: "血常规", value: 7000},
-       {name: "血脂", value: 6000},
-       {name: "血压", value: 5000},
-       {name: "CT", value: 4500},
-       {name: "B超", value: 4000},
-       {name: "核磁共振", value: 3500},
-       {name: "尿检", value: 2000},
-    ]);
 
     return {
       summaryResult: summaryResultArr,

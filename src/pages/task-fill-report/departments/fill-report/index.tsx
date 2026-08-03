@@ -2,28 +2,20 @@ import React, { useState, useEffect, useRef } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { 
   ChevronLeft, 
-  Download, 
   Upload, 
   Send, 
-  Plus, 
   Search, 
   Filter,
-  Trash2,
   FileText,
   CheckCircle2,
   AlertCircle,
   Users,
-  Repeat,
-  Bell,
-  History,
   Image as ImageIcon,
   X,
   ChevronDown,
   Settings,
   Sparkles,
-  Clock,
-  ArrowDown
-} from "lucide-react";
+  Clock} from "lucide-react";
 import { ColumnSettingsModal, ColumnItem } from "@/src/components/ColumnSettingsModal";
 import { Button } from "@/src/components/ui/Button";
 import { Table } from "@/src/components/ui/Table";
@@ -31,8 +23,8 @@ import { Badge } from "@/src/components/ui/Badge";
 import { toast } from "@/src/components/ui/Toast";
 import { Modal } from "@/src/components/ui/Modal";
 import { Drawer } from "@/src/components/ui/Drawer";
-import { mockApi, Task, ReviewTemplate, TemplateField } from "@/src/lib/mockData";
-import { TASK_STATUS, AUDIT_STATUS, FILL_STATUS, DEPARTMENTS } from "@/src/lib/constants";
+import { mockApi, Task, ReviewTemplate } from "@/src/lib/mockData";
+import { TASK_STATUS, DEPARTMENTS } from "@/src/lib/constants";
 import { motion, AnimatePresence } from "motion/react";
 import { cn } from "@/src/lib/utils";
 import { downloadZipWithExcel, parseUploadFile } from "@/src/lib/exportUtils";
@@ -237,7 +229,7 @@ export function FillReportDetail() {
         return s || "未开始";
       };
       
-      const getAuditStatusLabel = (ast: number, fst: number) => {
+      const getAuditStatusLabel = (ast: number) => {
         if (ast === 1) return "审核通过";
         if (ast === 9) return "审核变更";
         if (ast === 2) return "已驳回";
@@ -249,7 +241,7 @@ export function FillReportDetail() {
       const baseCols = [
         String(idx + 1),
         getStatusLabel(r.fillStatus),
-        getAuditStatusLabel(r.auditStatus, r.fillStatus)
+        getAuditStatusLabel(r.auditStatus)
       ];
 
       const templateCols = template.fields.map(f => {
@@ -383,43 +375,8 @@ export function FillReportDetail() {
     fetchData();
   };
 
-  const handleNoAppeal = () => {
-    if (selectedIds.length === 0) {
-      toast("请先选择数据", "info");
-      return;
-    }
-    setConfirmModal({
-      show: true,
-      type: "no_appeal",
-      title: "确认不申诉",
-      content: `确认将选中的 ${selectedIds.length} 条数据标记为“不申诉”吗？`
-    });
-  };
 
-  const handleDelete = () => {
-    if (selectedIds.length === 0) {
-      toast("请先选择数据", "info");
-      return;
-    }
-    setConfirmModal({
-      show: true,
-      type: "delete",
-      title: "确认删除",
-      content: `确认删除选中的 ${selectedIds.length} 条明细数据吗？删除后不可恢复。`
-    });
-  };
 
-  const handleOneClickRemind = () => {
-    const unfiledCount = records.filter(r => r.fillStatus === 0).length;
-    const assignedCount = records.filter(r => r.submitter !== "-").length;
-    
-    setConfirmModal({
-      show: true,
-      type: "remind",
-      title: "一键催办",
-      content: `已转派 ${assignedCount} 条数据，尚有 ${records.length - assignedCount} 条数据未转派，是否一键催办填报人进行【未填报】任务的填报？`
-    });
-  };
 
   const executeConfirmAction = () => {
     if (confirmModal.type === "no_appeal") {

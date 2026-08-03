@@ -2,7 +2,6 @@ import React, { useState, useEffect } from "react";
 import { ColumnSettingsModal, ColumnItem } from "@/src/components/ColumnSettingsModal";
 import { Table, Column } from "@/src/components/ui/Table";
 import { Button } from "@/src/components/ui/Button";
-import { Badge } from "@/src/components/ui/Badge";
 import { Pagination } from "@/src/components/ui/Pagination";
 import { toast } from "@/src/components/ui/Toast";
 import { mockApi, Task, ReviewTemplate } from "@/src/lib/mockData";
@@ -39,7 +38,6 @@ export function TaskList() {
   const [isNewTaskModalOpen, setIsNewTaskModalOpen] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [isDispatchModalOpen, setIsDispatchModalOpen] = useState(false);
-  const [isMatchVisitModalOpen, setIsMatchVisitModalOpen] = useState(false);
   const [isEndTaskModalOpen, setIsEndTaskModalOpen] = useState(false);
   const [isResultImportModalOpen, setIsResultImportModalOpen] = useState(false);
 
@@ -209,7 +207,6 @@ export function TaskList() {
     // Actions mapping
     const endTask = { label: "结束任务", onClick: () => { setActiveTask(r); setIsEndTaskModalOpen(true); }, isDanger: true };
     const issueData = { label: "问题数据", isLink: true, linkTo: `/task-management/task-list/issue-data/index?id=${r.id}`, onClick: () => {} };
-    const matchVisit = { label: "匹配就诊", onClick: () => { setActiveTask(r); setIsMatchVisitModalOpen(true); } };
     const resultImport = { label: "结果导入", onClick: () => { setActiveTask(r); setIsResultImportModalOpen(true); } };
     const intelligentFill = { label: "AI填报", onClick: () => { 
       toast("正在进行AI填报", "success"); 
@@ -228,7 +225,7 @@ export function TaskList() {
       case "CREATE": // 待下发
         actions.push(importAction, issueData, dispatchAction, endTask);
         if (!isDispatchTemplate) {
-          actions.push(matchVisit, intelligentFill);
+          actions.push(intelligentFill);
         }
         break;
       case "PUBLISH": // 填报中
@@ -238,7 +235,7 @@ export function TaskList() {
       case "BACK": // 已取消
         actions.push(endTask); 
         if (!isDispatchTemplate) {
-          actions.push(matchVisit, intelligentFill);
+          actions.push(intelligentFill);
         }
         break;
       case "END": // 已结束
@@ -252,7 +249,7 @@ export function TaskList() {
         break;
     }
 
-    const orderIndex = ["导入", "问题数据", "匹配就诊", "AI填报", "下发", "结束任务", "结果导入", "下载数据"];
+    const orderIndex = ["导入", "问题数据", "AI填报", "下发", "结束任务", "结果导入", "下载数据"];
     actions.sort((a, b) => {
       const idxA = orderIndex.indexOf(a.label);
       const idxB = orderIndex.indexOf(b.label);
@@ -323,7 +320,7 @@ export function TaskList() {
       return;
     }
     const tpl = templates.find(t => t.id === newTaskForm.templateId);
-    let tasks = JSON.parse(localStorage.getItem("tasks_v21") || "[]");
+    let tasks = JSON.parse(localStorage.getItem("tasks_v23") || "[]");
     if (!tasks || tasks.length === 0) { tasks = mockApi.getTasks(1, 100).data; } // Load defaults if empty
     
     const newTask: Task = {
@@ -340,7 +337,7 @@ export function TaskList() {
       dueDate: newTaskForm.dueDate
     };
     tasks.push(newTask);
-    localStorage.setItem("tasks_v21", JSON.stringify(tasks));
+    localStorage.setItem("tasks_v23", JSON.stringify(tasks));
     setIsNewTaskModalOpen(false);
     toast("新建任务成功", "success");
     setNewTaskForm({ name: "", dueDate: "", templateId: "", departmentId: "1", desc: "" });
@@ -379,17 +376,12 @@ export function TaskList() {
     fetchData();
   };
 
-  const handleMatchVisit = () => {
-    setIsMatchVisitModalOpen(false);
-    toast("更新成功", "success");
-  };
-
   const handleEndTask = () => {
     if(!activeTask) return;
-    let tasks = JSON.parse(localStorage.getItem("tasks_v21") || "[]");
+    let tasks = JSON.parse(localStorage.getItem("tasks_v23") || "[]");
     const t = tasks.find((t: Task) => t.id === activeTask.id);
     if(t) t.status = "END";
-    localStorage.setItem("tasks_v21", JSON.stringify(tasks));
+    localStorage.setItem("tasks_v23", JSON.stringify(tasks));
     setIsEndTaskModalOpen(false);
     toast("任务已结束", "success");
     fetchData();
@@ -620,15 +612,6 @@ export function TaskList() {
           <ul className="list-disc list-inside text-slate-600 space-y-1">
             <li>登录账号科室 = 下发目标科室名称</li>
           </ul>
-        </div>
-      </Modal>
-
-      {/* 匹配就诊记录 */}
-      <Modal isOpen={isMatchVisitModalOpen} onClose={() => setIsMatchVisitModalOpen(false)} title="匹配就诊记录" width="max-w-sm"
-        footer={<><Button variant="outline" onClick={() => setIsMatchVisitModalOpen(false)}>取消</Button><Button variant="primary" onClick={handleMatchVisit}>确认</Button></>}
-      >
-        <div className="text-sm text-slate-700 py-4 text-center">
-          是否匹配院内就诊记录，并更新任务数据？
         </div>
       </Modal>
 
