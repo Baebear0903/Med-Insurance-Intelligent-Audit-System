@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   ArrowLeft,
   Search,
@@ -34,6 +34,33 @@ import { ColumnSettingsModal, ColumnItem } from "@/src/components/ColumnSettings
 import { useUser } from "@/src/lib/userContext";
 
 // Mock data generator no longer used, removed
+const MOCK_USERS = [
+  {
+    id: "U001",
+    name: "张三",
+    identity: "医保秘书",
+    departments: [
+      { id: "TH_001", name: "心血管内科" }
+    ]
+  },
+  {
+    id: "U002",
+    name: "李四",
+    identity: "医保秘书",
+    departments: [
+      { id: "TH_002", name: "神经外科" },
+      { id: "TH_003", name: "普通外科" }
+    ]
+  },
+  {
+    id: "U003",
+    name: "王五",
+    identity: "医保秘书",
+    departments: [
+      { id: "TD_001", name: "呼吸内科" }
+    ]
+  }
+];
 
 export default function DataQuery() {
   const { role } = useUser();
@@ -214,6 +241,27 @@ export default function DataQuery() {
   const [hiddenColumns, setHiddenColumns] = useState<string[]>([]);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [importFile, setImportFile] = useState<File | null>(null);
+
+  const [isChangeDispatchModalOpen, setIsChangeDispatchModalOpen] = useState(false);
+  const [changeDispatchData, setChangeDispatchData] = useState<{ targetUserId?: string; targetUserName?: string; targetName?: string; targetCode?: string }>({});
+  const [showUserDropdown, setShowUserDropdown] = useState(false);
+  const [showDeptDropdown, setShowDeptDropdown] = useState(false);
+  
+  const userDropdownRef = useRef<HTMLDivElement>(null);
+  const deptDropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (userDropdownRef.current && !userDropdownRef.current.contains(event.target as Node)) {
+        setShowUserDropdown(false);
+      }
+      if (deptDropdownRef.current && !deptDropdownRef.current.contains(event.target as Node)) {
+        setShowDeptDropdown(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   const handleImport = () => {
     if (!importFile) {
@@ -722,12 +770,42 @@ export default function DataQuery() {
         <Drawer
           isOpen={!!selectedRecord}
           onClose={() => setSelectedRecord(null)}
-          title="填报详情对比"
+          title="查看详情"
           width="600px"
           placement="right"
         >
           {selectedRecord && template && (
             <div className="p-6 space-y-8 bg-white h-full overflow-y-auto">
+              {/* 预计下发情况 */}
+              <section>
+                <div className="flex items-center justify-between mb-4 pb-2 border-b border-slate-100">
+                  <h4 className="text-sm font-semibold text-slate-800 flex items-center gap-2 m-0">
+                    <FileText className="w-4 h-4 text-slate-400" />
+                    预计下发情况
+                  </h4>
+                  <Button variant="outline" size="sm" onClick={() => {
+                    setChangeDispatchData({});
+                    setIsChangeDispatchModalOpen(true);
+                  }}>更改</Button>
+                </div>
+                <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 grid grid-cols-2 gap-4">
+                  <div>
+                    <div className="text-xs text-slate-500 mb-1">预计下发科室</div>
+                    <div className="text-[13px] text-slate-700 font-medium">
+                      {selectedRecord.DISPATCH_DEPT || "未匹配科室"}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-slate-500 mb-1">对应医保秘书</div>
+                    <div className="text-[13px] text-slate-700 font-medium">
+                      {selectedRecord.DISPATCH_DEPT ? (
+                        ["心血管内科", "神经外科"].includes(selectedRecord.DISPATCH_DEPT) ? "张三" : "李四, 王五"
+                      ) : "-"}
+                    </div>
+                  </div>
+                </div>
+              </section>
+
               {/* 基本信息 */}
               <section>
                 <h4 className="text-sm font-semibold text-slate-800 mb-4 pb-2 border-b border-slate-100 flex items-center gap-2">
@@ -805,6 +883,137 @@ export default function DataQuery() {
             </div>
           )}
         </Drawer>
+
+        {/* 更改下发情况弹窗 */}
+        <Modal
+          isOpen={isChangeDispatchModalOpen}
+          onClose={() => setIsChangeDispatchModalOpen(false)}
+          title="更改下发情况"
+          width="max-w-[480px]"
+          footer={
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" onClick={() => setIsChangeDispatchModalOpen(false)}>取消</Button>
+              <Button variant="primary" size="sm" onClick={() => {
+                if (!changeDispatchData.targetUserId || !changeDispatchData.targetCode) {
+                  toast("请选择医保秘书并确认所属科室", "error");
+                  return;
+                }
+                const updatedData = [...data];
+                const recordIndex = updatedData.findIndex(r => r.id === selectedRecord.id);
+                if (recordIndex !== -1) {
+                  updatedData[recordIndex] = { ...updatedData[recordIndex], DISPATCH_DEPT: changeDispatchData.targetName };
+                  setData(updatedData);
+                  setSelectedRecord({ ...selectedRecord, DISPATCH_DEPT: changeDispatchData.targetName });
+                }
+                setIsChangeDispatchModalOpen(false);
+                toast("修改成功", "success");
+              }}>保存</Button>
+            </div>
+          }
+        >
+          <div className="py-4 space-y-5 flex flex-col min-h-[350px] mb-[12px]">
+            <div className="space-y-1.5 relative" ref={userDropdownRef}>
+              <label className="text-sm font-medium text-slate-700">选择医保秘书 <span className="text-red-500">*</span></label>
+              <div 
+                className={cn(
+                  "border rounded-md px-3 py-2 text-sm cursor-pointer flex justify-between items-center transition-colors bg-white",
+                  showUserDropdown ? "border-blue-400 ring-2 ring-blue-100" : "border-slate-200 hover:border-blue-400"
+                )}
+                onClick={() => setShowUserDropdown(!showUserDropdown)}
+              >
+                <span className={changeDispatchData.targetUserName ? "text-slate-900" : "text-slate-400"}>
+                  {changeDispatchData.targetUserName ? changeDispatchData.targetUserName : "请选择对应医保秘书"}
+                </span>
+                <ChevronDown className={cn("w-4 h-4 text-slate-400 transition-transform", showUserDropdown && "rotate-180")} />
+              </div>
+              
+              {showUserDropdown && (
+                <div className="absolute top-[68px] left-0 right-0 max-h-48 overflow-y-auto bg-white border border-slate-200 shadow-xl rounded-lg z-[200] p-1.5 pointer-events-auto">
+                  {MOCK_USERS.map(user => (
+                    <div
+                      key={user.id}
+                      className={cn(
+                        "px-3 py-2 text-sm cursor-pointer rounded-md hover:bg-slate-50 transition-colors",
+                        changeDispatchData.targetUserId === user.id ? "bg-blue-50 text-blue-600 font-medium" : "text-slate-700"
+                      )}
+                      onClick={() => {
+                        const newDept = user.departments.length === 1 ? user.departments[0] : null;
+                        setChangeDispatchData({ 
+                          ...changeDispatchData, 
+                          targetUserId: user.id,
+                          targetUserName: user.name,
+                          targetName: newDept ? newDept.name : "",
+                          targetCode: newDept ? newDept.id : ""
+                        });
+                        setShowUserDropdown(false);
+                      }}
+                    >
+                      {user.name}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {(() => {
+              const selectedUserObj = MOCK_USERS.find(u => u.id === changeDispatchData.targetUserId);
+              const availableDepts = selectedUserObj ? selectedUserObj.departments : [];
+              return (
+                <div className="space-y-1.5 relative" ref={deptDropdownRef}>
+                  <label className="text-sm font-medium text-slate-700">所属科室 <span className="text-red-500">*</span></label>
+                  <div 
+                    className={cn(
+                      "border rounded-md px-3 py-2 text-sm flex justify-between items-center transition-colors",
+                      !changeDispatchData.targetUserId ? "bg-slate-50 border-slate-200 cursor-not-allowed opacity-70" : "cursor-pointer bg-white",
+                      showDeptDropdown ? "border-blue-400 ring-2 ring-blue-100" : "border-slate-200 hover:border-blue-400"
+                    )}
+                    onClick={() => {
+                      if (changeDispatchData.targetUserId && availableDepts.length > 1) {
+                        setShowDeptDropdown(!showDeptDropdown);
+                      }
+                    }}
+                  >
+                    <span className={changeDispatchData.targetName ? "text-slate-900" : "text-slate-400"}>
+                      {changeDispatchData.targetName || (availableDepts.length === 0 ? "暂无科室" : "请选择所属科室")}
+                    </span>
+                    {availableDepts.length > 1 && (
+                       <ChevronDown className={cn("w-4 h-4 text-slate-400 transition-transform", showDeptDropdown && "rotate-180")} />
+                    )}
+                  </div>
+                  
+                  {showDeptDropdown && availableDepts.length > 1 && (
+                    <div className="absolute top-[68px] left-0 right-0 max-h-48 overflow-y-auto bg-white border border-slate-200 shadow-xl rounded-lg z-[200] p-1.5 pointer-events-auto">
+                      {availableDepts.map(dept => (
+                        <div
+                          key={dept.id}
+                          className={cn(
+                            "px-3 py-2 text-sm cursor-pointer rounded-md hover:bg-slate-50 transition-colors",
+                            changeDispatchData.targetCode === dept.id ? "bg-blue-50 text-blue-600 font-medium" : "text-slate-700"
+                          )}
+                          onClick={() => {
+                            setChangeDispatchData({ 
+                              ...changeDispatchData, 
+                              targetName: dept.name,
+                              targetCode: dept.id
+                            });
+                            setShowDeptDropdown(false);
+                          }}
+                        >
+                          {dept.name} <span className="text-slate-400 text-xs ml-1">({dept.id})</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  
+                  {changeDispatchData.targetUserId && availableDepts.length === 1 && (
+                    <p className="text-xs text-slate-500 mt-1">该医保秘书仅关联一个科室，已自动选择</p>
+                  )}
+                </div>
+              );
+            })()}
+          </div>
+        </Modal>
+
       </div>
     </div>
   );

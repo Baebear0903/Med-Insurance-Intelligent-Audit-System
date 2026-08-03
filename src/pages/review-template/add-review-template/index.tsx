@@ -577,10 +577,12 @@ export function AddReviewTemplate() {
                           <ArrowDown className="w-4 h-4" />
                         </button>
                       </div>
-                      {!isUndeletable && (
+                      {!isUndeletable ? (
                         <button onClick={() => handleAction(idx, "delete")} className="p-1.5 ml-1 text-red-500 hover:text-red-700 hover:bg-red-50 rounded transition-colors" title="删除">
                           <Trash2 className="w-4 h-4" />
                         </button>
+                      ) : (
+                        <div className="w-[28px] h-[28px] ml-1"></div>
                       )}
                     </div>
                   </div>

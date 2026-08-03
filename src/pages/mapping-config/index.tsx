@@ -2,115 +2,80 @@ import React, { useState, useEffect, useRef } from "react";
 import { Table } from "@/src/components/ui/Table";
 import { Button } from "@/src/components/ui/Button";
 import { Modal } from "@/src/components/ui/Modal";
-import { Plus, Search, ChevronRight, ChevronDown } from "lucide-react";
+import { Plus, Search, ChevronDown } from "lucide-react";
 import { cn } from "@/src/lib/utils";
 
 // Mock Data Type
 interface MappingRule {
   id: string;
   sourceName: string;
+  targetUserId?: string;
+  targetUserName?: string;
   targetName: string;
   targetCode: string;
   createTime: string;
 }
 
-const TREE_DATA = [
+const MOCK_USERS = [
   {
-    id: "ALL",
-    name: "全院",
-    children: [
-      {
-        id: "TH",
-        name: "天河院区",
-        children: [
-          { id: "TH_001", name: "心血管内科" },
-          { id: "TH_002", name: "神经外科" },
-          { id: "TH_003", name: "普通外科" },
-          { id: "TH_004", name: "骨科" },
-        ]
-      },
-      {
-        id: "TD",
-        name: "同德院区",
-        children: [
-          { id: "TD_001", name: "呼吸内科" },
-          { id: "TD_002", name: "消化内科" },
-          { id: "TD_003", name: "儿科" },
-        ]
-      },
-      {
-        id: "ZJ",
-        name: "珠玑院区",
-        children: [
-          { id: "ZJ_001", name: "妇产科" },
-          { id: "ZJ_002", name: "急诊科" },
-          { id: "ZJ_003", name: "重症医学科(ICU)" },
-        ]
-      }
+    id: "U001",
+    name: "张三",
+    identity: "医保秘书",
+    departments: [
+      { id: "TH_001", name: "心血管内科" }
+    ]
+  },
+  {
+    id: "U002",
+    name: "李四",
+    identity: "医保秘书",
+    departments: [
+      { id: "TH_002", name: "神经外科" },
+      { id: "TH_003", name: "普通外科" }
+    ]
+  },
+  {
+    id: "U003",
+    name: "王五",
+    identity: "医保秘书",
+    departments: [
+      { id: "TD_001", name: "呼吸内科" }
     ]
   }
 ];
-
-const TreeNode = ({ node, level, onSelect, selectedId }: any) => {
-  const [expanded, setExpanded] = useState(true);
-  const isLeaf = !node.children || node.children.length === 0;
-
-  return (
-    <div className="w-full text-sm">
-      <div 
-        className={cn(
-          "flex items-center py-1.5 px-2 hover:bg-slate-50 cursor-pointer rounded-md transition-colors",
-          selectedId === node.id ? "bg-blue-50 text-blue-600" : "text-slate-700"
-        )}
-        onClick={() => isLeaf ? onSelect(node) : setExpanded(!expanded)}
-        style={{ paddingLeft: `${level * 16 + 8}px` }}
-      >
-        {!isLeaf && (
-          <span className="mr-1 text-slate-400">
-            {expanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
-          </span>
-        )}
-        {isLeaf && <span className="w-5" />}
-        <span className={isLeaf ? "" : "font-medium"}>{node.name}</span>
-        {isLeaf && <span className="ml-2 text-slate-400 text-xs text-opacity-80">({node.id})</span>}
-      </div>
-      {expanded && !isLeaf && (
-        <div className="flex flex-col">
-          {node.children.map((child: any) => (
-            <TreeNode key={child.id} node={child} level={level + 1} onSelect={onSelect} selectedId={selectedId} />
-          ))}
-        </div>
-      )}
-    </div>
-  );
-};
 
 export function MappingConfig() {
   const [rules, setRules] = useState<MappingRule[]>([]);
   const [searchKw, setSearchKw] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
   const [formData, setFormData] = useState<Partial<MappingRule>>({});
-  const [showDeptTree, setShowDeptTree] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
+  const [showUserDropdown, setShowUserDropdown] = useState(false);
+  const [showDeptDropdown, setShowDeptDropdown] = useState(false);
+  
+  const userDropdownRef = useRef<HTMLDivElement>(null);
+  const deptDropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     try {
-      const stored = localStorage.getItem("mapping_rules");
+      const stored = localStorage.getItem("mapping_rules_v2");
       if (stored) {
         setRules(JSON.parse(stored));
       } else {
         const initData = [
-          { id: "1", sourceName: "心内", targetName: "心血管内科", targetCode: "TH_001", createTime: "2024-05-15 10:00:00" },
-          { id: "2", sourceName: "神外", targetName: "神经外科", targetCode: "TH_002", createTime: "2024-05-15 10:05:00" },
+          { id: "1", sourceName: "心内", targetUserId: "U001", targetUserName: "张三", targetName: "心血管内科", targetCode: "TH_001", createTime: "2024-05-15 10:00:00" },
+          { id: "2", sourceName: "神外", targetUserId: "U002", targetUserName: "李四", targetName: "神经外科", targetCode: "TH_002", createTime: "2024-05-15 10:05:00" },
         ];
         setRules(initData);
-        localStorage.setItem("mapping_rules", JSON.stringify(initData));
+        localStorage.setItem("mapping_rules_v2", JSON.stringify(initData));
       }
     } catch (e) {}
     
     const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setShowDeptTree(false);
+      if (userDropdownRef.current && !userDropdownRef.current.contains(event.target as Node)) {
+        setShowUserDropdown(false);
+      }
+      if (deptDropdownRef.current && !deptDropdownRef.current.contains(event.target as Node)) {
+        setShowDeptDropdown(false);
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
@@ -119,19 +84,21 @@ export function MappingConfig() {
 
   const saveRules = (newRules: MappingRule[]) => {
     setRules(newRules);
-    localStorage.setItem("mapping_rules", JSON.stringify(newRules));
+    localStorage.setItem("mapping_rules_v2", JSON.stringify(newRules));
   };
 
   const handleAdd = () => {
     setFormData({});
     setModalOpen(true);
-    setShowDeptTree(false);
+    setShowUserDropdown(false);
+    setShowDeptDropdown(false);
   };
 
   const handleEdit = (rule: MappingRule) => {
     setFormData({ ...rule });
     setModalOpen(true);
-    setShowDeptTree(false);
+    setShowUserDropdown(false);
+    setShowDeptDropdown(false);
   };
 
   const handleDelete = (id: string) => {
@@ -141,8 +108,8 @@ export function MappingConfig() {
   };
 
   const handleSave = () => {
-    if (!formData.sourceName || !formData.targetName) {
-      alert("请填写源科室名称并选择标准科室");
+    if (!formData.sourceName || !formData.targetUserId || !formData.targetCode) {
+      alert("请填写源科室名称，选择医保秘书并确认所属科室");
       return;
     }
     
@@ -159,14 +126,18 @@ export function MappingConfig() {
   };
 
   const filteredRules = rules.filter(r => 
-    r.sourceName.includes(searchKw) || r.targetName.includes(searchKw) || r.targetCode.includes(searchKw)
+    r.sourceName.includes(searchKw) || 
+    r.targetName.includes(searchKw) || 
+    r.targetCode.includes(searchKw) ||
+    (r.targetUserName && r.targetUserName.includes(searchKw))
   );
 
   const columns = [
     { key: "index", title: "序号", width: "80px", render: (_: any, idx: number) => idx + 1 },
     { key: "sourceName", title: "医保审核数据科室名称", minWidth: "200px" },
-    { key: "targetName", title: "院内标准科室名称", minWidth: "200px" },
-    { key: "targetCode", title: "科室编码", minWidth: "150px" },
+    { key: "targetUserName", title: "医保秘书", minWidth: "120px" },
+    { key: "targetName", title: "院内标准科室名称", minWidth: "180px" },
+    { key: "targetCode", title: "科室编码", minWidth: "120px" },
     { key: "createTime", title: "创建时间", minWidth: "180px" },
     { 
       key: "action", 
@@ -186,6 +157,9 @@ export function MappingConfig() {
     }
   ];
 
+  const selectedUserObj = MOCK_USERS.find(u => u.id === formData.targetUserId);
+  const availableDepts = selectedUserObj ? selectedUserObj.departments : [];
+
   return (
     <div className="p-6 h-full flex flex-col bg-slate-50">
       <div className="border border-slate-200 rounded-xl bg-white shadow-sm flex flex-col flex-1 overflow-hidden">
@@ -196,8 +170,8 @@ export function MappingConfig() {
             <div className="relative">
               <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
               <input
-                className="pl-9 w-64 h-9 bg-slate-50/50 border border-slate-200 rounded-md outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 text-sm"
-                placeholder="搜索科室名称或编码..."
+                className="pl-9 w-72 h-9 bg-slate-50/50 border border-slate-200 rounded-md outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 text-sm"
+                placeholder="搜索科室、编码或医保秘书..."
                 value={searchKw}
                 onChange={e => setSearchKw(e.target.value)}
               />
@@ -222,7 +196,7 @@ export function MappingConfig() {
         title={formData.id ? "编辑映射关系" : "新增映射关系"}
         width="max-w-[480px]"
       >
-        <div className="py-4 space-y-5 flex flex-col min-h-[300px] mb-[12px]">
+        <div className="py-4 space-y-5 flex flex-col min-h-[350px] mb-[12px]">
           <div className="space-y-1.5">
             <label className="text-sm font-medium text-slate-700">医保审核数据科室名称 <span className="text-red-500">*</span></label>
             <input 
@@ -233,45 +207,106 @@ export function MappingConfig() {
             />
           </div>
           
-          <div className="space-y-1.5 relative" ref={dropdownRef}>
-            <label className="text-sm font-medium text-slate-700">标准科室名称 <span className="text-red-500">*</span></label>
+          <div className="space-y-1.5 relative" ref={userDropdownRef}>
+            <label className="text-sm font-medium text-slate-700">选择医保秘书 <span className="text-red-500">*</span></label>
             <div 
               className={cn(
-                "border rounded-md px-3 py-2 text-sm cursor-pointer flex justify-between items-center transition-colors",
-                showDeptTree ? "border-blue-400 ring-2 ring-blue-100" : "border-slate-200 hover:border-blue-400"
+                "border rounded-md px-3 py-2 text-sm cursor-pointer flex justify-between items-center transition-colors bg-white",
+                showUserDropdown ? "border-blue-400 ring-2 ring-blue-100" : "border-slate-200 hover:border-blue-400"
               )}
-              onClick={() => setShowDeptTree(!showDeptTree)}
+              onClick={() => setShowUserDropdown(!showUserDropdown)}
             >
-              <span className={formData.targetName ? "text-slate-900" : "text-slate-400"}>
-                {formData.targetName || "请选择院内标准科室"}
+              <span className={formData.targetUserName ? "text-slate-900" : "text-slate-400"}>
+                {formData.targetUserName ? formData.targetUserName : "请选择对应医保秘书"}
               </span>
-              <ChevronDown className={cn("w-4 h-4 text-slate-400 transition-transform", showDeptTree && "rotate-180")} />
+              <ChevronDown className={cn("w-4 h-4 text-slate-400 transition-transform", showUserDropdown && "rotate-180")} />
             </div>
             
-            {showDeptTree && (
-              <div className="absolute top-[68px] left-0 right-0 max-h-60 overflow-y-auto bg-white border border-slate-200 shadow-xl rounded-lg z-[200] p-1.5 pointer-events-auto">
-                {TREE_DATA.map(node => (
-                  <TreeNode 
-                    key={node.id} 
-                    node={node} 
-                    level={0} 
-                    selectedId={formData.targetCode}
-                    onSelect={(node: any) => {
-                       setFormData({ ...formData, targetName: node.name, targetCode: node.id });
-                       setShowDeptTree(false);
-                    }} 
-                  />
+            {showUserDropdown && (
+              <div className="absolute top-[68px] left-0 right-0 max-h-48 overflow-y-auto bg-white border border-slate-200 shadow-xl rounded-lg z-[200] p-1.5 pointer-events-auto">
+                {MOCK_USERS.map(user => (
+                  <div
+                    key={user.id}
+                    className={cn(
+                      "px-3 py-2 text-sm cursor-pointer rounded-md hover:bg-slate-50 transition-colors",
+                      formData.targetUserId === user.id ? "bg-blue-50 text-blue-600 font-medium" : "text-slate-700"
+                    )}
+                    onClick={() => {
+                      const newDept = user.departments.length === 1 ? user.departments[0] : null;
+                      setFormData({ 
+                        ...formData, 
+                        targetUserId: user.id,
+                        targetUserName: user.name,
+                        targetName: newDept ? newDept.name : "",
+                        targetCode: newDept ? newDept.id : ""
+                      });
+                      setShowUserDropdown(false);
+                    }}
+                  >
+                    {user.name}
+                  </div>
                 ))}
               </div>
             )}
           </div>
+
+          <div className="space-y-1.5 relative" ref={deptDropdownRef}>
+            <label className="text-sm font-medium text-slate-700">所属科室 <span className="text-red-500">*</span></label>
+            <div 
+              className={cn(
+                "border rounded-md px-3 py-2 text-sm flex justify-between items-center transition-colors",
+                !formData.targetUserId ? "bg-slate-50 border-slate-200 cursor-not-allowed opacity-70" : "cursor-pointer bg-white",
+                showDeptDropdown ? "border-blue-400 ring-2 ring-blue-100" : "border-slate-200 hover:border-blue-400"
+              )}
+              onClick={() => {
+                if (formData.targetUserId && availableDepts.length > 1) {
+                  setShowDeptDropdown(!showDeptDropdown);
+                }
+              }}
+            >
+              <span className={formData.targetName ? "text-slate-900" : "text-slate-400"}>
+                {formData.targetName || (availableDepts.length === 0 ? "暂无科室" : "请选择所属科室")}
+              </span>
+              {availableDepts.length > 1 && (
+                 <ChevronDown className={cn("w-4 h-4 text-slate-400 transition-transform", showDeptDropdown && "rotate-180")} />
+              )}
+            </div>
+            
+            {showDeptDropdown && availableDepts.length > 1 && (
+              <div className="absolute top-[68px] left-0 right-0 max-h-48 overflow-y-auto bg-white border border-slate-200 shadow-xl rounded-lg z-[200] p-1.5 pointer-events-auto">
+                {availableDepts.map(dept => (
+                  <div
+                    key={dept.id}
+                    className={cn(
+                      "px-3 py-2 text-sm cursor-pointer rounded-md hover:bg-slate-50 transition-colors",
+                      formData.targetCode === dept.id ? "bg-blue-50 text-blue-600 font-medium" : "text-slate-700"
+                    )}
+                    onClick={() => {
+                      setFormData({ 
+                        ...formData, 
+                        targetName: dept.name,
+                        targetCode: dept.id
+                      });
+                      setShowDeptDropdown(false);
+                    }}
+                  >
+                    {dept.name} <span className="text-slate-400 text-xs ml-1">({dept.id})</span>
+                  </div>
+                ))}
+              </div>
+            )}
+            
+            {formData.targetUserId && availableDepts.length === 1 && (
+              <p className="text-xs text-slate-500 mt-1">该医保秘书仅关联一个科室，已自动选择</p>
+            )}
+          </div>
           
-          <div className="space-y-1.5 pb-20">
-            <label className="text-sm font-medium text-slate-700 truncate">标准科室编码</label>
+          <div className="space-y-1.5 pb-8">
+            <label className="text-sm font-medium text-slate-700 truncate">科室编码</label>
             <input 
               readOnly
               className="w-full px-3 py-2 border border-slate-200 rounded-md outline-none bg-slate-50 text-slate-500 pointer-events-none text-sm"
-              placeholder="选择标准科室后自动带出"
+              placeholder="选择科室后自动带出"
               value={formData.targetCode || ""}
             />
           </div>
