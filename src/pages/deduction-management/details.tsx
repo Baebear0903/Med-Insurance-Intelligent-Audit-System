@@ -20,11 +20,9 @@ interface TaskSummary {
   isNew: boolean;
 }
 
-const BUSINESS_CATEGORIES = [
-  "广州医保（线上）", "广州医保（线下）", "省内异地（线上）", "省内异地（线下）",
-  "跨省异地（线上）", "跨省异地（线下）", "市直医保", "省直医保",
-  "荔湾公医", "白云公医", "海珠公医", "从化公医", "花都公医", "黄埔公医"
-];
+import { getInsuranceCategories } from "@/src/lib/insuranceCategoryStore";
+
+const BUSINESS_CATEGORIES = getInsuranceCategories().filter(c => c.enabled).map(c => c.categoryName);
 
 // --- Helper Functions ---
 

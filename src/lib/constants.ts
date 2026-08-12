@@ -96,7 +96,7 @@ export const visibleMenuItems = [
     children: [
       {
         path: "/review-template/index",
-        label: "模板配置",
+        label: "审核模板配置",
         roles: ["ADMIN"],
       },
       {
@@ -106,7 +106,12 @@ export const visibleMenuItems = [
       },
       {
         path: "/mapping-config/index",
-        label: "映射配置",
+        label: "科室映射配置",
+        roles: ["ADMIN"],
+      },
+      {
+        path: "/insurance-category-config/index",
+        label: "业务分类配置",
         roles: ["ADMIN"],
       },
     ],

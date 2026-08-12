@@ -13,8 +13,10 @@ const COLORS = [
 ];
 
 
+import { getInsuranceCategories } from "@/src/lib/insuranceCategoryStore";
+
 // A helpful mock patcher
-const ensureChartData = (record: any, index: number) => {
+const ensureChartData = (record: any, index: number, configCategories: any[]) => {
   const patched = { ...record };
   if (!patched._DEDUCTION_MED_COM) {
     patched._DEDUCTION_MED_COM = (Number(patched.VIOLATION_AMOUNT) || 0) * 0.6;
@@ -26,18 +28,18 @@ const ensureChartData = (record: any, index: number) => {
     const cats = ["普通门诊", "门诊慢特病", "普通住院"];
     patched.MEDICAL_CATEGORY = cats[index % 3];
   }
-  if (!patched._PERSON_CATEGORY) {
-    const cats = ["广州医保", "省内异地", "跨省异地", "市直医保", "省直医保"];
-    patched._PERSON_CATEGORY = cats[index % cats.length];
+  
+  const enabledCategories = configCategories.filter(c => c.enabled);
+
+  if (!patched._PERSON_CATEGORY && enabledCategories.length > 0) {
+    const personCategories = Array.from(new Set(enabledCategories.map(c => c.personnelCategory)));
+    patched._PERSON_CATEGORY = personCategories[index % personCategories.length];
   }
-  if (!patched._IS_ONLINE) {
+  if (!patched._IS_ONLINE && enabledCategories.length > 0) {
     const pc = patched._PERSON_CATEGORY;
-    if (["广州医保", "省内异地", "跨省异地"].includes(pc)) {
-      patched._IS_ONLINE = index % 2 === 0 ? "线上" : "线下";
-    } else if (pc === "市直医保") {
-      patched._IS_ONLINE = "线下";
-    } else {
-      patched._IS_ONLINE = "线上";
+    const matchingConfigs = enabledCategories.filter(c => c.personnelCategory === pc);
+    if (matchingConfigs.length > 0) {
+      patched._IS_ONLINE = matchingConfigs[index % matchingConfigs.length].onlineOffline || "";
     }
   }
   if (!patched.PROJECT_NAME) {
@@ -219,7 +221,8 @@ export default function DeductionSummary() {
   const [isOnline, setIsOnline] = useState("");
 
   const [targets, setTargets] = useState<string[]>([]);
-  const personCategoriesList = ["广州医保", "省内异地", "跨省异地", "省直医保", "市直医保"];
+  const configCategories = useMemo(() => getInsuranceCategories().filter(c => c.enabled), []);
+  const personCategoriesList = Array.from(new Set(configCategories.map(c => c.personnelCategory)));
   const [personCategories] = useState<string[]>(personCategoriesList);
   const [isOnlineOptions, setIsOnlineOptions] = useState<{value: string, label: string}[]>([
     {value: "All", label: "线上/线下"},
@@ -234,25 +237,29 @@ export default function DeductionSummary() {
             {value: "线上", label: "线上"},
             {value: "线下", label: "线下"}
         ]);
-    } else if (["广州医保", "省内异地", "跨省异地"].includes(personCategory)) {
-        setIsOnlineOptions([
-            {value: "All", label: "全部"},
-            {value: "线上", label: "线上"},
-            {value: "线下", label: "线下"}
-        ]);
-        if (isOnline !== "All" && isOnline !== "线上" && isOnline !== "线下") setIsOnline("All");
-    } else if (personCategory === "省直医保") {
-        setIsOnlineOptions([
-            {value: "线上", label: "线上"}
-        ]);
-        setIsOnline("线上");
     } else {
-        setIsOnlineOptions([
-            {value: "线下", label: "线下"}
-        ]);
-        setIsOnline("线下");
+        const matchingConfigs = configCategories.filter(c => c.personnelCategory === personCategory);
+        const uniqueOnlines = Array.from(new Set(matchingConfigs.map(c => c.onlineOffline).filter(Boolean)));
+        
+        if (uniqueOnlines.length > 1) {
+          setIsOnlineOptions([
+              {value: "All", label: "全部"},
+              ...uniqueOnlines.map(val => ({value: val, label: val}))
+          ]);
+          if (isOnline !== "All" && !uniqueOnlines.includes(isOnline as any)) setIsOnline("All");
+        } else if (uniqueOnlines.length === 1) {
+          setIsOnlineOptions([
+              {value: uniqueOnlines[0], label: uniqueOnlines[0]}
+          ]);
+          setIsOnline(uniqueOnlines[0]);
+        } else {
+          setIsOnlineOptions([
+            {value: "All", label: "全部"}
+          ]);
+          setIsOnline("All");
+        }
     }
-  }, [personCategory]);
+  }, [personCategory, configCategories]);
 
   useEffect(() => {
     loadData();
@@ -277,7 +284,7 @@ export default function DeductionSummary() {
         .map(d => ({ data: d.data, taskData: (t: any) => t.id === d.taskId }))
         .filter(d => d.data && (d.data.IS_APPEAL === "否" || d.data._PROJECT_CLASS))
         .map(d => d.data)
-        .map((record, i) => ensureChartData(record, i));
+        .map((record, i) => ensureChartData(record, i, configCategories));
 
       setData(recordsToDeduct);
       

@@ -6,14 +6,10 @@ import { toast } from "@/src/components/ui/Toast";
 import { Drawer } from "@/src/components/ui/Drawer";
 import { mockApi, ReviewTemplate, TemplateField } from "@/src/lib/mockData";
 import { cn } from "@/src/lib/utils";
+import { getInsuranceCategories } from "@/src/lib/insuranceCategoryStore";
 import { pinyin } from "pinyin-pro";
 
-
-const BUSINESS_CATEGORIES = [
-  "广州医保（线上）", "广州医保（线下）", "省内异地（线上）", "省内异地（线下）",
-  "跨省异地（线上）", "跨省异地（线下）", "市直医保", "省直医保",
-  "荔湾公医", "白云公医", "海珠公医", "从化公医", "花都公医", "黄埔公医"
-];
+const BUSINESS_CATEGORIES = getInsuranceCategories().filter(c => c.enabled).map(c => c.categoryName);
 
 const STANDARD_FIELDS = [
   { name: "ORDER_DEPT_CODE", comment: "开单科室编码", remark: "标准开单科室编码" },

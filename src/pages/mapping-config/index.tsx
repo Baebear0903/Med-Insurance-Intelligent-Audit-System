@@ -166,7 +166,7 @@ export function MappingConfig() {
         {/* Header toolbar */}
         <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between bg-white shrink-0">
           <div className="flex items-center gap-4">
-            <h2 className="text-lg font-semibold text-slate-800">映射配置</h2>
+            <h2 className="text-lg font-semibold text-slate-800">科室映射配置</h2>
             <div className="relative">
               <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
               <input

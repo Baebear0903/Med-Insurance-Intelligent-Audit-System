@@ -11,6 +11,7 @@ import { ReviewTemplate } from "@/src/pages/review-template/index";
 import { IntelligentFill } from "@/src/pages/intelligent-fill/index";
 import { OperateIns } from "@/src/pages/operateIns/index";
 import { MappingConfig } from "@/src/pages/mapping-config/index";
+import { InsuranceCategoryConfig } from "@/src/pages/insurance-category-config/index";
 import DeductionManagement from "@/src/pages/deduction-management/index";
 
 // Hidden
@@ -39,6 +40,7 @@ export default function App() {
             <Route path="review-template/index" element={<ReviewTemplate />} />
             <Route path="intelligent-fill/index" element={<IntelligentFill />} />
             <Route path="mapping-config/index" element={<MappingConfig />} />
+            <Route path="insurance-category-config/index" element={<InsuranceCategoryConfig />} />
             <Route path="operateIns/index" element={<OperateIns />} />
             <Route path="deduction-management/index" element={<DeductionManagement />} />
 

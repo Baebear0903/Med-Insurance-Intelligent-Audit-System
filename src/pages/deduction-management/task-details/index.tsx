@@ -8,6 +8,7 @@ import { toast } from "@/src/components/ui/Toast";
 import { exportToExcel } from "@/src/lib/exportUtils";
 import { ColumnSettingsModal, ColumnItem } from "@/src/components/ColumnSettingsModal";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { getInsuranceCategories } from "@/src/lib/insuranceCategoryStore";
 
 // --- Helper Functions ---
 
@@ -75,24 +76,43 @@ export default function DeductionTaskDetails() {
       const allTasks = mockApi.getTasks(1, 1000).data;
       const t = allTasks.find(t => t.id === taskId);
       
-      const details = mockApi.getTaskDetailRecords(taskId, false);
-      const validDetails = details.filter(d => d.data && d.data.IS_APPEAL === "否").map(d => ({...d.data, id: d.id})).sort((a,b) => (a.ADMIT_DATE > b.ADMIT_DATE ? -1 : 1));
+      let validDetails = mockApi.getTaskDetailRecords(taskId, false)
+        .filter(d => d.data && d.data.IS_APPEAL === "否")
+        .map(d => ({...d.data, id: d.id}))
+        .sort((a,b) => (a.ADMIT_DATE > b.ADMIT_DATE ? -1 : 1));
       
       if (t) {
         const allTemplates = mockApi.getTemplates();
         const template = allTemplates.find(tpl => tpl.id === t.templateId);
+        const bc = template?.businessCategory || "广州医保（线下）";
+        
+        const configs = getInsuranceCategories();
+        const matchedConfig = configs.find(c => c.categoryName === bc);
+        const personCategory = matchedConfig ? matchedConfig.personnelCategory : "广州医保";
+        const onlineOffline = matchedConfig ? matchedConfig.onlineOffline : "线下";
         
         let sumViolation = 0;
         let sumDeduction = 0;
-        validDetails.forEach(d => {
-          sumViolation += Number(d.VIOLATION_AMOUNT) || 0;
-          sumDeduction += (Number(d._DEDUCTION_MED_COM) || 0) + (Number(d._DEDUCTION_OTHER) || 0);
+        validDetails = validDetails.map(d => {
+           const dMedCom = d._DEDUCTION_MED_COM || (Number(d.VIOLATION_AMOUNT) || 0) * 0.6;
+           const dOther = d._DEDUCTION_OTHER || (Number(d.VIOLATION_AMOUNT) || 0) * 0.4;
+           sumViolation += Number(d.VIOLATION_AMOUNT) || 0;
+           sumDeduction += (Number(dMedCom) || 0) + (Number(dOther) || 0);
+           
+           return {
+             ...d,
+             _PERSON_CATEGORY: d._PERSON_CATEGORY || personCategory,
+             _IS_ONLINE: d._IS_ONLINE || onlineOffline,
+             _DEDUCTION_MED_COM: dMedCom,
+             _DEDUCTION_OTHER: dOther,
+             _DEDUCTION_AMOUNT: d._DEDUCTION_AMOUNT || (Number(dMedCom) + Number(dOther))
+           };
         });
         
         setTaskSummary({
           id: t.id,
           name: t.name,
-          businessCategory: template?.businessCategory || "广州医保（线下）",
+          businessCategory: bc,
           deductibleCount: validDetails.length,
           totalViolationAmount: sumViolation,
           totalDeductionAmount: sumDeduction,
