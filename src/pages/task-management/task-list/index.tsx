@@ -42,7 +42,7 @@ export function TaskList() {
   const [isResultImportModalOpen, setIsResultImportModalOpen] = useState(false);
 
   // New task form state
-  const [newTaskForm, setNewTaskForm] = useState({ name: "", dueDate: "", templateId: "", departmentId: "1", desc: "" });
+  const [newTaskForm, setNewTaskForm] = useState({ name: "", dueDate: "", templateId: "", departmentId: "1", desc: "", belongingMonth: "" });
   const [importFile, setImportFile] = useState<File | null>(null);
 
   const inputClasses = "h-9 px-3 border border-slate-300 rounded focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-all placeholder:text-slate-400 text-sm w-full bg-white";
@@ -315,11 +315,13 @@ export function TaskList() {
 
   // Logic handlers
   const handleCreateTask = () => {
-    if (!newTaskForm.name || !newTaskForm.dueDate || !newTaskForm.templateId || !newTaskForm.departmentId) {
+    const tpl = templates.find(t => t.id === newTaskForm.templateId);
+    const isDeduction = tpl?.templateType === "医保明细下发" && tpl?.dispatchRemark === "院内扣减公示";
+
+    if (!newTaskForm.name || !newTaskForm.dueDate || !newTaskForm.templateId || !newTaskForm.departmentId || (isDeduction && !newTaskForm.belongingMonth)) {
       toast("请填写带*号的必填项", "error");
       return;
     }
-    const tpl = templates.find(t => t.id === newTaskForm.templateId);
     let tasks = JSON.parse(localStorage.getItem("tasks_v23") || "[]");
     if (!tasks || tasks.length === 0) { tasks = mockApi.getTasks(1, 100).data; } // Load defaults if empty
     
@@ -334,13 +336,14 @@ export function TaskList() {
       creator: "当前用户",
       createTime: new Date().toISOString().slice(0, 16).replace("T", " "),
       updateTime: new Date().toISOString().slice(0, 16).replace("T", " "),
-      dueDate: newTaskForm.dueDate
+      dueDate: newTaskForm.dueDate,
+      belongingMonth: isDeduction ? newTaskForm.belongingMonth : undefined
     };
     tasks.push(newTask);
     localStorage.setItem("tasks_v23", JSON.stringify(tasks));
     setIsNewTaskModalOpen(false);
     toast("新建任务成功", "success");
-    setNewTaskForm({ name: "", dueDate: "", templateId: "", departmentId: "1", desc: "" });
+    setNewTaskForm({ name: "", dueDate: "", templateId: "", departmentId: "1", desc: "", belongingMonth: "" });
     fetchData();
   };
 
@@ -563,6 +566,14 @@ export function TaskList() {
               {templates.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
             </select>
           </div>
+          {templates.find(t => t.id === newTaskForm.templateId)?.templateType === "医保明细下发" && 
+           templates.find(t => t.id === newTaskForm.templateId)?.dispatchRemark === "院内扣减公示" && (
+            <div className="grid grid-cols-[100px_1fr] items-center gap-2">
+              <label className="text-right font-medium text-slate-700"><span className="text-red-500 mr-1">*</span>所属年月</label>
+              <input type="month" className={inputClasses} 
+                value={newTaskForm.belongingMonth} onChange={e => setNewTaskForm({...newTaskForm, belongingMonth: e.target.value})} />
+            </div>
+          )}
           <div className="grid grid-cols-[100px_1fr] items-center gap-2">
             <label className="text-right font-medium text-slate-700"><span className="text-red-500 mr-1">*</span>创建科室</label>
             <select className={selectClasses} disabled

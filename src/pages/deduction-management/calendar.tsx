@@ -32,6 +32,21 @@ export default function DeductionCalendar() {
     }, 400);
   };
 
+  // 辅助函数：判断记录是否匹配选中的日历格（医保业务分类）
+  const isRecordMatchCategory = (record: any, category: string) => {
+    const data = record.data;
+    if (!data) return false;
+
+    // 匹配医保业务分类
+    let recCategory = data._PERSON_CATEGORY || "";
+    if (data._IS_ONLINE) {
+      recCategory += `（${data._IS_ONLINE}）`;
+    }
+    
+    // Exact match is required
+    return recCategory === category;
+  };
+
   // Build matrix data
   const matrixData = useMemo(() => {
     return CATEGORIES.map((category, index) => {
@@ -39,24 +54,31 @@ export default function DeductionCalendar() {
       for (let m = 1; m <= 12; m++) {
         
         let status = "";
+        const targetMonthStr = `${year}-${m.toString().padStart(2, '0')}`;
         
-        // --- Mocking precise business logic matching the requirement ---
-        // For demonstration to match the requested output:
-        // "1月默认显示已完成, 2月默认显示进行中, 3月空白"
-        // Also we tie it to "广州医保（线下）" because the mock feedback tasks were "广州医保线下反馈核查"
-        if (category === "广州医保（线下）") {
-           if (year === "2024") {
-              if (m === 1) status = "已完成";
-              if (m === 2) status = "进行中";
+        // Find if this category+month has any deduction tasks
+        const monthTasks = tasks.filter(t => !t.parentId && (t.belongingMonth === targetMonthStr || (!t.belongingMonth && t.name.includes(`${year}年${m.toString().padStart(2, '0')}月`))));
+
+        let cellHasRecords = false;
+        let allTasksEnded = true;
+        let anyTaskExists = false;
+
+        for (const task of monthTasks) {
+           const records = mockApi.getTaskDetailRecords(task.id, false);
+           const hasMatch = records.some((r: any) => isRecordMatchCategory(r, category));
+           if (hasMatch) {
+             cellHasRecords = true;
+             anyTaskExists = true;
+             if (task.status !== "END") {
+               allTasksEnded = false;
+             }
            }
         }
-        
-        // Find if this category+month really has any deduction tasks in the mock
-        if (!status) {
-           // (In a real system, we look at the tasks' underlying records to see if they match the `category`)
-           // We bypass assigning status for other categories here so they remain empty as expected.
-        }
 
+        if (anyTaskExists) {
+           status = allTasksEnded ? "已完成" : "进行中";
+        }
+        
         row[`month_${m}`] = status;
       }
       return row;
@@ -69,52 +91,25 @@ export default function DeductionCalendar() {
     setIsDrawerOpen(true);
   };
 
-  // 辅助函数：判断记录是否匹配选中的日历格（所属月份 + 医保业务分类）
-  const isRecordMatchCell = (record: any, cell: { category: string, month: number }, yearStr: string) => {
-    const data = record.data;
-    if (!data) return false;
-
-    // 匹配医保业务分类
-    let recCategory = data._PERSON_CATEGORY || "";
-    if (data._IS_ONLINE) {
-      recCategory += `（${data._IS_ONLINE}）`;
-    }
-    if (recCategory !== cell.category && !cell.category.includes(data._PERSON_CATEGORY || "NO_MATCH")) {
-      return false;
-    }
-
-    // 匹配出院时间所属月份和年份
-    const dischargeDate = data.DISCHARGE_DATE || "";
-    if (!dischargeDate) return false;
-    const dateParts = dischargeDate.split("-");
-    if (dateParts.length >= 2) {
-      const dYear = dateParts[0];
-      const dMonth = parseInt(dateParts[1], 10);
-      if (dYear !== yearStr || dMonth !== cell.month) return false;
-    } else {
-      return false;
-    }
-
-    return true;
-  };
-
   // Get matching tasks and calculate summary for Drawer based on clicked cell
   const drawerData = useMemo(() => {
     if (!selectedCell) return { tasks: [], totalViolation: "0.00", totalDeduction: "0.00" };
     const monthStr = selectedCell.month.toString().padStart(2, '0');
+    const targetMonthStr = `${year}-${monthStr}`;
     
     // Parent deduction tasks for the period
-    const yearMonth = `${year}年${monthStr}月`;
-    const parentTasks = tasks.filter(t => !t.parentId && t.name.includes(yearMonth));
+    const monthTasks = tasks.filter(t => !t.parentId && (t.belongingMonth === targetMonthStr || (!t.belongingMonth && t.name.includes(`${year}年${monthStr}月`))));
     
     let globalViolation = 0;
     let globalDeduction = 0;
 
-    const mappedTasks = parentTasks.map(parent => {
+    const mappedTasks = monthTasks.map(parent => {
        const isAllConfirmed = parent.status === "END"; // If parent is END, meaning all sub tasks ended
        
        const records = mockApi.getTaskDetailRecords(parent.id, false);
-       const cellRecords = records.filter((r: any) => isRecordMatchCell(r, selectedCell, year));
+       const cellRecords = records.filter((r: any) => isRecordMatchCategory(r, selectedCell.category));
+
+       if (cellRecords.length === 0) return null; // Not relevant for this category
 
        const taskViolation = cellRecords.reduce((sum: number, d: any) => sum + (Number(d.data?.VIOLATION_AMOUNT || 0)), 0);
        const taskDeduction = cellRecords.reduce((sum: number, d: any) => sum + (Number(d.data?._DEDUCTION_AMOUNT || 0)), 0);
@@ -131,7 +126,7 @@ export default function DeductionCalendar() {
            violationAmount: taskViolation.toFixed(2),
            deductionAmount: taskDeduction.toFixed(2)
        };
-    });
+    }).filter(Boolean);
 
     return {
        tasks: mappedTasks,

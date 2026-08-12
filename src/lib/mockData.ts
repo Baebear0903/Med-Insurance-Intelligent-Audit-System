@@ -24,6 +24,7 @@ export interface Task {
   aiFillProgress?: number;
   aiFillTotal?: number;
   businessCategory?: string;
+  belongingMonth?: string; // Format: YYYY-MM
 }
 
 export interface ReviewRecord {
