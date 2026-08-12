@@ -23,6 +23,7 @@ export interface Task {
   isAIFilling?: boolean;
   aiFillProgress?: number;
   aiFillTotal?: number;
+  businessCategory?: string;
 }
 
 export interface ReviewRecord {
@@ -433,7 +434,7 @@ export const mockApi = {
   getTasks: (page = 1, pageSize = 10, filters: any = {}): { data: Task[], total: number } => {
     let tasks = JSON.parse(localStorage.getItem("tasks_v23") || "null");
     
-    if (!tasks || tasks.length !== INITIAL_TASKS.length) {
+    if (!tasks) {
       tasks = INITIAL_TASKS;
       localStorage.setItem("tasks_v23", JSON.stringify(tasks));
       localStorage.setItem("records_v23", JSON.stringify(INITIAL_REPORTS));
@@ -690,5 +691,43 @@ export const mockApi = {
     localStorage.setItem(key, JSON.stringify(data));
     window.dispatchEvent(new Event("task_updated"));
   },
-  deleteTaskDetailRecords: (..._args: any[]) => {}
+  deleteTaskDetailRecords: (..._args: any[]) => {},
+  
+  deleteTask: (taskId: string) => {
+    let tasks = JSON.parse(localStorage.getItem("tasks_v23") || "null");
+    if (tasks) {
+      tasks = tasks.filter((t: any) => t.id !== taskId);
+      localStorage.setItem("tasks_v23", JSON.stringify(tasks));
+      localStorage.removeItem(`task_records_v23_${taskId}`);
+      window.dispatchEvent(new Event("task_updated"));
+    }
+  },
+
+  addTask: (taskName: string, templateId: string, businessCategory?: string) => {
+    let tasks = JSON.parse(localStorage.getItem("tasks_v23") || "null");
+    if (!tasks) tasks = INITIAL_TASKS;
+    const newTask: Task = {
+        id: "T_CUSTOM_" + Date.now(),
+        name: taskName,
+        year: new Date().getFullYear().toString(),
+        departmentId: 1,
+        templateId,
+        templateName: "自定义",
+        status: "END",
+        creator: "当前用户",
+        createTime: new Date().toLocaleString(),
+        updateTime: new Date().toLocaleString(),
+        dueDate: new Date().toLocaleDateString(),
+        businessCategory
+    };
+    tasks.unshift(newTask);
+    localStorage.setItem("tasks_v23", JSON.stringify(tasks));
+    return newTask;
+  },
+
+  updateTaskDetails: (taskId: string, newRecords: any[]) => {
+    const key = `task_records_v23_${taskId}`;
+    localStorage.setItem(key, JSON.stringify(newRecords));
+    window.dispatchEvent(new Event("task_updated"));
+  }
 };

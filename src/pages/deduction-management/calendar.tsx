@@ -5,9 +5,9 @@ import { Table, Column } from "@/src/components/ui/Table";
 import { Button } from "@/src/components/ui/Button";
 import { Drawer } from "@/src/components/ui/Drawer";
 
-import { getInsuranceCategories } from "@/src/lib/insuranceCategoryStore";
+import { INITIAL_INSURANCE_CATEGORIES } from "@/src/lib/insuranceCategoryStore";
 
-const CATEGORIES = getInsuranceCategories().filter(c => c.enabled).map(c => c.categoryName);
+const CATEGORIES = INITIAL_INSURANCE_CATEGORIES.map(c => c.categoryName);
 
 export default function DeductionCalendar() {
   const [year, setYear] = useState("2024");

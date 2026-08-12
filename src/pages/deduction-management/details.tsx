@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from "react";
 import { Table, Column } from "@/src/components/ui/Table";
 import { Button } from "@/src/components/ui/Button";
-import { Search, Settings, RotateCcw, ArrowDownToLine } from "lucide-react";
+import { Search, Settings, RotateCcw, ArrowDownToLine, Plus } from "lucide-react";
 import { mockApi } from "@/src/lib/mockData";
 import { toast } from "@/src/components/ui/Toast";
 import { exportToExcel } from "@/src/lib/exportUtils";
 import { ColumnSettingsModal, ColumnItem } from "@/src/components/ColumnSettingsModal";
 import { Modal } from "@/src/components/ui/Modal";
 import { useNavigate } from "react-router-dom";
+import { ImportDeductionModal } from "./ImportDeductionModal";
 
 // --- Types ---
 interface TaskSummary {
@@ -22,14 +23,14 @@ interface TaskSummary {
 
 import { getInsuranceCategories } from "@/src/lib/insuranceCategoryStore";
 
-const BUSINESS_CATEGORIES = getInsuranceCategories().filter(c => c.enabled).map(c => c.categoryName);
-
 // --- Helper Functions ---
 
 export default function DeductionDetails() {
   const navigate = useNavigate();
   const [tasks, setTasks] = useState<TaskSummary[]>([]);
   
+  // Get latest categories dynamically on render
+  const businessCategories = getInsuranceCategories().filter(c => c.enabled).map(c => c.categoryName);
   
   // Filters
   const [filterMonth, setFilterMonth] = useState("");
@@ -40,6 +41,9 @@ export default function DeductionDetails() {
   
   // Modal
   const [isMergeModalOpen, setIsMergeModalOpen] = useState(false);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [importMode, setImportMode] = useState<"create" | "update">("create");
+  const [currentUpdateTaskId, setCurrentUpdateTaskId] = useState<string | null>(null);
 
   useEffect(() => {
     loadTasks();
@@ -67,7 +71,7 @@ export default function DeductionDetails() {
           sumDeduction += (Number(d._DEDUCTION_MED_COM) || 0) + (Number(d._DEDUCTION_OTHER) || 0); // or _DEDUCTION_AMOUNT
         });
 
-        const bc = template?.businessCategory || "广州医保（线下）";
+        const bc = t.businessCategory || template?.businessCategory || "广州医保（线下）";
 
         return {
           id: t.id,
@@ -109,6 +113,50 @@ export default function DeductionDetails() {
       return;
     }
     setIsMergeModalOpen(true);
+  };
+
+  const handleCreateTask = () => {
+    setImportMode("create");
+    setIsImportModalOpen(true);
+  };
+
+  const handleUpdateTask = (taskId: string) => {
+    setCurrentUpdateTaskId(taskId);
+    setImportMode("update");
+    setIsImportModalOpen(true);
+  };
+
+  const handleImportConfirm = (taskName: string | null, file: File, category?: string) => {
+    // 根据需求，生成随机数来充当扣减的记录数和金额
+    const recordCount = Math.floor(Math.random() * 16) + 5; // 5 to 20 records
+    const fakeRecords = Array.from({ length: recordCount }).map((_, i) => {
+      const deduction = Math.floor(Math.random() * 5000) + 100;
+      return {
+        id: `DED_CUSTOM_${Date.now()}_${i}`,
+        data: {
+          IS_APPEAL: "否",
+          VIOLATION_AMOUNT: deduction + Math.floor(Math.random() * 1000),
+          _DEDUCTION_MED_COM: deduction,
+          _DEDUCTION_OTHER: 0,
+          PATIENT_NAME: `患者${Math.floor(Math.random() * 1000)}`,
+          MEDICAL_CATEGORY: category || "普通门诊",
+          DEDUCTION_REASON: "违规扣减",
+          DEPARTMENT: "内科"
+        }
+      };
+    });
+
+    if (importMode === "create") {
+      const newTask = mockApi.addTask(taskName!, "TPL_GZ_YB", category);
+      mockApi.updateTaskDetails(newTask.id, fakeRecords);
+      toast("扣减明细导入成功", "success");
+    } else if (importMode === "update" && currentUpdateTaskId) {
+      mockApi.updateTaskDetails(currentUpdateTaskId, fakeRecords);
+      toast("扣减明细更新成功", "success");
+    }
+
+    setIsImportModalOpen(false);
+    loadTasks();
   };
 
   const executeMergeDownload = () => {
@@ -182,10 +230,25 @@ export default function DeductionDetails() {
       }
       return { key: c.key, title: c.title, width, align, render };
     }),
-    { key: "action", title: "操作", width: "160px", align: "center", fixed: "right", render: (r) => (
-      <div className="flex items-center justify-center space-x-3">
-        <button onClick={() => handleView(r.id)} className="text-blue-600 hover:text-blue-800 text-sm font-medium">查看明细</button>
-        <button onClick={() => handleMockDownload(r)} className="text-blue-600 hover:text-blue-800 text-sm font-medium">下载明细</button>
+    { key: "action", title: "操作", width: "220px", align: "left", fixed: "right", render: (r) => (
+      <div className="flex items-center justify-start space-x-3">
+        <button onClick={() => handleView(r.id)} className="text-blue-600 hover:text-blue-800 text-sm font-medium">详情</button>
+        <button onClick={() => handleMockDownload(r)} className="text-blue-600 hover:text-blue-800 text-sm font-medium">下载</button>
+        <button onClick={() => handleUpdateTask(r.id)} className="text-blue-600 hover:text-blue-800 text-sm font-medium">导入</button>
+        {r.id.startsWith("T_CUSTOM_") && (
+          <button 
+            onClick={() => {
+              if (window.confirm("确定要删除该扣减明细吗？")) {
+                mockApi.deleteTask(r.id);
+                toast("删除成功", "success");
+                loadTasks();
+              }
+            }} 
+            className="text-red-600 hover:text-red-800 text-sm font-medium"
+          >
+            删除
+          </button>
+        )}
       </div>
     )}
   ];
@@ -202,7 +265,7 @@ export default function DeductionDetails() {
                 className="bg-transparent text-sm w-36 outline-none text-slate-700" 
               >
                 <option value="">全部业务分类</option>
-                {BUSINESS_CATEGORIES.map(cat => (
+                {businessCategories.map(cat => (
                   <option key={cat} value={cat}>{cat}</option>
                 ))}
               </select>
@@ -231,6 +294,10 @@ export default function DeductionDetails() {
         <div className="flex items-center justify-between p-4 border-b border-slate-100">
            <h2 className="text-base font-semibold text-slate-800">医保扣减清单</h2>
            <div className="flex items-center space-x-3">
+              <Button variant="primary" size="sm" onClick={handleCreateTask} className="gap-2">
+                <Plus className="w-4 h-4" />
+                新增扣减明细
+              </Button>
               <Button variant="outline" size="sm" onClick={handleMergeDownloadClick} className="gap-2 text-blue-600 border-blue-200 hover:bg-blue-50">
                 <ArrowDownToLine className="w-4 h-4" />
                 合并下载
@@ -318,6 +385,12 @@ export default function DeductionDetails() {
           setConfigurableColumns(newCols);
           setIsColumnSettingsOpen(false);
         }}
+      />
+      <ImportDeductionModal 
+        isOpen={isImportModalOpen}
+        onClose={() => setIsImportModalOpen(false)}
+        mode={importMode}
+        onConfirm={handleImportConfirm}
       />
     </div>
   );

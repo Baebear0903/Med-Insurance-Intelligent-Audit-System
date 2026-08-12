@@ -8,8 +8,6 @@ import { cn } from "@/src/lib/utils";
 import { getInsuranceCategories } from "@/src/lib/insuranceCategoryStore";
 import { pinyin } from "pinyin-pro";
 
-const BUSINESS_CATEGORIES = getInsuranceCategories().filter(c => c.enabled).map(c => c.categoryName);
-
 const STANDARD_FIELDS = [
   { name: "ORDER_DEPT_CODE", comment: "开单科室编码", remark: "标准开单科室编码" },
   { name: "ORDER_DEPT_NAME", comment: "开单科室名称", remark: "标准开单科室名称" },
@@ -155,6 +153,8 @@ export function AddReviewTemplate() {
   const [hasChanges, setHasChanges] = useState(false);
   const [showConfirmBack, setShowConfirmBack] = useState(false);
   const [currentStep, setCurrentStep] = useState(1); // 1: 基本信息, 2: 字段设计
+  
+  const businessCategories = getInsuranceCategories().filter(c => c.enabled).map(c => c.categoryName);
 
   const [formData, setFormData] = useState<Partial<ReviewTemplate>>({
     name: "",
@@ -477,7 +477,7 @@ export function AddReviewTemplate() {
                     onChange={(e) => { setFormData({ ...formData, businessCategory: e.target.value }); setHasChanges(true); }}
                   >
                     <option value="" disabled>请选择医保业务分类</option>
-                    {BUSINESS_CATEGORIES.map(cat => (
+                    {businessCategories.map(cat => (
                       <option key={cat} value={cat}>{cat}</option>
                     ))}
                   </select>

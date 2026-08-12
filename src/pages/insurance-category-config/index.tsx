@@ -62,13 +62,13 @@ export function InsuranceCategoryConfig() {
       handleSaveData(data.map(r => r.id === formData.id ? { ...r, ...formData } as InsuranceCategory : r));
     } else {
       handleSaveData([
-        ...data,
         { 
           ...formData, 
           id: Date.now().toString(),
           enabled: formData.enabled ?? true,
           onlineOffline: formData.onlineOffline || ""
-        } as InsuranceCategory
+        } as InsuranceCategory,
+        ...data
       ]);
     }
     setModalOpen(false);

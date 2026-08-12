@@ -7,6 +7,7 @@ import { mockApi } from "@/src/lib/mockData";
 import { toast } from "@/src/components/ui/Toast";
 import { exportToExcel } from "@/src/lib/exportUtils";
 import { ColumnSettingsModal, ColumnItem } from "@/src/components/ColumnSettingsModal";
+import { ImportDeductionModal } from "../ImportDeductionModal";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { getInsuranceCategories } from "@/src/lib/insuranceCategoryStore";
 
@@ -62,6 +63,7 @@ export default function DeductionTaskDetails() {
   
   const [columnsSettings, setColumnsSettings] = useState<ColumnItem[]>(BASE_COLUMNS);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
 
   useEffect(() => {
     if (taskId) {
@@ -84,7 +86,7 @@ export default function DeductionTaskDetails() {
       if (t) {
         const allTemplates = mockApi.getTemplates();
         const template = allTemplates.find(tpl => tpl.id === t.templateId);
-        const bc = template?.businessCategory || "广州医保（线下）";
+        const bc = t.businessCategory || template?.businessCategory || "广州医保（线下）";
         
         const configs = getInsuranceCategories();
         const matchedConfig = configs.find(c => c.categoryName === bc);
@@ -140,6 +142,33 @@ export default function DeductionTaskDetails() {
     toast("院内扣减明细已下载", "success");
   };
 
+  const handleImportConfirm = (taskName: string | null, file: File, category?: string) => {
+    if (!taskId) return;
+    const recordCount = Math.floor(Math.random() * 16) + 5; // 5 to 20 records
+    const fakeRecords = Array.from({ length: recordCount }).map((_, i) => {
+      const deduction = Math.floor(Math.random() * 5000) + 100;
+      return {
+        id: `DED_CUSTOM_${Date.now()}_${i}`,
+        data: {
+          IS_APPEAL: "否",
+          VIOLATION_AMOUNT: deduction + Math.floor(Math.random() * 1000),
+          _DEDUCTION_MED_COM: deduction,
+          _DEDUCTION_OTHER: 0,
+          PATIENT_NAME: `患者${Math.floor(Math.random() * 1000)}`,
+          MEDICAL_CATEGORY: category || taskSummary?.businessCategory || "普通门诊",
+          DEDUCTION_REASON: "违规扣减",
+          DEPARTMENT: "内科"
+        }
+      };
+    });
+
+    mockApi.updateTaskDetails(taskId, fakeRecords);
+    toast("扣减明细更新成功", "success");
+
+    setIsImportModalOpen(false);
+    loadData();
+  };
+
   const visibleTableColumns: Column<any>[] = columnsSettings.filter(c => c.visible).map(c => {
     const col: Column<any> = { key: c.key, title: c.title, width: "120px" };
     if (c.key === "index") {
@@ -178,6 +207,9 @@ export default function DeductionTaskDetails() {
              <span className="bg-slate-100 text-slate-600 text-xs px-2.5 py-1 rounded-full font-medium">已结束</span>
            </div>
            <div className="flex space-x-3">
+             <Button variant="outline" size="sm" onClick={() => setIsImportModalOpen(true)} className="gap-2 text-blue-600 border-blue-200 hover:bg-blue-50">
+               导入更新
+             </Button>
              <Button variant="outline" size="sm" onClick={handleExport} className="gap-2 text-blue-600 border-blue-200 hover:bg-blue-50">
                <Download className="w-4 h-4" />
                下载明细
@@ -234,6 +266,12 @@ export default function DeductionTaskDetails() {
         onClose={() => setIsSettingsOpen(false)}
         columns={columnsSettings}
         onConfirm={(updated) => { setColumnsSettings(updated); setIsSettingsOpen(false); }}
+      />
+      <ImportDeductionModal 
+        isOpen={isImportModalOpen}
+        onClose={() => setIsImportModalOpen(false)}
+        mode="update"
+        onConfirm={handleImportConfirm}
       />
     </div>
   );
