@@ -1,9 +1,9 @@
 import { TASK_STATUS, AUDIT_STATUS, FILL_STATUS, DEPARTMENTS } from "./constants";
 
 if (typeof window !== 'undefined') {
-  if (localStorage.getItem("mock_data_version") !== "v26") {
+  if (localStorage.getItem("mock_data_version") !== "v27") {
       localStorage.clear();
-      localStorage.setItem("mock_data_version", "v26");
+      localStorage.setItem("mock_data_version", "v27");
   }
 }
 
@@ -123,7 +123,7 @@ const INITIAL_TEMPLATES: ReviewTemplate[] = [
     taskCount: 8,
     createTime: "2024-01-01 10:00:00",
     fields: [
-      { id: "F_DEPT", name: "DISPATCH_DEPT", comment: "下发科室", type: "VARCHAR", length: 2000, decimal: 0, isPrimaryKey: false, isNotNull: false, isRequired: false, isQueryable: true, isFeedback: false, noUpdate: true, isShow: true, displayName: "下发科室" },
+      { id: "F_DEPT", name: "DISPATCH_DEPT", comment: "下发科室", type: "VARCHAR", length: 2000, decimal: 0, isPrimaryKey: false, isNotNull: false, isRequired: false, isQueryable: true, isFeedback: false, noUpdate: true, isShow: true, displayName: "下发科室", mappedStandardField: "DISPATCH_DEPT" },
       { id: "F_DOC_NO", name: "DOCUMENT_NO", comment: "单据号", type: "VARCHAR", length: 2000, decimal: 0, isPrimaryKey: true, isNotNull: true, isRequired: true, isQueryable: true, isFeedback: false, noUpdate: true, isShow: true, displayName: "单据号" },
       { id: "F_ID_CARD", name: "ID_CARD", comment: "身份证号", type: "VARCHAR", length: 2000, decimal: 0, isPrimaryKey: false, isNotNull: false, isRequired: false, isQueryable: true, isFeedback: false, noUpdate: true, isShow: true, displayName: "身份证号" },
       { id: "F_VISIT_NO", name: "VISIT_NO", comment: "就诊号", type: "VARCHAR", length: 2000, decimal: 0, isPrimaryKey: false, isNotNull: false, isRequired: false, isQueryable: true, isFeedback: false, noUpdate: true, isShow: true, displayName: "就诊号" },
@@ -134,7 +134,7 @@ const INITIAL_TEMPLATES: ReviewTemplate[] = [
       { id: "F_QTY", name: "QUANTITY", comment: "数量", type: "DECIMAL", length: 500, decimal: 2, isPrimaryKey: false, isNotNull: false, isRequired: false, isQueryable: false, isFeedback: false, noUpdate: true, isShow: true, displayName: "数量" },
       { id: "F_V_DESC", name: "VIOLATION_DESC", comment: "违规描述", type: "VARCHAR", length: 2000, decimal: 0, isPrimaryKey: false, isNotNull: false, isRequired: false, isQueryable: false, isFeedback: false, noUpdate: true, isShow: true, displayName: "违规描述" },
       { id: "F_V_AMT", name: "VIOLATION_AMOUNT", comment: "违规金额", type: "VARCHAR", length: 2000, decimal: 0, isPrimaryKey: false, isNotNull: false, isRequired: false, isQueryable: false, isFeedback: false, noUpdate: true, isShow: true, displayName: "违规金额" },
-      { id: "F_ORDER_DEPT", name: "ORDER_DEPT", comment: "科室", type: "DECIMAL", length: 500, decimal: 0, isPrimaryKey: false, isNotNull: false, isRequired: false, isQueryable: false, isFeedback: false, noUpdate: true, isShow: true, displayName: "科室" },
+      { id: "F_ORDER_DEPT", name: "ORDER_DEPT", comment: "科室", type: "DECIMAL", length: 500, decimal: 0, isPrimaryKey: false, isNotNull: false, isRequired: false, isQueryable: false, isFeedback: false, noUpdate: true, isShow: true, displayName: "科室", mappedStandardField: "ORDER_DEPT" },
       { id: "F_DOC", name: "DOCTOR_NAME", comment: "医生", type: "VARCHAR", length: 2000, decimal: 0, isPrimaryKey: false, isNotNull: false, isRequired: false, isQueryable: false, isFeedback: false, noUpdate: true, isShow: true, displayName: "医生" },
       { id: "F_ADMIT", name: "ADMIT_DATE", comment: "入院日期", type: "VARCHAR", length: 2000, decimal: 0, isPrimaryKey: false, isNotNull: false, isRequired: false, isQueryable: false, isFeedback: false, noUpdate: true, isShow: true, displayName: "入院日期" },
       { id: "F_DISCHARGE", name: "DISCHARGE_DATE", comment: "出院日期", type: "DATETIME", length: 500, decimal: 0, isPrimaryKey: false, isNotNull: false, isRequired: false, isQueryable: false, isFeedback: false, noUpdate: true, isShow: true, displayName: "出院日期" },
@@ -142,11 +142,11 @@ const INITIAL_TEMPLATES: ReviewTemplate[] = [
       { id: "F_MED_TYPE", name: "MEDICAL_CATEGORY", comment: "医疗类别", type: "DATETIME", length: 500, decimal: 0, isPrimaryKey: false, isNotNull: false, isRequired: false, isQueryable: false, isFeedback: false, noUpdate: true, isShow: true, displayName: "医疗类别" },
       { id: "F_FEE_DATE", name: "FEE_DATE", comment: "费用日期", type: "VARCHAR", length: 2000, decimal: 0, isPrimaryKey: false, isNotNull: false, isRequired: false, isQueryable: false, isFeedback: false, noUpdate: true, isShow: true, displayName: "费用日期" },
       { id: "F_HOSP_NO", name: "HOSPITAL_NO", comment: "住院号", type: "DECIMAL", length: 500, decimal: 0, isPrimaryKey: false, isNotNull: false, isRequired: false, isQueryable: false, isFeedback: false, noUpdate: true, isShow: true, displayName: "住院号" },
-      { id: "F_APPEAL", name: "IS_APPEAL", comment: "是否申诉", type: "VARCHAR", length: 2000, decimal: 0, isPrimaryKey: false, isNotNull: false, isRequired: false, isQueryable: true, isFeedback: true, noUpdate: false, isShow: true, displayName: "是否申诉" },
-      { id: "F_REASON", name: "APPEAL_REASON", comment: "医院申诉意见", type: "VARCHAR", length: 2000, decimal: 0, isPrimaryKey: false, isNotNull: false, isRequired: false, isQueryable: false, isFeedback: true, noUpdate: false, isShow: true, displayName: "医院申诉意见" },
+      { id: "F_APPEAL", name: "IS_APPEAL", comment: "是否申诉", type: "VARCHAR", length: 2000, decimal: 0, isPrimaryKey: false, isNotNull: false, isRequired: false, isQueryable: true, isFeedback: true, noUpdate: false, isShow: true, displayName: "是否申诉", mappedStandardField: "IS_APPEAL" },
+      { id: "F_REASON", name: "APPEAL_REASON", comment: "医院申诉意见", type: "VARCHAR", length: 2000, decimal: 0, isPrimaryKey: false, isNotNull: false, isRequired: false, isQueryable: false, isFeedback: true, noUpdate: false, isShow: true, displayName: "医院申诉意见", mappedStandardField: "APPEAL_REASON" },
       { id: "F_REMARK", name: "REMARK", comment: "备注", type: "DECIMAL", length: 500, decimal: 0, isPrimaryKey: false, isNotNull: false, isRequired: false, isQueryable: false, isFeedback: false, noUpdate: true, isShow: true, displayName: "备注" },
-      { id: "F_ATTACH", name: "APPEAL_ATTACHMENT", comment: "申诉附件", type: "VARCHAR", length: 2000, decimal: 0, isPrimaryKey: false, isNotNull: false, isRequired: false, isQueryable: false, isFeedback: true, noUpdate: false, isShow: true, displayName: "申诉附件" },
-      { id: "F_APPEAL_REMARK", name: "APPEAL_REMARK", comment: "申诉备注", type: "VARCHAR", length: 2000, decimal: 0, isPrimaryKey: false, isNotNull: false, isRequired: false, isQueryable: false, isFeedback: true, noUpdate: true, isShow: true, displayName: "申诉备注" },
+      { id: "F_ATTACH", name: "APPEAL_ATTACHMENT", comment: "申诉附件", type: "VARCHAR", length: 2000, decimal: 0, isPrimaryKey: false, isNotNull: false, isRequired: false, isQueryable: false, isFeedback: true, noUpdate: false, isShow: true, displayName: "申诉附件", mappedStandardField: "APPEAL_ATTACHMENT" },
+      { id: "F_APPEAL_REMARK", name: "APPEAL_REMARK", comment: "申诉备注", type: "VARCHAR", length: 2000, decimal: 0, isPrimaryKey: false, isNotNull: false, isRequired: false, isQueryable: false, isFeedback: true, noUpdate: true, isShow: true, displayName: "申诉备注", mappedStandardField: "APPEAL_REMARK" },
       { id: "F_PROJ", name: "PROJECT_NAME", comment: "项目名称", type: "VARCHAR", length: 100, decimal: 0, isPrimaryKey: false, isNotNull: false, isRequired: false, isQueryable: false, isFeedback: false, noUpdate: true, isShow: true, displayName: "项目名称" },
     ]
   },
@@ -161,7 +161,7 @@ const INITIAL_TEMPLATES: ReviewTemplate[] = [
     taskCount: 2,
     createTime: "2024-01-20 10:00:00",
     fields: [
-      { id: "F_DEPT", name: "DISPATCH_DEPT", comment: "下发科室", type: "VARCHAR", length: 100, decimal: 0, isPrimaryKey: false, isNotNull: false, isRequired: false, isQueryable: true, isFeedback: false, noUpdate: true, isShow: true, displayName: "下发科室" },
+      { id: "F_DEPT", name: "DISPATCH_DEPT", comment: "下发科室", type: "VARCHAR", length: 100, decimal: 0, isPrimaryKey: false, isNotNull: false, isRequired: false, isQueryable: true, isFeedback: false, noUpdate: true, isShow: true, displayName: "下发科室", mappedStandardField: "DISPATCH_DEPT" },
       { id: "F_SEQ", name: "SEQ_NO", comment: "序号", type: "VARCHAR", length: 100, decimal: 0, isPrimaryKey: true, isNotNull: true, isRequired: true, isQueryable: false, isFeedback: false, noUpdate: true, isShow: true, displayName: "序号" },
       { id: "F_PERSON_CAT", name: "_PERSON_CATEGORY", comment: "人员类别", type: "VARCHAR", length: 50, decimal: 0, isPrimaryKey: false, isNotNull: false, isRequired: false, isQueryable: false, isFeedback: false, noUpdate: true, isShow: true, displayName: "人员类别" },
       { id: "F_IS_ONLINE", name: "_IS_ONLINE", comment: "线上/线下", type: "VARCHAR", length: 50, decimal: 0, isPrimaryKey: false, isNotNull: false, isRequired: false, isQueryable: false, isFeedback: false, noUpdate: true, isShow: true, displayName: "线上/线下" },
