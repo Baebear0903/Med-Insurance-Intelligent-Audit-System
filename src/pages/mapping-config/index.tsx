@@ -129,7 +129,7 @@ export function MappingConfig() {
       return;
     }
     if (formData.targetUserId !== "U_DYNAMIC" && !formData.targetCode) {
-      alert("请选择HIS科室");
+      alert("请选择下发映射科室");
       return;
     }
     
@@ -156,7 +156,7 @@ export function MappingConfig() {
     { key: "index", title: "序号", width: "80px", render: (_: any, idx: number) => idx + 1 },
     { key: "sourceName", title: "医保审核数据科室名称", minWidth: "200px" },
     { key: "targetUserName", title: "医保秘书", minWidth: "120px" },
-    { key: "targetName", title: "HIS科室", minWidth: "180px", render: (r: MappingRule) => r.targetName || "-" },
+    { key: "targetName", title: "下发映射科室", minWidth: "180px", render: (r: MappingRule) => r.targetName || "-" },
     { key: "targetCode", title: "科室编码", minWidth: "120px", render: (r: MappingRule) => r.targetCode || "-" },
     { key: "createTime", title: "创建时间", minWidth: "180px" },
     { 
@@ -274,7 +274,7 @@ export function MappingConfig() {
 
           <div className="space-y-1.5 relative" ref={deptDropdownRef}>
             <label className="text-sm font-medium text-slate-700">
-              HIS科室 {formData.targetUserId !== "U_DYNAMIC" && <span className="text-red-500">*</span>}
+              下发映射科室 {formData.targetUserId !== "U_DYNAMIC" && <span className="text-red-500">*</span>}
             </label>
             <div 
               className={cn(
@@ -289,7 +289,7 @@ export function MappingConfig() {
               }}
             >
               <span className={formData.targetName ? "text-slate-900" : "text-slate-400"}>
-                {formData.targetName || (formData.targetUserId === "U_DYNAMIC" ? "实际下发将按照该科室名称进行下发" : "请选择HIS科室")}
+                {formData.targetName || (formData.targetUserId === "U_DYNAMIC" ? "实际下发将按照该科室名称进行下发" : "请选择下发映射科室")}
               </span>
               {availableDepts.length > 1 && (
                  <ChevronDown className={cn("w-4 h-4 text-slate-400 transition-transform", showDeptDropdown && "rotate-180")} />
