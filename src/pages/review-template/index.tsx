@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
-import { Plus, LayoutTemplate, FileText, Search, Trash2, Edit3, Copy, User, AlertCircle } from "lucide-react";
+import { Plus, LayoutTemplate, FileText, Search, Trash2, Edit3, Copy, User } from "lucide-react";
 import { Button } from "@/src/components/ui/Button";
+import { Modal } from "@/src/components/ui/Modal";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "@/src/components/ui/Toast";
 import { mockApi } from "@/src/lib/mockData";
@@ -223,23 +224,22 @@ export function ReviewTemplate() {
       </div>
 
       {/* Delete Confirmation Modal */}
-      {showDeleteConfirm && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-[1px] flex items-center justify-center z-[100] p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm p-6 overflow-hidden border border-slate-100 animate-in zoom-in-95 duration-200">
-            <div className="flex items-center gap-3 text-red-500 mb-4 font-bold text-lg">
-              <AlertCircle className="w-6 h-6" />
-              <h3>确认删除</h3>
-            </div>
-            <p className="text-slate-600 text-sm mb-8 leading-relaxed">
-              确定要删除选中的 {idsToDelete.length} 个模板吗？此操作不可撤销。
-            </p>
-            <div className="flex justify-end gap-3 pt-2">
-              <Button variant="outline" size="sm" onClick={() => setShowDeleteConfirm(false)}>取消</Button>
-              <Button variant="danger" size="sm" onClick={confirmDelete}>确定删除</Button>
-            </div>
-          </div>
-        </div>
-      )}
+      <Modal
+        isOpen={showDeleteConfirm}
+        onClose={() => setShowDeleteConfirm(false)}
+        title="确认删除"
+        width="max-w-sm"
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setShowDeleteConfirm(false)}>取消</Button>
+            <Button variant="danger" onClick={confirmDelete}>确定删除</Button>
+          </>
+        }
+      >
+        <p className="text-slate-600 text-sm leading-relaxed">
+          确定要删除选中的 {idsToDelete.length} 个模板吗？此操作不可撤销。
+        </p>
+      </Modal>
     </div>
   );
 }

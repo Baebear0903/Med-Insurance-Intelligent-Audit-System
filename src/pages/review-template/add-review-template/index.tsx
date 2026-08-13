@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { ArrowLeft, Save, Plus, Copy, Trash2, ArrowUp, ArrowDown, HelpCircle, AlertCircle, X, ChevronRight } from "lucide-react";
 import { Button } from "@/src/components/ui/Button";
+import { Modal } from "@/src/components/ui/Modal";
 import { toast } from "@/src/components/ui/Toast";
 import { mockApi, ReviewTemplate, TemplateField } from "@/src/lib/mockData";
 import { cn } from "@/src/lib/utils";
@@ -392,23 +393,22 @@ export function AddReviewTemplate() {
       </div>
 
       {/* Custom Confirmation Modal */}
-      {showConfirmBack && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-[1px] flex items-center justify-center z-[100] p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm p-6 overflow-hidden border border-slate-100 animate-in zoom-in-95 duration-200">
-            <div className="flex items-center gap-3 text-amber-500 mb-4 font-bold text-lg">
-              <AlertCircle className="w-6 h-6" />
-              <h3>离开页面</h3>
-            </div>
-            <p className="text-slate-600 text-sm mb-8 leading-relaxed">
-              返回会导致你当前的数据丢失, 是否返回?
-            </p>
-            <div className="flex justify-end gap-3 pt-2">
-              <Button variant="outline" size="sm" onClick={() => setShowConfirmBack(false)}>我再想想</Button>
-              <Button variant="primary" size="sm" onClick={confirmBack}>继续返回</Button>
-            </div>
-          </div>
-        </div>
-      )}
+      <Modal
+        isOpen={showConfirmBack}
+        onClose={() => setShowConfirmBack(false)}
+        title="离开页面"
+        width="max-w-sm"
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setShowConfirmBack(false)}>我再想想</Button>
+            <Button variant="primary" onClick={confirmBack}>继续返回</Button>
+          </>
+        }
+      >
+        <p className="text-slate-600 text-sm leading-relaxed">
+          返回会导致你当前的数据丢失, 是否返回?
+        </p>
+      </Modal>
 
       <div className="p-5 space-y-6 flex-1 overflow-y-auto">
         {/* Step 1: Basic Info */}

@@ -398,27 +398,17 @@ export default function DeductionDetails() {
             <div>
               <h3 className="text-sm font-medium text-slate-800 mb-3">将合并以下任务信息：</h3>
                <div className="border border-slate-200 rounded-lg overflow-hidden max-h-[300px] overflow-y-auto">
-                 <table className="w-full text-sm text-left whitespace-nowrap">
-                    <thead className="bg-slate-50 sticky top-0 z-10 border-b border-slate-200 text-slate-600">
-                       <tr>
-                         <th className="px-4 py-2 bg-slate-50">任务名称</th>
-                         <th className="px-4 py-2 bg-slate-50">医保业务分类</th>
-                         <th className="px-4 py-2 bg-slate-50">所属年月</th>
-                         <th className="px-4 py-2 text-center bg-slate-50">可扣减记录数</th>
-                         <th className="px-4 py-2 text-right bg-slate-50">扣减金额合计 (元)</th>
-                       </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100 bg-white">
-                       {selectedTaskObjects.map(t => (
-                         <tr key={t.id} className="hover:bg-slate-50">
-                           <td className="px-4 py-3">{t.businessCategory}</td>
-                           <td className="px-4 py-3">{t.belongingMonth}</td>
-                           <td className="px-4 py-3 text-center">{t.deductibleCount}</td>
-                           <td className="px-4 py-3 text-right">{t.totalDeductionAmount.toFixed(2)}</td>
-                         </tr>
-                       ))}
-                    </tbody>
-                 </table>
+                 <Table<any> 
+                   columns={[
+                     { key: "name", title: "任务名称" },
+                     { key: "businessCategory", title: "医保业务分类" },
+                     { key: "belongingMonth", title: "所属年月" },
+                     { key: "deductibleCount", title: "可扣减记录数", align: "center" },
+                     { key: "totalDeductionAmount", title: "扣减金额合计 (元)", align: "right", render: (r: any) => r.totalDeductionAmount.toFixed(2) }
+                   ]}
+                   data={selectedTaskObjects}
+                   rowKey={(r: any) => r.id}
+                 />
                </div>
             </div>
             

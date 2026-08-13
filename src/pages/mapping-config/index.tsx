@@ -16,7 +16,23 @@ interface MappingRule {
   createTime: string;
 }
 
+const MOCK_DEPTS = [
+  { id: "TH_001", name: "心血管内科" },
+  { id: "TH_002", name: "神经外科" },
+  { id: "TH_003", name: "普通外科" },
+  { id: "TD_001", name: "呼吸内科" },
+  { id: "TD_002", name: "骨科" },
+  { id: "TD_003", name: "内分泌科" },
+  { id: "TD_004", name: "急诊科" },
+];
+
 const MOCK_USERS = [
+  {
+    id: "U_DYNAMIC",
+    name: "无固定医保秘书，根据医生所属科室进行分发",
+    identity: "系统",
+    departments: []
+  },
   {
     id: "U001",
     name: "张三",
@@ -108,8 +124,12 @@ export function MappingConfig() {
   };
 
   const handleSave = () => {
-    if (!formData.sourceName || !formData.targetUserId || !formData.targetCode) {
-      alert("请填写源科室名称，选择医保秘书并确认所属科室");
+    if (!formData.sourceName || !formData.targetUserId) {
+      alert("请填写源科室名称并选择医保秘书");
+      return;
+    }
+    if (formData.targetUserId !== "U_DYNAMIC" && !formData.targetCode) {
+      alert("请选择HIS科室");
       return;
     }
     
@@ -136,8 +156,8 @@ export function MappingConfig() {
     { key: "index", title: "序号", width: "80px", render: (_: any, idx: number) => idx + 1 },
     { key: "sourceName", title: "医保审核数据科室名称", minWidth: "200px" },
     { key: "targetUserName", title: "医保秘书", minWidth: "120px" },
-    { key: "targetName", title: "院内标准科室名称", minWidth: "180px" },
-    { key: "targetCode", title: "科室编码", minWidth: "120px" },
+    { key: "targetName", title: "HIS科室", minWidth: "180px", render: (r: MappingRule) => r.targetName || "-" },
+    { key: "targetCode", title: "科室编码", minWidth: "120px", render: (r: MappingRule) => r.targetCode || "-" },
     { key: "createTime", title: "创建时间", minWidth: "180px" },
     { 
       key: "action", 
@@ -158,7 +178,9 @@ export function MappingConfig() {
   ];
 
   const selectedUserObj = MOCK_USERS.find(u => u.id === formData.targetUserId);
-  const availableDepts = selectedUserObj ? selectedUserObj.departments : [];
+  const availableDepts = formData.targetUserId === "U_DYNAMIC" 
+    ? MOCK_DEPTS 
+    : (selectedUserObj ? selectedUserObj.departments : []);
 
   return (
     <div className="p-6 h-full flex flex-col bg-slate-50">
@@ -251,7 +273,9 @@ export function MappingConfig() {
           </div>
 
           <div className="space-y-1.5 relative" ref={deptDropdownRef}>
-            <label className="text-sm font-medium text-slate-700">所属科室 <span className="text-red-500">*</span></label>
+            <label className="text-sm font-medium text-slate-700">
+              HIS科室 {formData.targetUserId !== "U_DYNAMIC" && <span className="text-red-500">*</span>}
+            </label>
             <div 
               className={cn(
                 "border rounded-md px-3 py-2 text-sm flex justify-between items-center transition-colors",
@@ -265,7 +289,7 @@ export function MappingConfig() {
               }}
             >
               <span className={formData.targetName ? "text-slate-900" : "text-slate-400"}>
-                {formData.targetName || (availableDepts.length === 0 ? "暂无科室" : "请选择所属科室")}
+                {formData.targetName || (formData.targetUserId === "U_DYNAMIC" ? "实际下发将按照该科室名称进行下发" : "请选择HIS科室")}
               </span>
               {availableDepts.length > 1 && (
                  <ChevronDown className={cn("w-4 h-4 text-slate-400 transition-transform", showDeptDropdown && "rotate-180")} />
@@ -296,7 +320,7 @@ export function MappingConfig() {
               </div>
             )}
             
-            {formData.targetUserId && availableDepts.length === 1 && (
+            {formData.targetUserId && formData.targetUserId !== "U_DYNAMIC" && availableDepts.length === 1 && (
               <p className="text-xs text-slate-500 mt-1">该医保秘书仅关联一个科室，已自动选择</p>
             )}
           </div>
