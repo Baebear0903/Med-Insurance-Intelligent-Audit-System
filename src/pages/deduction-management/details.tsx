@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Table, Column } from "@/src/components/ui/Table";
 import { Button } from "@/src/components/ui/Button";
-import { Search, Settings, RotateCcw, ArrowDownToLine, Plus } from "lucide-react";
+import { Settings, RotateCcw, ArrowDownToLine, Plus } from "lucide-react";
 import { mockApi } from "@/src/lib/mockData";
 import { toast } from "@/src/components/ui/Toast";
 import { exportToExcel } from "@/src/lib/exportUtils";
@@ -15,10 +15,13 @@ interface TaskSummary {
   id: string;
   name: string;
   businessCategory: string;
+  belongingMonth: string;
   deductibleCount: number;
   totalViolationAmount: number;
   totalDeductionAmount: number;
+  taskIds: string[];
   isNew: boolean;
+  isManual?: boolean;
 }
 
 import { getInsuranceCategories } from "@/src/lib/insuranceCategoryStore";
@@ -34,7 +37,7 @@ export default function DeductionDetails() {
   
   // Filters
   const [filterMonth, setFilterMonth] = useState("");
-  const [filterName, setFilterName] = useState("");
+  const [filterBelongingMonth, setFilterBelongingMonth] = useState("");
   
   // Selection
   const [selectedRowKeys, setSelectedRowKeys] = useState<string[]>([]);
@@ -42,7 +45,7 @@ export default function DeductionDetails() {
   // Modal
   const [isMergeModalOpen, setIsMergeModalOpen] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
-  const [importMode, setImportMode] = useState<"create" | "update">("create");
+  const [importMode, setImportMode] = useState<"manual" | "batch" | "update">("manual");
   const [currentUpdateTaskId, setCurrentUpdateTaskId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -59,11 +62,32 @@ export default function DeductionDetails() {
       
       const viewedIds = JSON.parse(localStorage.getItem("viewed_deduction_tasks") || "[]");
 
-      const taskSummaries: TaskSummary[] = validTasks.map(t => {
+      const groups: Record<string, TaskSummary> = {};
+
+      validTasks.forEach(t => {
+        const template = allTemplates.find(tpl => tpl.id === t.templateId);
+        const bc = t.businessCategory || template?.businessCategory || "广州医保（线下）";
+        const month = t.belongingMonth || "-";
+        const groupId = t.isManual ? t.id : `${bc}_${month}`;
+
+        if (!groups[groupId]) {
+          groups[groupId] = {
+            id: groupId,
+            name: t.isManual ? t.name : `${bc} ${month} 扣减明细`,
+            businessCategory: bc,
+            belongingMonth: month,
+            deductibleCount: 0,
+            totalViolationAmount: 0,
+            totalDeductionAmount: 0,
+            taskIds: [],
+            isNew: false,
+            isManual: t.isManual
+          };
+        }
+
         const details = mockApi.getTaskDetailRecords(t.id, false);
         const validDetails = details.filter(d => d.data && d.data.IS_APPEAL === "否").map(d => d.data);
-        const template = allTemplates.find(tpl => tpl.id === t.templateId);
-        
+
         let sumViolation = 0;
         let sumDeduction = 0;
         validDetails.forEach(d => {
@@ -71,20 +95,17 @@ export default function DeductionDetails() {
           sumDeduction += (Number(d._DEDUCTION_MED_COM) || 0) + (Number(d._DEDUCTION_OTHER) || 0); // or _DEDUCTION_AMOUNT
         });
 
-        const bc = t.businessCategory || template?.businessCategory || "广州医保（线下）";
-
-        return {
-          id: t.id,
-          name: t.name,
-          businessCategory: bc,
-          deductibleCount: validDetails.length,
-          totalViolationAmount: sumViolation,
-          totalDeductionAmount: sumDeduction,
-          isNew: !viewedIds.includes(t.id)
-        };
+        groups[groupId].deductibleCount += validDetails.length;
+        groups[groupId].totalViolationAmount += sumViolation;
+        groups[groupId].totalDeductionAmount += sumDeduction;
+        groups[groupId].taskIds.push(t.id);
+        
+        if (!viewedIds.includes(groupId)) {
+          groups[groupId].isNew = true;
+        }
       });
 
-      setTasks(taskSummaries);
+      setTasks(Object.values(groups));
       
     }, 300);
   };
@@ -101,9 +122,13 @@ export default function DeductionDetails() {
   };
 
   const handleMockDownload = (task: TaskSummary) => {
-    const details = mockApi.getTaskDetailRecords(task.id, false);
-    const validDetails = details.filter(d => d.data && d.data.IS_APPEAL === "否").map(d => d.data);
-    exportToExcel(validDetails, `${task.name}明细.xlsx`);
+    let allDetails: any[] = [];
+    task.taskIds.forEach(tId => {
+      const details = mockApi.getTaskDetailRecords(tId, false);
+      const validDetails = details.filter(d => d.data && d.data.IS_APPEAL === "否").map(d => d.data);
+      allDetails = allDetails.concat(validDetails);
+    });
+    exportToExcel(allDetails, `${task.name}明细.xlsx`);
     toast("下载完成", "success");
   };
 
@@ -116,7 +141,12 @@ export default function DeductionDetails() {
   };
 
   const handleCreateTask = () => {
-    setImportMode("create");
+    setImportMode("manual");
+    setIsImportModalOpen(true);
+  };
+
+  const handleBatchImport = () => {
+    setImportMode("batch");
     setIsImportModalOpen(true);
   };
 
@@ -126,7 +156,7 @@ export default function DeductionDetails() {
     setIsImportModalOpen(true);
   };
 
-  const handleImportConfirm = (taskName: string | null, file: File, category?: string) => {
+  const handleImportConfirm = (taskName: string | null, _file: File, category?: string, belongingMonth?: string) => {
     // 根据需求，生成随机数来充当扣减的记录数和金额
     const recordCount = Math.floor(Math.random() * 16) + 5; // 5 to 20 records
     const fakeRecords = Array.from({ length: recordCount }).map((_, i) => {
@@ -146,8 +176,12 @@ export default function DeductionDetails() {
       };
     });
 
-    if (importMode === "create") {
-      const newTask = mockApi.addTask(taskName!, "TPL_GZ_YB", category);
+    if (importMode === "manual" || importMode === "batch") {
+      const generatedCategory = category || "未知分类";
+      const generatedMonth = belongingMonth || new Date().toISOString().slice(0,7);
+      const name = taskName || "导入的扣减明细";
+      
+      const newTask = mockApi.addTask(name, "TPL_GZ_YB", generatedCategory, generatedMonth, importMode === "manual");
       mockApi.updateTaskDetails(newTask.id, fakeRecords);
       toast("扣减明细导入成功", "success");
     } else if (importMode === "update" && currentUpdateTaskId) {
@@ -163,9 +197,11 @@ export default function DeductionDetails() {
     const selectedTasks = tasks.filter(t => selectedRowKeys.includes(t.id));
     let allDetails: any[] = [];
     selectedTasks.forEach(task => {
-      const details = mockApi.getTaskDetailRecords(task.id, false);
-      const validDetails = details.filter(d => d.data && d.data.IS_APPEAL === "否").map(d => d.data);
-      allDetails = allDetails.concat(validDetails);
+      task.taskIds.forEach(tId => {
+        const details = mockApi.getTaskDetailRecords(tId, false);
+        const validDetails = details.filter(d => d.data && d.data.IS_APPEAL === "否").map(d => d.data);
+        allDetails = allDetails.concat(validDetails);
+      });
     });
 
     if (allDetails.length === 0) {
@@ -182,15 +218,15 @@ export default function DeductionDetails() {
 
   const [isColumnSettingsOpen, setIsColumnSettingsOpen] = useState(false);
   const [configurableColumns, setConfigurableColumns] = useState<ColumnItem[]>([
-    { key: "name", title: "任务名称", visible: true },
     { key: "businessCategory", title: "医保业务分类", visible: true },
+    { key: "belongingMonth", title: "所属年月", visible: true },
     { key: "deductibleCount", title: "可扣减记录数", visible: true },
     { key: "totalDeductionAmount", title: "扣减金额合计 (元)", visible: true }
   ]);
 
   const filteredTasks = tasks.filter(t => 
     (filterMonth ? t.businessCategory === filterMonth : true) &&
-    (filterName ? t.name.includes(filterName) : true)
+    (filterBelongingMonth ? t.belongingMonth === filterBelongingMonth : true)
   );
 
   const selectedTaskObjects = tasks.filter(t => selectedRowKeys.includes(t.id));
@@ -219,7 +255,19 @@ export default function DeductionDetails() {
         );
       } else if (c.key === "businessCategory") {
         width = "160px";
-        render = (r) => r.businessCategory;
+        render = (r) => (
+          <div className="flex items-center space-x-2">
+            <span className="truncate">{r.businessCategory}</span>
+            {r.isNew && (
+              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-green-100 text-green-700 select-none">
+                NEW
+              </span>
+            )}
+          </div>
+        );
+      } else if (c.key === "belongingMonth") {
+        width = "120px";
+        render = (r) => r.belongingMonth;
       } else if (c.key === "deductibleCount") {
         width = "130px";
         align = "center";
@@ -232,9 +280,9 @@ export default function DeductionDetails() {
     }),
     { key: "action", title: "操作", width: "220px", align: "left", fixed: "right", render: (r) => (
       <div className="flex items-center justify-start space-x-3">
-        <button onClick={() => handleView(r.id)} className="text-blue-600 hover:text-blue-800 text-sm font-medium">详情</button>
-        <button onClick={() => handleMockDownload(r)} className="text-blue-600 hover:text-blue-800 text-sm font-medium">下载</button>
-        <button onClick={() => handleUpdateTask(r.id)} className="text-blue-600 hover:text-blue-800 text-sm font-medium">导入</button>
+        <button onClick={() => handleView(r.id)} className="text-blue-600 hover:text-blue-800 text-sm font-medium">查看详情</button>
+        <button onClick={() => handleMockDownload(r)} className="text-blue-600 hover:text-blue-800 text-sm font-medium">下载明细</button>
+        <button onClick={() => handleUpdateTask(r.id)} className="text-blue-600 hover:text-blue-800 text-sm font-medium">导入更新</button>
         {r.id.startsWith("T_CUSTOM_") && (
           <button 
             onClick={() => {
@@ -271,18 +319,16 @@ export default function DeductionDetails() {
               </select>
             </div>
             <div className="flex items-center bg-slate-50 border border-slate-200 rounded-md px-3 py-1.5 focus-within:ring-1 focus-within:ring-blue-500 transition-shadow">
-              <Search className="w-4 h-4 text-slate-400 mr-2" />
               <input 
-                type="text" 
-                placeholder="任务名称" 
-                value={filterName}
-                onChange={e => setFilterName(e.target.value)}
-                className="bg-transparent text-sm w-60 outline-none text-slate-700" 
+                type="month" 
+                value={filterBelongingMonth}
+                onChange={e => setFilterBelongingMonth(e.target.value)}
+                className="bg-transparent text-sm w-36 outline-none text-slate-700" 
               />
             </div>
             <div className="flex items-center space-x-2 pl-2">
                <Button variant="primary" size="sm" onClick={() => {}}>查询</Button>
-               <Button variant="outline" size="sm" className="gap-1.5" onClick={() => { setFilterMonth(""); setFilterName(""); }}>
+               <Button variant="outline" size="sm" className="gap-1.5" onClick={() => { setFilterMonth(""); setFilterBelongingMonth(""); }}>
                  <RotateCcw className="w-3.5 h-3.5" />
                  重置
                </Button>
@@ -296,7 +342,11 @@ export default function DeductionDetails() {
            <div className="flex items-center space-x-3">
               <Button variant="primary" size="sm" onClick={handleCreateTask} className="gap-2">
                 <Plus className="w-4 h-4" />
-                新增扣减明细
+                手动新增
+              </Button>
+              <Button variant="outline" size="sm" onClick={handleBatchImport} className="gap-2">
+                <ArrowDownToLine className="w-4 h-4" />
+                批量导入
               </Button>
               <Button variant="outline" size="sm" onClick={handleMergeDownloadClick} className="gap-2 text-blue-600 border-blue-200 hover:bg-blue-50">
                 <ArrowDownToLine className="w-4 h-4" />
@@ -353,6 +403,7 @@ export default function DeductionDetails() {
                        <tr>
                          <th className="px-4 py-2 bg-slate-50">任务名称</th>
                          <th className="px-4 py-2 bg-slate-50">医保业务分类</th>
+                         <th className="px-4 py-2 bg-slate-50">所属年月</th>
                          <th className="px-4 py-2 text-center bg-slate-50">可扣减记录数</th>
                          <th className="px-4 py-2 text-right bg-slate-50">扣减金额合计 (元)</th>
                        </tr>
@@ -360,8 +411,8 @@ export default function DeductionDetails() {
                     <tbody className="divide-y divide-slate-100 bg-white">
                        {selectedTaskObjects.map(t => (
                          <tr key={t.id} className="hover:bg-slate-50">
-                           <td className="px-4 py-3">{t.name}</td>
                            <td className="px-4 py-3">{t.businessCategory}</td>
+                           <td className="px-4 py-3">{t.belongingMonth}</td>
                            <td className="px-4 py-3 text-center">{t.deductibleCount}</td>
                            <td className="px-4 py-3 text-right">{t.totalDeductionAmount.toFixed(2)}</td>
                          </tr>

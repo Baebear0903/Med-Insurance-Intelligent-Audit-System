@@ -17,10 +17,12 @@ interface TaskSummary {
   id: string;
   name: string;
   businessCategory: string;
+  belongingMonth?: string;
   deductibleCount: number;
   totalViolationAmount: number;
   totalDeductionAmount: number;
   isNew: boolean;
+  isManual?: boolean;
 }
 
 const BASE_COLUMNS: ColumnItem[] = [
@@ -76,51 +78,76 @@ export default function DeductionTaskDetails() {
     setIsLoading(true);
     setTimeout(() => {
       const allTasks = mockApi.getTasks(1, 1000).data;
-      const t = allTasks.find(t => t.id === taskId);
+      let matchedTasks = allTasks.filter(t => t.id === taskId);
       
-      let validDetails = mockApi.getTaskDetailRecords(taskId, false)
-        .filter(d => d.data && d.data.IS_APPEAL === "否")
-        .map(d => ({...d.data, id: d.id}))
-        .sort((a,b) => (a.ADMIT_DATE > b.ADMIT_DATE ? -1 : 1));
+      let bc = "";
+      let month = "";
       
-      if (t) {
+      // If no direct match, check if it is a groupId (bc_month format)
+      if (matchedTasks.length === 0 && taskId.includes("_")) {
+        const parts = taskId.split("_");
+        month = parts.pop() || "";
+        bc = parts.join("_");
+        
+        const allTemplates = mockApi.getTemplates();
+        matchedTasks = allTasks.filter(t => {
+          if (t.templateId !== "TPL_GZ_YB" || t.status !== "END" || t.parentId || t.isManual) return false;
+          const template = allTemplates.find(tpl => tpl.id === t.templateId);
+          const tBc = t.businessCategory || template?.businessCategory || "广州医保（线下）";
+          const tMonth = t.belongingMonth || "-";
+          return tBc === bc && tMonth === month;
+        });
+      } else if (matchedTasks.length > 0) {
+        const t = matchedTasks[0];
         const allTemplates = mockApi.getTemplates();
         const template = allTemplates.find(tpl => tpl.id === t.templateId);
-        const bc = t.businessCategory || template?.businessCategory || "广州医保（线下）";
-        
-        const configs = getInsuranceCategories();
-        const matchedConfig = configs.find(c => c.categoryName === bc);
-        const personCategory = matchedConfig ? matchedConfig.personnelCategory : "广州医保";
-        const onlineOffline = matchedConfig ? matchedConfig.onlineOffline : "线下";
-        
-        let sumViolation = 0;
-        let sumDeduction = 0;
-        validDetails = validDetails.map(d => {
-           const dMedCom = d._DEDUCTION_MED_COM || (Number(d.VIOLATION_AMOUNT) || 0) * 0.6;
-           const dOther = d._DEDUCTION_OTHER || (Number(d.VIOLATION_AMOUNT) || 0) * 0.4;
-           sumViolation += Number(d.VIOLATION_AMOUNT) || 0;
-           sumDeduction += (Number(dMedCom) || 0) + (Number(dOther) || 0);
-           
-           return {
-             ...d,
-             _PERSON_CATEGORY: d._PERSON_CATEGORY || personCategory,
-             _IS_ONLINE: d._IS_ONLINE || onlineOffline,
-             _DEDUCTION_MED_COM: dMedCom,
-             _DEDUCTION_OTHER: dOther,
-             _DEDUCTION_AMOUNT: d._DEDUCTION_AMOUNT || (Number(dMedCom) + Number(dOther))
-           };
-        });
-        
-        setTaskSummary({
-          id: t.id,
-          name: t.name,
-          businessCategory: bc,
-          deductibleCount: validDetails.length,
-          totalViolationAmount: sumViolation,
-          totalDeductionAmount: sumDeduction,
-          isNew: false
-        });
+        bc = t.businessCategory || template?.businessCategory || "广州医保（线下）";
+        month = t.belongingMonth || "-";
       }
+
+      let validDetails: any[] = [];
+      matchedTasks.forEach(t => {
+        const details = mockApi.getTaskDetailRecords(t.id, false)
+          .filter(d => d.data && d.data.IS_APPEAL === "否")
+          .map(d => ({...d.data, id: d.id, taskId: t.id}));
+        validDetails = validDetails.concat(details);
+      });
+      
+      validDetails.sort((a,b) => (a.ADMIT_DATE > b.ADMIT_DATE ? -1 : 1));
+      
+      const configs = getInsuranceCategories();
+      const matchedConfig = configs.find(c => c.categoryName === bc);
+      const personCategory = matchedConfig ? matchedConfig.personnelCategory : "广州医保";
+      const onlineOffline = matchedConfig ? matchedConfig.onlineOffline : "线下";
+      
+      let sumViolation = 0;
+      let sumDeduction = 0;
+      validDetails = validDetails.map(d => {
+         const dMedCom = d._DEDUCTION_MED_COM || (Number(d.VIOLATION_AMOUNT) || 0) * 0.6;
+         const dOther = d._DEDUCTION_OTHER || (Number(d.VIOLATION_AMOUNT) || 0) * 0.4;
+         sumViolation += Number(d.VIOLATION_AMOUNT) || 0;
+         sumDeduction += (Number(dMedCom) || 0) + (Number(dOther) || 0);
+         
+         return {
+           ...d,
+           _PERSON_CATEGORY: d._PERSON_CATEGORY || personCategory,
+           _IS_ONLINE: d._IS_ONLINE || onlineOffline,
+           _DEDUCTION_MED_COM: dMedCom,
+           _DEDUCTION_OTHER: dOther,
+           _DEDUCTION_AMOUNT: d._DEDUCTION_AMOUNT || (Number(dMedCom) + Number(dOther))
+         };
+      });
+      
+      setTaskSummary({
+        id: taskId,
+        name: matchedTasks.length === 1 && matchedTasks[0].isManual ? matchedTasks[0].name : `${bc} ${month} 扣减明细`,
+        businessCategory: bc,
+        belongingMonth: month,
+        deductibleCount: validDetails.length,
+        totalViolationAmount: sumViolation,
+        totalDeductionAmount: sumDeduction,
+        isNew: false
+      });
 
       setTotal(validDetails.length);
       const start = (page - 1) * pageSize;
@@ -142,7 +169,7 @@ export default function DeductionTaskDetails() {
     toast("院内扣减明细已下载", "success");
   };
 
-  const handleImportConfirm = (taskName: string | null, file: File, category?: string) => {
+  const handleImportConfirm = (_taskName: string | null, _file: File, category?: string) => {
     if (!taskId) return;
     const recordCount = Math.floor(Math.random() * 16) + 5; // 5 to 20 records
     const fakeRecords = Array.from({ length: recordCount }).map((_, i) => {

@@ -149,7 +149,7 @@ export function Audit() {
   };
 
   const checkAndCompleteTaskStatus = (tId: string, dId?: string | null) => {
-    let tasksList = JSON.parse(localStorage.getItem("tasks_v23") || "null") as Task[];
+    let tasksList = JSON.parse(localStorage.getItem("tasks_v24") || "null") as Task[];
     if (!tasksList) return;
     
     const deptRef = dId && dId !== "all" ? parseInt(dId) : null;
@@ -191,7 +191,7 @@ export function Audit() {
       });
     }
     
-    localStorage.setItem("tasks_v23", JSON.stringify(tasksList));
+    localStorage.setItem("tasks_v24", JSON.stringify(tasksList));
   };
 
   const handleConfirmAudit = () => {

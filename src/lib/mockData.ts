@@ -25,6 +25,7 @@ export interface Task {
   aiFillTotal?: number;
   businessCategory?: string;
   belongingMonth?: string; // Format: YYYY-MM
+  isManual?: boolean;
 }
 
 export interface ReviewRecord {
@@ -73,33 +74,33 @@ export interface ReviewTemplate {
 }
 
 const INITIAL_TASKS: Task[] = [
-  { id: "T_2024_01_GZ", name: "2024年01月广州医保线下反馈核查", year: "2024", departmentId: 1, templateId: "TPL_GZ_YB", templateName: "广州医保（线下）反馈", status: "END", creator: "管理员", createTime: "2024-01-01 09:00", updateTime: "2024-01-10 09:00", dueDate: "2024-01-30" },
-  { id: "T_2024_01_GZ_0", parentId: "T_2024_01_GZ", name: "2024年01月广州医保线下反馈核查 - 外科", year: "2024", departmentId: 3, templateId: "TPL_GZ_YB", templateName: "广州医保（线下）反馈", status: "END", creator: "管理员", createTime: "2024-01-01 09:00", updateTime: "2024-01-10 09:00", dueDate: "2024-01-30" },
-  { id: "T_2024_01_GZ_1", parentId: "T_2024_01_GZ", name: "2024年01月广州医保线下反馈核查 - 内科", year: "2024", departmentId: 4, templateId: "TPL_GZ_YB", templateName: "广州医保（线下）反馈", status: "END", creator: "管理员", createTime: "2024-01-01 09:00", updateTime: "2024-01-10 09:00", dueDate: "2024-01-30" },
-  { id: "T_2024_01_DED", name: "2024年01月医保院内扣减", year: "2024", departmentId: 1, templateId: "TPL_DED", templateName: "医保院内扣减", status: "END", creator: "管理员", createTime: "2024-01-20 09:00", updateTime: "2024-01-20 09:00", dueDate: "2024-01-30" },
-  { id: "T_2024_01_DED_0", parentId: "T_2024_01_DED", name: "2024年01月医保院内扣减 - 外科", year: "2024", departmentId: 3, templateId: "TPL_DED", templateName: "医保院内扣减", status: "END", creator: "管理员", createTime: "2024-01-20 09:00", updateTime: "2024-01-22 09:00", dueDate: "2024-01-30" },
-  { id: "T_2024_01_DED_1", parentId: "T_2024_01_DED", name: "2024年01月医保院内扣减 - 内科", year: "2024", departmentId: 4, templateId: "TPL_DED", templateName: "医保院内扣减", status: "END", creator: "管理员", createTime: "2024-01-20 09:00", updateTime: "2024-01-22 09:00", dueDate: "2024-01-30" },
+  { id: "T_2024_01_GZ", name: "2024年01月广州医保线下反馈核查", year: "2024", departmentId: 1, templateId: "TPL_GZ_YB", templateName: "广州医保（线下）反馈", belongingMonth: "2024-01", status: "END", creator: "管理员", createTime: "2024-01-01 09:00", updateTime: "2024-01-10 09:00", dueDate: "2024-01-30" },
+  { id: "T_2024_01_GZ_0", parentId: "T_2024_01_GZ", name: "2024年01月广州医保线下反馈核查 - 外科", year: "2024", departmentId: 3, templateId: "TPL_GZ_YB", templateName: "广州医保（线下）反馈", belongingMonth: "2024-01", status: "END", creator: "管理员", createTime: "2024-01-01 09:00", updateTime: "2024-01-10 09:00", dueDate: "2024-01-30" },
+  { id: "T_2024_01_GZ_1", parentId: "T_2024_01_GZ", name: "2024年01月广州医保线下反馈核查 - 内科", year: "2024", departmentId: 4, templateId: "TPL_GZ_YB", templateName: "广州医保（线下）反馈", belongingMonth: "2024-01", status: "END", creator: "管理员", createTime: "2024-01-01 09:00", updateTime: "2024-01-10 09:00", dueDate: "2024-01-30" },
+  { id: "T_2024_01_DED", name: "2024年01月医保院内扣减", year: "2024", departmentId: 1, templateId: "TPL_DED", templateName: "医保院内扣减", belongingMonth: "2024-01", status: "END", creator: "管理员", createTime: "2024-01-20 09:00", updateTime: "2024-01-20 09:00", dueDate: "2024-01-30" },
+  { id: "T_2024_01_DED_0", parentId: "T_2024_01_DED", name: "2024年01月医保院内扣减 - 外科", year: "2024", departmentId: 3, templateId: "TPL_DED", templateName: "医保院内扣减", belongingMonth: "2024-01", status: "END", creator: "管理员", createTime: "2024-01-20 09:00", updateTime: "2024-01-22 09:00", dueDate: "2024-01-30" },
+  { id: "T_2024_01_DED_1", parentId: "T_2024_01_DED", name: "2024年01月医保院内扣减 - 内科", year: "2024", departmentId: 4, templateId: "TPL_DED", templateName: "医保院内扣减", belongingMonth: "2024-01", status: "END", creator: "管理员", createTime: "2024-01-20 09:00", updateTime: "2024-01-22 09:00", dueDate: "2024-01-30" },
 
-  { id: "T_2024_02_GZ", name: "2024年02月广州医保线下反馈核查", year: "2024", departmentId: 1, templateId: "TPL_GZ_YB", templateName: "广州医保（线下）反馈", status: "END", creator: "管理员", createTime: "2024-02-01 09:00", updateTime: "2024-02-10 09:00", dueDate: "2024-02-28" },
-  { id: "T_2024_02_GZ_0", parentId: "T_2024_02_GZ", name: "2024年02月广州医保线下反馈核查 - 外科", year: "2024", departmentId: 3, templateId: "TPL_GZ_YB", templateName: "广州医保（线下）反馈", status: "END", creator: "管理员", createTime: "2024-02-01 09:00", updateTime: "2024-02-10 09:00", dueDate: "2024-02-28" },
-  { id: "T_2024_02_GZ_1", parentId: "T_2024_02_GZ", name: "2024年02月广州医保线下反馈核查 - 内科", year: "2024", departmentId: 4, templateId: "TPL_GZ_YB", templateName: "广州医保（线下）反馈", status: "END", creator: "管理员", createTime: "2024-02-01 09:00", updateTime: "2024-02-10 09:00", dueDate: "2024-02-28" },
-  { id: "T_2024_02_DED", name: "2024年02月医保院内扣减", year: "2024", departmentId: 1, templateId: "TPL_DED", templateName: "医保院内扣减", status: "PUBLISH", creator: "管理员", createTime: "2024-02-20 09:00", updateTime: "2024-02-20 09:00", dueDate: "2024-02-28" },
-  { id: "T_2024_02_DED_0", parentId: "T_2024_02_DED", name: "2024年02月医保院内扣减 - 外科", year: "2024", departmentId: 3, templateId: "TPL_DED", templateName: "医保院内扣减", status: "END", creator: "管理员", createTime: "2024-02-20 09:00", updateTime: "2024-02-22 09:00", dueDate: "2024-02-28" },
-  { id: "T_2024_02_DED_1", parentId: "T_2024_02_DED", name: "2024年02月医保院内扣减 - 内科", year: "2024", departmentId: 4, templateId: "TPL_DED", templateName: "医保院内扣减", status: "PUBLISH", creator: "管理员", createTime: "2024-02-20 09:00", updateTime: "2024-02-20 09:00", dueDate: "2024-02-28" },
+  { id: "T_2024_02_GZ", name: "2024年02月广州医保线下反馈核查", year: "2024", departmentId: 1, templateId: "TPL_GZ_YB", templateName: "广州医保（线下）反馈", belongingMonth: "2024-02", status: "END", creator: "管理员", createTime: "2024-02-01 09:00", updateTime: "2024-02-10 09:00", dueDate: "2024-02-28" },
+  { id: "T_2024_02_GZ_0", parentId: "T_2024_02_GZ", name: "2024年02月广州医保线下反馈核查 - 外科", year: "2024", departmentId: 3, templateId: "TPL_GZ_YB", templateName: "广州医保（线下）反馈", belongingMonth: "2024-02", status: "END", creator: "管理员", createTime: "2024-02-01 09:00", updateTime: "2024-02-10 09:00", dueDate: "2024-02-28" },
+  { id: "T_2024_02_GZ_1", parentId: "T_2024_02_GZ", name: "2024年02月广州医保线下反馈核查 - 内科", year: "2024", departmentId: 4, templateId: "TPL_GZ_YB", templateName: "广州医保（线下）反馈", belongingMonth: "2024-02", status: "END", creator: "管理员", createTime: "2024-02-01 09:00", updateTime: "2024-02-10 09:00", dueDate: "2024-02-28" },
+  { id: "T_2024_02_DED", name: "2024年02月医保院内扣减", year: "2024", departmentId: 1, templateId: "TPL_DED", templateName: "医保院内扣减", belongingMonth: "2024-02", status: "PUBLISH", creator: "管理员", createTime: "2024-02-20 09:00", updateTime: "2024-02-20 09:00", dueDate: "2024-02-28" },
+  { id: "T_2024_02_DED_0", parentId: "T_2024_02_DED", name: "2024年02月医保院内扣减 - 外科", year: "2024", departmentId: 3, templateId: "TPL_DED", templateName: "医保院内扣减", belongingMonth: "2024-02", status: "END", creator: "管理员", createTime: "2024-02-20 09:00", updateTime: "2024-02-22 09:00", dueDate: "2024-02-28" },
+  { id: "T_2024_02_DED_1", parentId: "T_2024_02_DED", name: "2024年02月医保院内扣减 - 内科", year: "2024", departmentId: 4, templateId: "TPL_DED", templateName: "医保院内扣减", belongingMonth: "2024-02", status: "PUBLISH", creator: "管理员", createTime: "2024-02-20 09:00", updateTime: "2024-02-20 09:00", dueDate: "2024-02-28" },
 
-  { id: "T_2024_03_GZ", name: "2024年03月广州医保线下反馈核查", year: "2024", departmentId: 1, templateId: "TPL_GZ_YB", templateName: "广州医保（线下）反馈", status: "END", creator: "管理员", createTime: "2024-03-01 09:00", updateTime: "2024-03-10 09:00", dueDate: "2024-03-31" },
-  { id: "T_2024_03_GZ_0", parentId: "T_2024_03_GZ", name: "2024年03月广州医保线下反馈核查 - 外科", year: "2024", departmentId: 3, templateId: "TPL_GZ_YB", templateName: "广州医保（线下）反馈", status: "END", creator: "管理员", createTime: "2024-03-01 09:00", updateTime: "2024-03-10 09:00", dueDate: "2024-03-31" },
-  { id: "T_2024_03_GZ_1", parentId: "T_2024_03_GZ", name: "2024年03月广州医保线下反馈核查 - 内科", year: "2024", departmentId: 4, templateId: "TPL_GZ_YB", templateName: "广州医保（线下）反馈", status: "END", creator: "管理员", createTime: "2024-03-01 09:00", updateTime: "2024-03-10 09:00", dueDate: "2024-03-31" },
+  { id: "T_2024_03_GZ", name: "2024年03月广州医保线下反馈核查", year: "2024", departmentId: 1, templateId: "TPL_GZ_YB", templateName: "广州医保（线下）反馈", belongingMonth: "2024-03", status: "END", creator: "管理员", createTime: "2024-03-01 09:00", updateTime: "2024-03-10 09:00", dueDate: "2024-03-31" },
+  { id: "T_2024_03_GZ_0", parentId: "T_2024_03_GZ", name: "2024年03月广州医保线下反馈核查 - 外科", year: "2024", departmentId: 3, templateId: "TPL_GZ_YB", templateName: "广州医保（线下）反馈", belongingMonth: "2024-03", status: "END", creator: "管理员", createTime: "2024-03-01 09:00", updateTime: "2024-03-10 09:00", dueDate: "2024-03-31" },
+  { id: "T_2024_03_GZ_1", parentId: "T_2024_03_GZ", name: "2024年03月广州医保线下反馈核查 - 内科", year: "2024", departmentId: 4, templateId: "TPL_GZ_YB", templateName: "广州医保（线下）反馈", belongingMonth: "2024-03", status: "END", creator: "管理员", createTime: "2024-03-01 09:00", updateTime: "2024-03-10 09:00", dueDate: "2024-03-31" },
   
-  { id: "T_2024_04_GZ", name: "2024年04月广州医保线下反馈核查", year: "2024", departmentId: 1, templateId: "TPL_GZ_YB", templateName: "广州医保（线下）反馈", status: "PUBLISH", creator: "管理员", createTime: "2024-04-01 09:00", updateTime: "2024-04-10 09:00", dueDate: "2024-04-30" },
-  { id: "T_2024_04_GZ_0", parentId: "T_2024_04_GZ", name: "2024年04月广州医保线下反馈核查 - 外科", year: "2024", departmentId: 3, templateId: "TPL_GZ_YB", templateName: "广州医保（线下）反馈", status: "SUBMITTED", creator: "管理员", createTime: "2024-04-01 09:00", updateTime: "2024-04-10 09:00", dueDate: "2024-04-30" },
-  { id: "T_2024_04_GZ_1", parentId: "T_2024_04_GZ", name: "2024年04月广州医保线下反馈核查 - 内科", year: "2024", departmentId: 4, templateId: "TPL_GZ_YB", templateName: "广州医保（线下）反馈", status: "PUBLISH", creator: "管理员", createTime: "2024-04-01 09:00", updateTime: "2024-04-10 09:00", dueDate: "2024-04-30" },
+  { id: "T_2024_04_GZ", name: "2024年04月广州医保线下反馈核查", year: "2024", departmentId: 1, templateId: "TPL_GZ_YB", templateName: "广州医保（线下）反馈", belongingMonth: "2024-04", status: "PUBLISH", creator: "管理员", createTime: "2024-04-01 09:00", updateTime: "2024-04-10 09:00", dueDate: "2024-04-30" },
+  { id: "T_2024_04_GZ_0", parentId: "T_2024_04_GZ", name: "2024年04月广州医保线下反馈核查 - 外科", year: "2024", departmentId: 3, templateId: "TPL_GZ_YB", templateName: "广州医保（线下）反馈", belongingMonth: "2024-04", status: "SUBMITTED", creator: "管理员", createTime: "2024-04-01 09:00", updateTime: "2024-04-10 09:00", dueDate: "2024-04-30" },
+  { id: "T_2024_04_GZ_1", parentId: "T_2024_04_GZ", name: "2024年04月广州医保线下反馈核查 - 内科", year: "2024", departmentId: 4, templateId: "TPL_GZ_YB", templateName: "广州医保（线下）反馈", belongingMonth: "2024-04", status: "PUBLISH", creator: "管理员", createTime: "2024-04-01 09:00", updateTime: "2024-04-10 09:00", dueDate: "2024-04-30" },
   
-  { id: "T_2024_05_GZ", name: "2024年05月广州医保线下反馈核查", year: "2024", departmentId: 1, templateId: "TPL_GZ_YB", templateName: "广州医保（线下）反馈", status: "PUBLISH", creator: "管理员", createTime: "2024-05-01 09:00", updateTime: "2024-05-10 09:00", dueDate: "2024-05-31" },
-  { id: "T_2024_05_GZ_0", parentId: "T_2024_05_GZ", name: "2024年05月广州医保线下反馈核查 - 外科", year: "2024", departmentId: 3, templateId: "TPL_GZ_YB", templateName: "广州医保（线下）反馈", status: "PUBLISH", creator: "管理员", createTime: "2024-05-01 09:00", updateTime: "2024-05-10 09:00", dueDate: "2024-05-31" },
-  { id: "T_2024_05_GZ_1", parentId: "T_2024_05_GZ", name: "2024年05月广州医保线下反馈核查 - 内科", year: "2024", departmentId: 4, templateId: "TPL_GZ_YB", templateName: "广州医保（线下）反馈", status: "PUBLISH", creator: "管理员", createTime: "2024-05-01 09:00", updateTime: "2024-05-10 09:00", dueDate: "2024-05-31" },
+  { id: "T_2024_05_GZ", name: "2024年05月广州医保线下反馈核查", year: "2024", departmentId: 1, templateId: "TPL_GZ_YB", templateName: "广州医保（线下）反馈", belongingMonth: "2024-05", status: "PUBLISH", creator: "管理员", createTime: "2024-05-01 09:00", updateTime: "2024-05-10 09:00", dueDate: "2024-05-31" },
+  { id: "T_2024_05_GZ_0", parentId: "T_2024_05_GZ", name: "2024年05月广州医保线下反馈核查 - 外科", year: "2024", departmentId: 3, templateId: "TPL_GZ_YB", templateName: "广州医保（线下）反馈", belongingMonth: "2024-05", status: "PUBLISH", creator: "管理员", createTime: "2024-05-01 09:00", updateTime: "2024-05-10 09:00", dueDate: "2024-05-31" },
+  { id: "T_2024_05_GZ_1", parentId: "T_2024_05_GZ", name: "2024年05月广州医保线下反馈核查 - 内科", year: "2024", departmentId: 4, templateId: "TPL_GZ_YB", templateName: "广州医保（线下）反馈", belongingMonth: "2024-05", status: "PUBLISH", creator: "管理员", createTime: "2024-05-01 09:00", updateTime: "2024-05-10 09:00", dueDate: "2024-05-31" },
   
-  { id: "T_2024_06_GZ", name: "2024年06月广州医保线下反馈核查", year: "2024", departmentId: 1, templateId: "TPL_GZ_YB", templateName: "广州医保（线下）反馈", status: "CREATE", creator: "管理员", createTime: "2024-06-01 09:00", updateTime: "2024-06-10 09:00", dueDate: "2024-06-30" },
+  { id: "T_2024_06_GZ", name: "2024年06月广州医保线下反馈核查", year: "2024", departmentId: 1, templateId: "TPL_GZ_YB", templateName: "广州医保（线下）反馈", belongingMonth: "2024-06", status: "CREATE", creator: "管理员", createTime: "2024-06-01 09:00", updateTime: "2024-06-10 09:00", dueDate: "2024-06-30" },
 ];
 
 const INITIAL_REPORTS: ReviewRecord[] = INITIAL_TASKS.filter(t => t.parentId).map(t => ({
@@ -309,7 +310,7 @@ let activeIntervals: Record<string, NodeJS.Timeout> = {};
 
 export const mockApi = {
   startAIFill: (taskId: string, restart = true) => {
-    let tasks = JSON.parse(localStorage.getItem("tasks_v23") || "null");
+    let tasks = JSON.parse(localStorage.getItem("tasks_v24") || "null");
     let isSubtask = false;
     let parentId = null;
     if (tasks) {
@@ -397,7 +398,7 @@ export const mockApi = {
     }
   },
   abortAIFill: (taskId: string) => {
-    let tasks = JSON.parse(localStorage.getItem("tasks_v23") || "null");
+    let tasks = JSON.parse(localStorage.getItem("tasks_v24") || "null");
     let isSubtask = false;
     let parentId = null;
     if (tasks) {
@@ -433,11 +434,11 @@ export const mockApi = {
   resetData: () => {},
 
   getTasks: (page = 1, pageSize = 10, filters: any = {}): { data: Task[], total: number } => {
-    let tasks = JSON.parse(localStorage.getItem("tasks_v23") || "null");
+    let tasks = JSON.parse(localStorage.getItem("tasks_v24") || "null");
     
     if (!tasks) {
       tasks = INITIAL_TASKS;
-      localStorage.setItem("tasks_v23", JSON.stringify(tasks));
+      localStorage.setItem("tasks_v24", JSON.stringify(tasks));
       localStorage.setItem("records_v23", JSON.stringify(INITIAL_REPORTS));
       localStorage.setItem("templates_v23", JSON.stringify(INITIAL_TEMPLATES));
       Object.keys(ALL_MOCK_DETAILS).forEach(key => {
@@ -492,7 +493,7 @@ export const mockApi = {
   },
 
   getTaskById: (id: string): Task | null => {
-    let tasks = JSON.parse(localStorage.getItem("tasks_v23") || "null");
+    let tasks = JSON.parse(localStorage.getItem("tasks_v24") || "null");
     if (!tasks) tasks = INITIAL_TASKS;
     const task = tasks.find((t: Task) => t.id === id);
     if (!task) return null;
@@ -564,7 +565,7 @@ export const mockApi = {
   deleteTemplates: (..._args: any[]) => {},
 
   updateTaskStatus: (taskId: string, status: keyof typeof TASK_STATUS) => {
-    let tasks = JSON.parse(localStorage.getItem("tasks_v23") || "null");
+    let tasks = JSON.parse(localStorage.getItem("tasks_v24") || "null");
     if (!tasks) return;
     const index = tasks.findIndex((t: Task) => t.id === taskId);
     if (index > -1) {
@@ -581,7 +582,7 @@ export const mockApi = {
         });
       }
 
-      localStorage.setItem("tasks_v23", JSON.stringify(tasks));
+      localStorage.setItem("tasks_v24", JSON.stringify(tasks));
       
       // For deductions, update parent if all children are END
       if (tasks[index].parentId && status === "END") {
@@ -592,7 +593,7 @@ export const mockApi = {
               if (parentIdx > -1) {
                   tasks[parentIdx].status = "END";
                   tasks[parentIdx].updateTime = new Date().toLocaleString();
-                  localStorage.setItem("tasks_v23", JSON.stringify(tasks));
+                  localStorage.setItem("tasks_v24", JSON.stringify(tasks));
               }
           }
       }
@@ -600,7 +601,7 @@ export const mockApi = {
   },
 
   getTaskDetailRecords: (taskId: string, includeDoNotIssue: boolean = true) => {
-    let tasks = JSON.parse(localStorage.getItem("tasks_v23") || "null");
+    let tasks = JSON.parse(localStorage.getItem("tasks_v24") || "null");
     let isSubtask = false;
     let parentId = null;
     let currentDeptName = null;
@@ -636,19 +637,19 @@ export const mockApi = {
 
   dispatchTask: (taskId: string) => {
       // Just mock returning true for deduction tasks if they are dispatched
-      let tasks = JSON.parse(localStorage.getItem("tasks_v23") || "null");
+      let tasks = JSON.parse(localStorage.getItem("tasks_v24") || "null");
       if (!tasks) return false;
       const index = tasks.findIndex((t: Task) => t.id === taskId);
       if (index > -1 && tasks[index].status === "CREATE") {
           tasks[index].status = "PUBLISH";
-          localStorage.setItem("tasks_v23", JSON.stringify(tasks));
+          localStorage.setItem("tasks_v24", JSON.stringify(tasks));
           return true;
       }
       return false;
   },
 
   saveTaskDetailRecord: (taskId: string, record: any) => {
-    let tasks = JSON.parse(localStorage.getItem("tasks_v23") || "null");
+    let tasks = JSON.parse(localStorage.getItem("tasks_v24") || "null");
     let isSubtask = false;
     let parentId = null;
     if (tasks) {
@@ -669,7 +670,7 @@ export const mockApi = {
     }
   },
   toggleDoNotIssue: (taskId: string, ids: string[], doNotIssue: boolean) => {
-    let tasks = JSON.parse(localStorage.getItem("tasks_v23") || "null");
+    let tasks = JSON.parse(localStorage.getItem("tasks_v24") || "null");
     let isSubtask = false;
     let parentId = null;
     if (tasks) {
@@ -695,17 +696,17 @@ export const mockApi = {
   deleteTaskDetailRecords: (..._args: any[]) => {},
   
   deleteTask: (taskId: string) => {
-    let tasks = JSON.parse(localStorage.getItem("tasks_v23") || "null");
+    let tasks = JSON.parse(localStorage.getItem("tasks_v24") || "null");
     if (tasks) {
       tasks = tasks.filter((t: any) => t.id !== taskId);
-      localStorage.setItem("tasks_v23", JSON.stringify(tasks));
-      localStorage.removeItem(`task_records_v23_${taskId}`);
+      localStorage.setItem("tasks_v24", JSON.stringify(tasks));
+      localStorage.removeItem(`task_records_v24_${taskId}`);
       window.dispatchEvent(new Event("task_updated"));
     }
   },
 
-  addTask: (taskName: string, templateId: string, businessCategory?: string) => {
-    let tasks = JSON.parse(localStorage.getItem("tasks_v23") || "null");
+  addTask: (taskName: string, templateId: string, businessCategory?: string, belongingMonth?: string, isManual?: boolean) => {
+    let tasks = JSON.parse(localStorage.getItem("tasks_v24") || "null");
     if (!tasks) tasks = INITIAL_TASKS;
     const newTask: Task = {
         id: "T_CUSTOM_" + Date.now(),
@@ -719,10 +720,12 @@ export const mockApi = {
         createTime: new Date().toLocaleString(),
         updateTime: new Date().toLocaleString(),
         dueDate: new Date().toLocaleDateString(),
-        businessCategory
+        businessCategory,
+        belongingMonth,
+        isManual
     };
     tasks.unshift(newTask);
-    localStorage.setItem("tasks_v23", JSON.stringify(tasks));
+    localStorage.setItem("tasks_v24", JSON.stringify(tasks));
     return newTask;
   },
 

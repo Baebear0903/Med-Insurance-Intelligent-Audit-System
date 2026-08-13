@@ -18,6 +18,7 @@ export function TaskList() {
     { key: "name", title: "任务名称", visible: true },
     { key: "departmentId", title: "创建科室", visible: true },
     { key: "templateName", title: "数据模板", visible: true },
+    { key: "belongingMonth", title: "所属年月", visible: true },
     { key: "status", title: "任务状态", visible: true },
     { key: "creator", title: "任务创建人", visible: true },
     { key: "createTime", title: "创建时间", visible: true }
@@ -53,7 +54,7 @@ export function TaskList() {
     const res = mockApi.getTasks(1, 1000, searchParams);
     
     // Sort and filter handled by mockApi, but we need to merge subtasks
-    const parentTasks = res.data.filter(t => !t.parentId);
+    const parentTasks = res.data.filter(t => !t.parentId && !t.isManual);
     
     const enhancedData = parentTasks.map(pt => {
       const subTasks = res.data.filter(t => t.parentId === pt.id);
@@ -296,8 +297,9 @@ export function TaskList() {
     },
     { key: "index", title: "序号", width: "60px", render: (r: Task) => (page - 1) * pageSize + data.findIndex(d => d.id === r.id) + 1 },
     { key: "name", title: "任务名称", width: "22%", render: (r: Task) => <Link to={`/task-management/task-list/data-query/index?id=${r.id}`} className="text-blue-600 hover:text-blue-800 font-medium decoration-blue-600/30 underline-offset-4 hover:underline">{r.name}</Link> },
-    { key: "departmentId", title: "创建科室", width: "15%", render: (r: any) => DEPARTMENTS[r.departmentId as keyof typeof DEPARTMENTS] || "-" },
-    { key: "templateName", title: "数据模板", width: "15%", render: (r: Task) => r.templateName || "-" },
+    { key: "departmentId", title: "创建科室", width: "12%", render: (r: any) => DEPARTMENTS[r.departmentId as keyof typeof DEPARTMENTS] || "-" },
+    { key: "templateName", title: "数据模板", width: "12%", render: (r: Task) => r.templateName || "-" },
+    { key: "belongingMonth", title: "所属年月", width: "10%", render: (r: Task) => r.belongingMonth || "-" },
     { key: "status", title: "任务状态", width: "12%", render: (r: Task) => getStatusBadge(r.status) },
     { key: "creator", title: "任务创建人", width: "10%" },
     { key: "createTime", title: "创建时间", width: "15%" },
@@ -316,13 +318,12 @@ export function TaskList() {
   // Logic handlers
   const handleCreateTask = () => {
     const tpl = templates.find(t => t.id === newTaskForm.templateId);
-    const isDeduction = tpl?.templateType === "医保明细下发" && tpl?.dispatchRemark === "院内扣减公示";
 
-    if (!newTaskForm.name || !newTaskForm.dueDate || !newTaskForm.templateId || !newTaskForm.departmentId || (isDeduction && !newTaskForm.belongingMonth)) {
+    if (!newTaskForm.name || !newTaskForm.dueDate || !newTaskForm.templateId || !newTaskForm.departmentId || !newTaskForm.belongingMonth) {
       toast("请填写带*号的必填项", "error");
       return;
     }
-    let tasks = JSON.parse(localStorage.getItem("tasks_v23") || "[]");
+    let tasks = JSON.parse(localStorage.getItem("tasks_v24") || "[]");
     if (!tasks || tasks.length === 0) { tasks = mockApi.getTasks(1, 100).data; } // Load defaults if empty
     
     const newTask: Task = {
@@ -337,10 +338,10 @@ export function TaskList() {
       createTime: new Date().toISOString().slice(0, 16).replace("T", " "),
       updateTime: new Date().toISOString().slice(0, 16).replace("T", " "),
       dueDate: newTaskForm.dueDate,
-      belongingMonth: isDeduction ? newTaskForm.belongingMonth : undefined
+      belongingMonth: newTaskForm.belongingMonth
     };
     tasks.push(newTask);
-    localStorage.setItem("tasks_v23", JSON.stringify(tasks));
+    localStorage.setItem("tasks_v24", JSON.stringify(tasks));
     setIsNewTaskModalOpen(false);
     toast("新建任务成功", "success");
     setNewTaskForm({ name: "", dueDate: "", templateId: "", departmentId: "1", desc: "", belongingMonth: "" });
@@ -381,10 +382,10 @@ export function TaskList() {
 
   const handleEndTask = () => {
     if(!activeTask) return;
-    let tasks = JSON.parse(localStorage.getItem("tasks_v23") || "[]");
+    let tasks = JSON.parse(localStorage.getItem("tasks_v24") || "[]");
     const t = tasks.find((t: Task) => t.id === activeTask.id);
     if(t) t.status = "END";
-    localStorage.setItem("tasks_v23", JSON.stringify(tasks));
+    localStorage.setItem("tasks_v24", JSON.stringify(tasks));
     setIsEndTaskModalOpen(false);
     toast("任务已结束", "success");
     fetchData();
@@ -566,14 +567,11 @@ export function TaskList() {
               {templates.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
             </select>
           </div>
-          {templates.find(t => t.id === newTaskForm.templateId)?.templateType === "医保明细下发" && 
-           templates.find(t => t.id === newTaskForm.templateId)?.dispatchRemark === "院内扣减公示" && (
-            <div className="grid grid-cols-[100px_1fr] items-center gap-2">
-              <label className="text-right font-medium text-slate-700"><span className="text-red-500 mr-1">*</span>所属年月</label>
-              <input type="month" className={inputClasses} 
-                value={newTaskForm.belongingMonth} onChange={e => setNewTaskForm({...newTaskForm, belongingMonth: e.target.value})} />
-            </div>
-          )}
+          <div className="grid grid-cols-[100px_1fr] items-center gap-2">
+            <label className="text-right font-medium text-slate-700"><span className="text-red-500 mr-1">*</span>所属年月</label>
+            <input type="month" className={inputClasses} 
+              value={newTaskForm.belongingMonth} onChange={e => setNewTaskForm({...newTaskForm, belongingMonth: e.target.value})} />
+          </div>
           <div className="grid grid-cols-[100px_1fr] items-center gap-2">
             <label className="text-right font-medium text-slate-700"><span className="text-red-500 mr-1">*</span>创建科室</label>
             <select className={selectClasses} disabled

@@ -59,7 +59,6 @@ export default function DeductionCalendar() {
         // Find if this category+month has any deduction tasks
         const monthTasks = tasks.filter(t => !t.parentId && (t.belongingMonth === targetMonthStr || (!t.belongingMonth && t.name.includes(`${year}年${m.toString().padStart(2, '0')}月`))));
 
-        let cellHasRecords = false;
         let allTasksEnded = true;
         let anyTaskExists = false;
 
@@ -67,7 +66,6 @@ export default function DeductionCalendar() {
            const records = mockApi.getTaskDetailRecords(task.id, false);
            const hasMatch = records.some((r: any) => isRecordMatchCategory(r, category));
            if (hasMatch) {
-             cellHasRecords = true;
              anyTaskExists = true;
              if (task.status !== "END") {
                allTasksEnded = false;

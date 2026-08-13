@@ -9,14 +9,14 @@ import { getInsuranceCategories } from "@/src/lib/insuranceCategoryStore";
 interface ImportDeductionModalProps {
   isOpen: boolean;
   onClose: () => void;
-  mode: "create" | "update";
-  onConfirm: (taskName: string | null, file: File, category: string) => void;
+  mode: "manual" | "batch" | "update";
+  onConfirm: (taskName: string | null, file: File, category: string, belongingMonth?: string) => void;
 }
 
 export function ImportDeductionModal({ isOpen, onClose, mode, onConfirm }: ImportDeductionModalProps) {
-  const [taskName, setTaskName] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [category, setCategory] = useState<string>("");
+  const [belongingMonth, setBelongingMonth] = useState<string>("");
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -25,11 +25,11 @@ export function ImportDeductionModal({ isOpen, onClose, mode, onConfirm }: Impor
   // Reset state when opened
   useEffect(() => {
     if (isOpen) {
-      setTaskName("");
       setCategory("");
+      setBelongingMonth("");
       setIsDragging(false);
 
-      if (mode === "create") {
+      if (mode === "manual" || mode === "batch") {
         // 默认带出一个已经上传好的表格以供演示
         const dummyFile = new File(["dummy content"], "医保扣减明细数据_2024.xlsx", {
           type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
@@ -42,7 +42,6 @@ export function ImportDeductionModal({ isOpen, onClose, mode, onConfirm }: Impor
   }, [isOpen, mode]);
 
   const handleDownloadTemplate = () => {
-
     const headers = [
       "序号", "人员类别", "线上/线下", "住院号/门诊号", "患者姓名", "证件号码",
       "入院时间", "出院时间", "医疗类别", "扣款项目", "违规金额（单位：元）", "扣减原因",
@@ -88,26 +87,36 @@ export function ImportDeductionModal({ isOpen, onClose, mode, onConfirm }: Impor
   };
 
   const handleConfirm = () => {
-    if (mode === "create" && !taskName.trim()) {
-      toast("请输入任务名称", "error");
-      return;
+    if (mode === "manual") {
+      if (!category) {
+        toast("请选择医保业务分类", "error");
+        return;
+      }
+      if (!belongingMonth) {
+        toast("请选择所属年月", "error");
+        return;
+      }
     }
-    if (mode === "create" && taskName.length > 50) {
-      toast("任务名称不能超过50个字", "error");
-      return;
-    }
+    
     if (!file) {
       toast("请上传文件", "error");
       return;
     }
-    onConfirm(mode === "create" ? taskName : null, file, category);
+
+    const generatedTaskName = mode === "manual" ? `${category} ${belongingMonth} 手动新增明细` : "批量导入明细";
+    onConfirm(generatedTaskName, file, category, mode === "manual" ? belongingMonth : undefined);
   };
+
+  let title = "导入扣减明细";
+  if (mode === "manual") title = "手动新增扣减明细";
+  if (mode === "batch") title = "批量导入扣减明细";
+  if (mode === "update") title = "导入更新扣减明细";
 
   return (
     <Modal 
       isOpen={isOpen} 
       onClose={onClose} 
-      title={mode === "create" ? "新增扣减明细" : "导入更新扣减明细"}
+      title={title}
       width="max-w-2xl"
     >
       <div className="space-y-6">
@@ -118,24 +127,11 @@ export function ImportDeductionModal({ isOpen, onClose, mode, onConfirm }: Impor
           </div>
         )}
 
-        {mode === "create" && (
+        {mode === "manual" && (
           <>
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">
-                任务名称 <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                value={taskName}
-                onChange={(e) => setTaskName(e.target.value)}
-                placeholder="请输入任务名称（不超过50个字）"
-                maxLength={50}
-                className="w-full border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">
-                医保业务分类
+                医保业务分类 <span className="text-red-500">*</span>
               </label>
               <select
                 value={category}
@@ -150,6 +146,18 @@ export function ImportDeductionModal({ isOpen, onClose, mode, onConfirm }: Impor
                 ))}
               </select>
             </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">
+                所属年月 <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="month"
+                value={belongingMonth}
+                onChange={(e) => setBelongingMonth(e.target.value)}
+                className="w-full border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+              />
+            </div>
           </>
         )}
 
@@ -158,8 +166,8 @@ export function ImportDeductionModal({ isOpen, onClose, mode, onConfirm }: Impor
              <label className="block text-sm font-medium text-slate-700">
                 上传文件 <span className="text-red-500">*</span>
              </label>
-             <button 
-               onClick={handleDownloadTemplate}
+             <button
+                onClick={handleDownloadTemplate}
                className="text-blue-600 hover:text-blue-800 text-sm flex items-center gap-1"
              >
                <Download className="w-4 h-4" />
@@ -186,13 +194,6 @@ export function ImportDeductionModal({ isOpen, onClose, mode, onConfirm }: Impor
               <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()}>
                 选择文件
               </Button>
-              <input 
-                type="file" 
-                ref={fileInputRef} 
-                className="hidden" 
-                accept=".xlsx, .xls"
-                onChange={handleFileSelect}
-              />
             </div>
           ) : (
             <div className="border border-slate-200 rounded-lg p-4 bg-slate-50 flex items-center justify-between">
@@ -209,31 +210,32 @@ export function ImportDeductionModal({ isOpen, onClose, mode, onConfirm }: Impor
                  </div>
                </div>
                <div className="flex gap-2">
-                 <button 
-                   onClick={() => fileInputRef.current?.click()}
+                 <button
+                    onClick={() => fileInputRef.current?.click()}
                    className="text-blue-600 hover:text-blue-800 text-sm px-2"
                  >
                    重新上传
                  </button>
-                 <button 
-                   onClick={() => setFile(null)}
+                 <button
+                    onClick={() => setFile(null)}
                    className="text-red-600 hover:text-red-800 p-1"
                    title="删除"
                  >
                    <X className="w-5 h-5" />
                  </button>
                </div>
-               <input 
-                 type="file" 
-                 ref={fileInputRef} 
-                 className="hidden" 
-                 accept=".xlsx, .xls"
-                 onChange={handleFileSelect}
-               />
             </div>
           )}
+          <input 
+            type="file" 
+            ref={fileInputRef} 
+            className="hidden" 
+            accept=".xlsx, .xls"
+            onChange={handleFileSelect}
+          />
         </div>
       </div>
+
       <div className="mt-6 flex justify-end space-x-3 pt-4 border-t border-slate-100">
         <Button variant="outline" onClick={onClose}>取消</Button>
         <Button variant="primary" onClick={handleConfirm}>确认</Button>
