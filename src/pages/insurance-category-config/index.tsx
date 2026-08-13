@@ -178,7 +178,7 @@ export function InsuranceCategoryConfig() {
             <label className="text-sm font-medium text-slate-700">医保业务分类 <span className="text-red-500">*</span></label>
             <input 
               className="w-full px-3 py-2 border border-slate-200 rounded-md outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 text-sm"
-              placeholder="请输入医保业务分类，最多20个字" 
+              placeholder="请输入医保业务分类" 
               maxLength={20}
               value={formData.categoryName || ""}
               onChange={e => setFormData({ ...formData, categoryName: e.target.value })}
@@ -189,7 +189,7 @@ export function InsuranceCategoryConfig() {
             <label className="text-sm font-medium text-slate-700">人员类别 <span className="text-red-500">*</span></label>
             <input 
               className="w-full px-3 py-2 border border-slate-200 rounded-md outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 text-sm"
-              placeholder="请输入对应的人员类别，最多20个字" 
+              placeholder="请输入对应的人员类别" 
               maxLength={20}
               value={formData.personnelCategory || ""}
               onChange={e => setFormData({ ...formData, personnelCategory: e.target.value })}
