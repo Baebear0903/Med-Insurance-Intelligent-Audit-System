@@ -3,6 +3,7 @@ import { ColumnSettingsModal, ColumnItem } from "@/src/components/ColumnSettings
 import { Table, Column } from "@/src/components/ui/Table";
 import { Button } from "@/src/components/ui/Button";
 import { Pagination } from "@/src/components/ui/Pagination";
+import { Select } from "@/src/components/ui/Select";
 import { toast } from "@/src/components/ui/Toast";
 import { mockApi, Task, ReviewTemplate } from "@/src/lib/mockData";
 import { downloadZipWithExcel } from "@/src/lib/exportUtils";
@@ -11,6 +12,7 @@ import { Search, Plus, MoreVertical, Settings, Filter, Download, Trash2, XCircle
 import { Link } from "react-router-dom";
 import { Modal } from "@/src/components/ui/Modal";
 import { cn } from "@/src/lib/utils";
+import { addImportRecord } from "@/src/components/ImportRecordsView";
 
 export function TaskList() {
   const [isColumnSettingsOpen, setIsColumnSettingsOpen] = useState(false);
@@ -54,7 +56,7 @@ export function TaskList() {
     const res = mockApi.getTasks(1, 1000, searchParams);
     
     // Sort and filter handled by mockApi, but we need to merge subtasks
-    const parentTasks = res.data.filter(t => !t.parentId && !t.isManual);
+    const parentTasks = res.data.filter(t => !t.parentId && !t.isManual && !t.isDeductionOnly && t.templateId !== "TPL_DED_CUSTOM");
     
     const enhancedData = parentTasks.map(pt => {
       const subTasks = res.data.filter(t => t.parentId === pt.id);
@@ -207,7 +209,12 @@ export function TaskList() {
     
     // Actions mapping
     const endTask = { label: "结束任务", onClick: () => { setActiveTask(r); setIsEndTaskModalOpen(true); }, isDanger: true };
-    const issueData = { label: "问题数据", isLink: true, linkTo: `/task-management/task-list/issue-data/index?id=${r.id}`, onClick: () => {} };
+    const importRecordsAction = { 
+      label: "导入记录", 
+      isLink: true, 
+      linkTo: `/task-management/task-list/import-records/index?taskId=${r.id}&taskName=${encodeURIComponent(r.name)}`, 
+      onClick: () => {} 
+    };
     const resultImport = { label: "结果导入", onClick: () => { setActiveTask(r); setIsResultImportModalOpen(true); } };
     const intelligentFill = { label: "AI填报", onClick: () => { 
       toast("正在进行AI填报", "success"); 
@@ -224,7 +231,7 @@ export function TaskList() {
     // Normal logic for all master tasks
     switch(r.status) {
       case "CREATE": // 待下发
-        actions.push(importAction, issueData, dispatchAction, endTask);
+        actions.push(importAction, importRecordsAction, dispatchAction, endTask);
         if (!isDispatchTemplate) {
           actions.push(intelligentFill);
         }
@@ -250,7 +257,7 @@ export function TaskList() {
         break;
     }
 
-    const orderIndex = ["导入", "问题数据", "AI填报", "下发", "结束任务", "结果导入", "下载数据"];
+    const orderIndex = ["导入", "导入记录", "AI填报", "下发", "结束任务", "结果导入", "下载数据"];
     actions.sort((a, b) => {
       const idxA = orderIndex.indexOf(a.label);
       const idxB = orderIndex.indexOf(b.label);
@@ -357,12 +364,55 @@ export function TaskList() {
       toast("单个文件不超过 20MB", "error");
       return;
     }
+    const fileSizeStr = (importFile.size / 1024).toFixed(0) + "kb";
+    const now = new Date();
+    const timeStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")} ${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}:${String(now.getSeconds()).padStart(2, "0")}`;
+
     if (isResult) {
       setIsResultImportModalOpen(false);
       toast("医保局反馈结果更新成功", "success");
+      addImportRecord({
+        taskId: activeTask?.id,
+        taskName: activeTask?.name,
+        fileName: importFile.name,
+        fileSize: fileSizeStr,
+        operator: "当前用户",
+        uploadTime: timeStr,
+        status: "全部通过"
+      }, "task_import_records_v1");
     } else {
       setIsImportModalOpen(false);
       toast("导入成功并生成了问题数据", "success");
+      addImportRecord({
+        taskId: activeTask?.id,
+        taskName: activeTask?.name,
+        fileName: importFile.name,
+        fileSize: fileSizeStr,
+        operator: "当前用户",
+        uploadTime: timeStr,
+        status: "存在问题数据",
+        problemCount: 2,
+        problemData: [
+          {
+            "序号": 1,
+            "住院号/门诊号": "ZY" + Date.now().toString().slice(-6),
+            "患者姓名": "赵六",
+            "证件号码": "440106198205121234",
+            "涉及科室": "心血管内科",
+            "违规金额": "680.00",
+            "校验未通过原因": "科室名称未在标准科室字典中匹配"
+          },
+          {
+            "序号": 2,
+            "住院号/门诊号": "ZY" + (Date.now() + 1).toString().slice(-6),
+            "患者姓名": "孙七",
+            "证件号码": "440106197509185678",
+            "涉及科室": "骨科",
+            "违规金额": "1540.00",
+            "校验未通过原因": "医疗类别字段为空"
+          }
+        ]
+      }, "task_import_records_v1");
     }
     setImportFile(null);
   };
@@ -479,14 +529,16 @@ export function TaskList() {
             </div>
             <div className="flex flex-col gap-2">
               <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">任务状态</label>
-              <select 
-                className={cn(selectClasses, "w-48")}
+              <Select
                 value={searchParams.status}
-                onChange={e => setSearchParams({...searchParams, status: e.target.value})}
-              >
-                <option value="">全部状态</option>
-                {Object.entries(TASK_STATUS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-              </select>
+                onChange={(val) => setSearchParams({ ...searchParams, status: val as string })}
+                placeholder="全部状态"
+                options={[
+                  { label: "全部状态", value: "" },
+                  ...Object.entries(TASK_STATUS).map(([k, v]) => ({ label: v, value: k }))
+                ]}
+                className="w-48"
+              />
             </div>
             <div className="flex flex-col gap-2">
               <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">创建日期</label>
@@ -499,14 +551,16 @@ export function TaskList() {
             </div>
             <div className="flex flex-col gap-2">
               <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">数据模板</label>
-              <select 
-                className={cn(selectClasses, "w-48")}
+              <Select
                 value={searchParams.templateId}
-                onChange={e => setSearchParams({...searchParams, templateId: e.target.value})}
-              >
-                <option value="">全部模板</option>
-                {templates.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-              </select>
+                onChange={(val) => setSearchParams({ ...searchParams, templateId: val as string })}
+                placeholder="全部模板"
+                options={[
+                  { label: "全部模板", value: "" },
+                  ...templates.map(t => ({ label: t.name, value: t.id }))
+                ]}
+                className="w-48"
+              />
             </div>
             <div className="flex items-end gap-3 ml-auto">
               <Button size="sm" variant="outline" onClick={resetSearch} className="h-9 px-6 border-slate-300 font-medium">重置</Button>

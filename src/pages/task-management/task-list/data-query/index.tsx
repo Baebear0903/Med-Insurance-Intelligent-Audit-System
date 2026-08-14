@@ -19,6 +19,7 @@ import { Pagination } from "@/src/components/ui/Pagination";
 import { toast } from "@/src/components/ui/Toast";
 import { Modal } from "@/src/components/ui/Modal";
 import { Drawer } from "@/src/components/ui/Drawer";
+import { Select } from "@/src/components/ui/Select";
 import { cn } from "@/src/lib/utils";
 import {
   mockApi,
@@ -71,6 +72,8 @@ export default function DataQuery() {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [selectedRecord, setSelectedRecord] = useState<any>(null);
   const [showFilters, setShowFilters] = useState(false);
+  const [searchValues, setSearchValues] = useState<Record<string, string>>({});
+  const [appliedSearch, setAppliedSearch] = useState<Record<string, string>>({});
   const pageSize = 20;
   const [isSwitchDeptOpen, setIsSwitchDeptOpen] = useState(false);
   const [selectedDept, setSelectedDept] = useState("内科");
@@ -340,6 +343,31 @@ export default function DataQuery() {
   };
 
   const renderSearchInput = (field: TemplateField) => {
+    const isAppealField = 
+      field.name === "IS_APPEAL" || 
+      field.mappedStandardField === "IS_APPEAL" || 
+      (field.comment && field.comment.includes("申诉")) || 
+      (field.displayName && field.displayName.includes("申诉"));
+
+    if (isAppealField) {
+      return (
+        <div className="w-36">
+          <Select
+            size="sm"
+            value={searchValues[field.name] || ""}
+            onChange={(val) => setSearchValues(prev => ({ ...prev, [field.name]: String(val || "") }))}
+            options={[
+              { label: "全部", value: "" },
+              { label: "申诉", value: "申诉" },
+              { label: "不申诉", value: "不申诉" },
+              { label: "空白", value: "空白" }
+            ]}
+            placeholder="请选择"
+          />
+        </div>
+      );
+    }
+
     const isSpecialSelect = [
       "PATIENT_NAME",
       "PROJECT_NAME",
@@ -351,14 +379,13 @@ export default function DataQuery() {
 
     if (isSpecialSelect || field.name === "STATUS") {
       return (
-        <select
-          className="h-8 border border-slate-300 rounded px-2 text-sm bg-white min-w-[120px] max-w-[160px] truncate"
-          defaultValue=""
-        >
-          <option value="">全部</option>
-          <option value="1">选项1</option>
-          <option value="2">选项2</option>
-        </select>
+        <input
+          type="text"
+          className="h-8 border border-slate-300 rounded px-2 text-sm min-w-[120px] max-w-[160px] bg-white"
+          placeholder="请输入"
+          value={searchValues[field.name] || ""}
+          onChange={(e) => setSearchValues(prev => ({ ...prev, [field.name]: e.target.value }))}
+        />
       );
     }
     return (
@@ -366,6 +393,8 @@ export default function DataQuery() {
         type="text"
         className="h-8 border border-slate-300 rounded px-2 text-sm min-w-[120px] max-w-[160px]"
         placeholder="请输入"
+        value={searchValues[field.name] || ""}
+        onChange={(e) => setSearchValues(prev => ({ ...prev, [field.name]: e.target.value }))}
       />
     );
   };
@@ -452,7 +481,22 @@ export default function DataQuery() {
     }
   ];
 
-  const currentData = data.slice((page - 1) * pageSize, page * pageSize);
+  const filteredData = data.filter((item) => {
+    return Object.entries(appliedSearch).every(([key, val]) => {
+      if (!val) return true;
+      const strVal = String(val).trim();
+      const rawVal = item[key] !== undefined ? String(item[key]).trim() : (item.data?.[key] !== undefined ? String(item.data[key]).trim() : "");
+      if (key === "IS_APPEAL" || key.includes("APPEAL") || key.includes("申诉")) {
+        if (strVal === "空白") {
+          return !rawVal || rawVal === "-" || rawVal === "未填报";
+        }
+        return rawVal === strVal;
+      }
+      return rawVal.toLowerCase().includes(strVal.toLowerCase());
+    });
+  });
+
+  const currentData = filteredData.slice((page - 1) * pageSize, page * pageSize);
 
   return (
     <div className="p-5 flex flex-col h-full bg-slate-50/50">
@@ -642,11 +686,30 @@ export default function DataQuery() {
                     </div>
                   ))}
                   <div className="flex items-center gap-2 ml-auto">
-                    <Button variant="primary" size="sm" className="px-5" onClick={() => toast("查询成功", "success")}>
+                    <Button 
+                      variant="primary" 
+                      size="sm" 
+                      className="px-5" 
+                      onClick={() => {
+                        setAppliedSearch({ ...searchValues });
+                        setPage(1);
+                        toast("查询成功", "success");
+                      }}
+                    >
                       <Search className="w-4 h-4 mr-1.5" />
                       查询
                     </Button>
-                    <Button variant="outline" size="sm" className="px-5" onClick={() => toast("搜索条件已重置", "success")}>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="px-5" 
+                      onClick={() => {
+                        setSearchValues({});
+                        setAppliedSearch({});
+                        setPage(1);
+                        toast("搜索条件已重置", "success");
+                      }}
+                    >
                       重置
                     </Button>
                   </div>
@@ -671,14 +734,14 @@ export default function DataQuery() {
         <div className="flex-shrink-0 flex items-center justify-end py-2">
           <div className="flex items-center gap-4">
             <span className="text-sm text-slate-500">
-              共 {Math.ceil(data.length / pageSize)} 页，{data.length} 条
+              共 {Math.ceil(filteredData.length / pageSize)} 页，{filteredData.length} 条
             </span>
             <span className="text-sm text-slate-500 bg-white border border-slate-300 rounded px-2 py-1 relative -top-px inline-flex items-center">
               20条/页
             </span>
             <Pagination
               current={page}
-              total={data.length}
+              total={filteredData.length}
               pageSize={pageSize}
               onChange={setPage}
             />
@@ -768,34 +831,34 @@ export default function DataQuery() {
         <Drawer
           isOpen={!!selectedRecord}
           onClose={() => setSelectedRecord(null)}
-          title="查看详情"
-          width="600px"
+          title="查看数据详情"
+          size="xl"
           placement="right"
         >
           {selectedRecord && template && (
-            <div className="p-6 space-y-8 bg-white h-full overflow-y-auto">
+            <div className="p-6 space-y-6 bg-white h-full overflow-y-auto">
               {/* 预计下发情况 */}
               <section>
-                <div className="flex items-center justify-between mb-4 pb-2 border-b border-slate-100">
-                  <h4 className="text-sm font-semibold text-slate-800 flex items-center gap-2 m-0">
-                    <FileText className="w-4 h-4 text-slate-400" />
+                <div className="flex items-center justify-between mb-3 pb-2 border-b border-slate-100">
+                  <h4 className="text-sm font-bold text-slate-800 flex items-center gap-2 m-0">
+                    <FileText className="w-4 h-4 text-blue-600" />
                     预计下发情况
                   </h4>
                   <Button variant="outline" size="sm" onClick={() => {
                     setChangeDispatchData({});
                     setIsChangeDispatchModalOpen(true);
-                  }}>更改</Button>
+                  }}>更改下发科室</Button>
                 </div>
-                <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 grid grid-cols-2 gap-4">
+                <div className="bg-slate-50/80 p-4 rounded-xl border border-slate-200/80 grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <div className="text-xs text-slate-500 mb-1">预计下发科室</div>
-                    <div className="text-[13px] text-slate-700 font-medium">
+                    <div className="text-xs text-slate-400 font-medium mb-1">预计下发科室</div>
+                    <div className="text-sm text-slate-800 font-semibold">
                       {selectedRecord.DISPATCH_DEPT || "未匹配科室"}
                     </div>
                   </div>
                   <div>
-                    <div className="text-xs text-slate-500 mb-1">对应医保秘书</div>
-                    <div className="text-[13px] text-slate-700 font-medium">
+                    <div className="text-xs text-slate-400 font-medium mb-1">对应医保秘书</div>
+                    <div className="text-sm text-slate-800 font-semibold">
                       {selectedRecord.DISPATCH_DEPT ? (
                         ["心血管内科", "神经外科"].includes(selectedRecord.DISPATCH_DEPT) ? "张三" : "李四, 王五"
                       ) : "-"}
@@ -806,11 +869,19 @@ export default function DataQuery() {
 
               {/* 基本信息 */}
               <section>
-                <h4 className="text-sm font-semibold text-slate-800 mb-4 pb-2 border-b border-slate-100 flex items-center gap-2">
-                  <FileText className="w-4 h-4 text-slate-400" />
-                  数据摘要
-                </h4>
-                <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 grid grid-cols-2 gap-x-4 gap-y-3 text-[13px]">
+                <div className="flex items-center justify-between mb-3 pb-2 border-b border-slate-100">
+                  <h4 className="text-sm font-bold text-slate-800 flex items-center gap-2 m-0">
+                    <FileText className="w-4 h-4 text-slate-500" />
+                    数据摘要
+                  </h4>
+                  {selectedRecord.VIOLATION_AMOUNT && (
+                    <div className="flex items-center gap-1.5 px-3 py-1 bg-rose-50 border border-rose-100 rounded-full text-rose-700 text-xs font-semibold">
+                      <span>违规金额:</span>
+                      <span className="font-mono text-sm font-bold">¥{Number(selectedRecord.VIOLATION_AMOUNT).toFixed(2)}</span>
+                    </div>
+                  )}
+                </div>
+                <div className="bg-slate-50/80 p-5 rounded-xl border border-slate-200/80 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-4 text-[13px]">
                   {[
                     "HOSPITAL_NO",
                     "PATIENT_NAME",
@@ -827,12 +898,12 @@ export default function DataQuery() {
                     const label = field.displayName || field.comment || field.name;
                     
                     return (
-                      <div className={cn("flex flex-col gap-1", isFullWidth ? "col-span-2 mt-1" : "")} key={field.id}>
-                        <span className="text-slate-400">{label}</span>
+                      <div className={cn("flex flex-col gap-1.5", isFullWidth ? "col-span-1 md:col-span-2 lg:col-span-3 mt-1 bg-white p-3.5 rounded-lg border border-slate-200/60" : "")} key={field.id}>
+                        <span className="text-slate-400 text-xs font-medium">{label}</span>
                         <span 
                           className={cn(
-                            "text-slate-700 font-medium", 
-                            isFullWidth ? "text-xs leading-relaxed max-h-40 overflow-y-auto w-full break-words whitespace-pre-wrap" : "truncate"
+                            "text-slate-800 font-medium", 
+                            isFullWidth ? "text-xs leading-relaxed max-h-36 overflow-y-auto w-full break-words whitespace-pre-wrap text-slate-700" : "truncate text-sm"
                           )} 
                           title={String(val || "")}
                         >

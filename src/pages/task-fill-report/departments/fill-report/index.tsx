@@ -20,6 +20,7 @@ import { ColumnSettingsModal, ColumnItem } from "@/src/components/ColumnSettings
 import { Button } from "@/src/components/ui/Button";
 import { Table } from "@/src/components/ui/Table";
 import { Badge } from "@/src/components/ui/Badge";
+import { Select } from "@/src/components/ui/Select";
 import { toast } from "@/src/components/ui/Toast";
 import { Modal } from "@/src/components/ui/Modal";
 import { Drawer } from "@/src/components/ui/Drawer";
@@ -74,6 +75,8 @@ export function FillReportDetail() {
   const [aiBasisModal, setAiBasisModal] = useState<{ show: boolean, record: any | null }>({ show: false, record: null });
   const [showFilter, setShowFilter] = useState(false);
   const [filterStatus, setFilterStatus] = useState("全部"); // 全部, 已填报, 未填报
+  const [searchValues, setSearchValues] = useState<Record<string, string>>({});
+  const [appliedSearch, setAppliedSearch] = useState<Record<string, string>>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [parsedResults, setParsedResults] = useState<any[]>([]);
 
@@ -87,16 +90,28 @@ export function FillReportDetail() {
 
   const filteredRecords = React.useMemo(() => {
     return records.filter(r => {
-      if (filterStatus === "未填报") return r.fillStatus === 0;
-      if (filterStatus === "AI填报") return r.fillStatus === 5;
-      if (filterStatus === "已填报") return r.fillStatus === 1;
-      if (filterStatus === "待审核") return r.fillStatus === 8;
-      if (filterStatus === "审核通过") return r.fillStatus === 2;
-      if (filterStatus === "审核变更") return r.fillStatus === 6;
-      if (filterStatus === "已驳回") return r.fillStatus === 3;
-      return true;
+      if (filterStatus === "未填报" && r.fillStatus !== 0) return false;
+      if (filterStatus === "AI填报" && r.fillStatus !== 5) return false;
+      if (filterStatus === "已填报" && r.fillStatus !== 1) return false;
+      if (filterStatus === "待审核" && r.fillStatus !== 8) return false;
+      if (filterStatus === "审核通过" && r.fillStatus !== 2) return false;
+      if (filterStatus === "审核变更" && r.fillStatus !== 6) return false;
+      if (filterStatus === "已驳回" && r.fillStatus !== 3) return false;
+
+      return Object.entries(appliedSearch).every(([key, val]) => {
+        if (!val) return true;
+        const strVal = String(val).trim();
+        const rawVal = r.data?.[key] !== undefined ? String(r.data[key]).trim() : (r[key] !== undefined ? String(r[key]).trim() : "");
+        if (key === "IS_APPEAL" || key.includes("APPEAL") || key.includes("申诉")) {
+          if (strVal === "空白") {
+            return !rawVal || rawVal === "-" || rawVal === "未填报";
+          }
+          return rawVal === strVal;
+        }
+        return rawVal.toLowerCase().includes(strVal.toLowerCase());
+      });
     });
-  }, [records, filterStatus]);
+  }, [records, filterStatus, appliedSearch]);
 
   const fetchData = React.useCallback(() => {
     if (!taskId) return;
@@ -180,7 +195,7 @@ export function FillReportDetail() {
       }
     }
     setFillForm({
-      confirm: data.IS_APPEAL === "否" ? "NO_APPEAL" : (data.IS_APPEAL === "是" ? "APPEAL" : ""),
+      confirm: (data.IS_APPEAL === "不申诉" || data.IS_APPEAL === "否") ? "NO_APPEAL" : ((data.IS_APPEAL === "申诉" || data.IS_APPEAL === "是") ? "APPEAL" : ""),
       opinion: data.APPEAL_REASON || "",
       evidence: evidence,
       remark: data.APPEAL_REMARK || ""
@@ -347,7 +362,7 @@ export function FillReportDetail() {
       ...record,
       data: {
         ...record.data,
-        IS_APPEAL: fillForm.confirm === "APPEAL" ? "是" : "否",
+        IS_APPEAL: fillForm.confirm === "APPEAL" ? "申诉" : (fillForm.confirm === "NO_APPEAL" ? "不申诉" : ""),
         APPEAL_REASON: fillForm.opinion,
         APPEAL_ATTACHMENT: fillForm.evidence.join(", "),
         APPEAL_REMARK: fillForm.remark,
@@ -385,6 +400,10 @@ export function FillReportDetail() {
         if (record) {
           mockApi.saveTaskDetailRecord(taskId!, {
             ...record,
+            data: {
+              ...record.data,
+              IS_APPEAL: "不申诉"
+            },
             hospitalConfirm: "NO_APPEAL",
             fillStatus: 1,
             auditStatus: 8,
@@ -655,20 +674,22 @@ export function FillReportDetail() {
               )}
               <div className="flex items-center gap-2">
                 <span className="text-xs font-medium text-slate-500">填报状态</span>
-                <select 
-                  className="px-3 py-1.5 bg-white border border-slate-200 rounded-md text-sm w-36 focus:ring-2 focus:ring-blue-500/20 focus:outline-none focus:border-blue-500"
+                <Select
                   value={filterStatus}
-                  onChange={(e) => setFilterStatus(e.target.value)}
-                >
-                  <option value="全部">全部</option>
-                  <option value="未填报">未填报</option>
-                  <option value="AI填报">AI填报</option>
-                  <option value="已填报">已填报</option>
-                  <option value="待审核">待审核</option>
-                  <option value="审核通过">审核通过</option>
-                  <option value="审核变更">审核变更</option>
-                  <option value="已驳回">已驳回</option>
-                </select>
+                  onChange={(val) => setFilterStatus(val as string)}
+                  placeholder="全部"
+                  options={[
+                    { label: "全部", value: "全部" },
+                    { label: "未填报", value: "未填报" },
+                    { label: "AI填报", value: "AI填报" },
+                    { label: "已填报", value: "已填报" },
+                    { label: "待审核", value: "待审核" },
+                    { label: "审核通过", value: "审核通过" },
+                    { label: "审核变更", value: "审核变更" },
+                    { label: "已驳回", value: "已驳回" }
+                  ]}
+                  className="w-36"
+                />
               </div>
             </div>
             
@@ -709,19 +730,69 @@ export function FillReportDetail() {
                 className="overflow-hidden"
               >
                 <div className="px-4 py-3 border-t border-slate-100 flex flex-wrap items-center gap-4 bg-slate-50/50">
-                  {template.fields.filter(f => f.isQueryable && (role === "ADMIN" || !f.adminVisible)).slice(0, 3).map(f => (
-                    <div key={f.id} className="flex items-center gap-2">
-                      <span className="text-xs font-medium text-slate-500">{f.displayName || f.comment}</span>
-                      <input 
-                        type="text" 
-                        placeholder={`请输入${f.displayName || f.comment}`}
-                        className="px-3 py-1.5 bg-white border border-slate-200 rounded-md text-sm w-48 focus:ring-2 focus:ring-blue-500/20 focus:outline-none focus:border-blue-500"
-                      />
-                    </div>
-                  ))}
+                  {template.fields.filter(f => f.isQueryable && (role === "ADMIN" || !f.adminVisible)).map(f => {
+                    const isAppeal = 
+                      f.name === "IS_APPEAL" || 
+                      f.mappedStandardField === "IS_APPEAL" || 
+                      (f.comment && f.comment.includes("申诉")) || 
+                      (f.displayName && f.displayName.includes("申诉"));
+
+                    return (
+                      <div key={f.id} className="flex items-center gap-2">
+                        <span className="text-xs font-medium text-slate-500 whitespace-nowrap">{f.displayName || f.comment || f.name}</span>
+                        {isAppeal ? (
+                          <div className="w-36">
+                            <Select
+                              size="sm"
+                              value={searchValues[f.name] || ""}
+                              onChange={(val) => setSearchValues(prev => ({ ...prev, [f.name]: String(val || "") }))}
+                              options={[
+                                { label: "全部", value: "" },
+                                { label: "申诉", value: "申诉" },
+                                { label: "不申诉", value: "不申诉" },
+                                { label: "空白", value: "空白" }
+                              ]}
+                              placeholder="请选择"
+                            />
+                          </div>
+                        ) : (
+                          <input 
+                            type="text" 
+                            placeholder={`请输入${f.displayName || f.comment || f.name}`}
+                            value={searchValues[f.name] || ""}
+                            onChange={(e) => setSearchValues(prev => ({ ...prev, [f.name]: e.target.value }))}
+                            className="px-3 py-1.5 bg-white border border-slate-200 rounded-md text-sm w-44 focus:ring-2 focus:ring-blue-500/20 focus:outline-none focus:border-blue-500"
+                          />
+                        )}
+                      </div>
+                    );
+                  })}
                   <div className="flex items-center gap-2 ml-auto">
-                    <Button variant="primary" size="sm" className="px-5" onClick={() => toast("查询成功", "success")}><Search className="w-4 h-4 mr-1.5"/>查询</Button>
-                    <Button variant="outline" size="sm" className="px-5" onClick={() => { setFilterStatus("全部"); toast("重置成功", "success"); }}>重置</Button>
+                    <Button 
+                      variant="primary" 
+                      size="sm" 
+                      className="px-5" 
+                      onClick={() => {
+                        setAppliedSearch({ ...searchValues });
+                        toast("查询成功", "success");
+                      }}
+                    >
+                      <Search className="w-4 h-4 mr-1.5"/>
+                      查询
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="px-5" 
+                      onClick={() => { 
+                        setSearchValues({});
+                        setAppliedSearch({});
+                        setFilterStatus("全部"); 
+                        toast("重置成功", "success"); 
+                      }}
+                    >
+                      重置
+                    </Button>
                   </div>
                 </div>
               </motion.div>
@@ -748,19 +819,36 @@ export function FillReportDetail() {
       <Drawer
         isOpen={fillModal.show}
         onClose={() => setFillModal({ show: false, record: null, isBatch: false })}
-        title={(isReadOnly || fillModal.isViewOnly) ? "查看详情" : (fillModal.isBatch ? `批量填报 (${selectedIds.length}项)` : "数据填报")}
-        width="max-w-[500px]"
-        placement="left"
+        title={
+          <div className="flex items-center gap-2">
+            <span>{(isReadOnly || fillModal.isViewOnly) ? "查看填报详情" : (fillModal.isBatch ? `批量填报 (${selectedIds.length}项)` : "数据填报")}</span>
+            {!fillModal.isBatch && fillModal.record && (
+              getStatusBadge(fillModal.record.fillStatus)
+            )}
+          </div>
+        }
+        size="xl"
+        placement="right"
       >
         <div className="flex flex-col h-full bg-white">
-          <div className="flex-1 overflow-y-auto px-6 py-5 space-y-6">
+          <div className="flex-1 overflow-y-auto px-6 py-6 space-y-6">
             {!fillModal.isBatch && fillModal.record && (
-              <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 space-y-4">
-                <div className="flex items-center gap-2 mb-2 border-b border-slate-200 pb-2">
-                  <FileText className="w-4 h-4 text-slate-400" />
-                  <p className="text-xs text-slate-600 font-bold uppercase tracking-wider">数据摘要</p>
+              <div className="bg-slate-50/80 p-5 rounded-xl border border-slate-200/80 space-y-4">
+                <div className="flex items-center justify-between border-b border-slate-200/80 pb-3">
+                  <div className="flex items-center gap-2">
+                    <div className="w-6 h-6 rounded-md bg-blue-100/80 text-blue-600 flex items-center justify-center">
+                      <FileText className="w-3.5 h-3.5" />
+                    </div>
+                    <p className="text-sm font-bold text-slate-800 tracking-tight">数据基本信息</p>
+                  </div>
+                  {fillModal.record.data.VIOLATION_AMOUNT && (
+                    <div className="flex items-center gap-1.5 px-3 py-1 bg-rose-50 border border-rose-100 rounded-full text-rose-700 text-xs font-semibold">
+                      <span>违规金额:</span>
+                      <span className="font-mono text-sm font-bold">¥{Number(fillModal.record.data.VIOLATION_AMOUNT).toFixed(2)}</span>
+                    </div>
+                  )}
                 </div>
-                <div className="grid grid-cols-2 gap-x-4 gap-y-3 text-[13px]">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-4 text-[13px]">
                   {[
                     "HOSPITAL_NO",
                     "PATIENT_NAME",
@@ -777,12 +865,12 @@ export function FillReportDetail() {
                     const label = field.displayName || field.comment || field.name;
                     
                     return (
-                      <div className={cn("flex flex-col gap-1", isFullWidth ? "col-span-2 mt-1" : "")} key={field.id}>
-                        <span className="text-slate-400">{label}</span>
+                      <div className={cn("flex flex-col gap-1.5", isFullWidth ? "col-span-1 md:col-span-2 lg:col-span-3 mt-1 bg-white p-3.5 rounded-lg border border-slate-200/60" : "")} key={field.id}>
+                        <span className="text-slate-400 text-xs font-medium">{label}</span>
                         <span 
                           className={cn(
-                            "text-slate-700 font-medium", 
-                            isFullWidth ? "text-xs leading-relaxed max-h-40 overflow-y-auto w-full break-words whitespace-pre-wrap" : "truncate"
+                            "text-slate-800 font-medium", 
+                            isFullWidth ? "text-xs leading-relaxed max-h-36 overflow-y-auto w-full break-words whitespace-pre-wrap text-slate-700" : "truncate text-sm"
                           )} 
                           title={String(val || "")}
                         >
@@ -795,49 +883,54 @@ export function FillReportDetail() {
               </div>
             )}
 
-            <div className="space-y-5">
-              <div className="space-y-3">
+            <div className="space-y-5 bg-white p-5 rounded-xl border border-slate-200/80">
+              <div className="flex items-center gap-2 pb-3 border-b border-slate-100">
+                <div className="w-2 h-4 bg-blue-600 rounded-full" />
+                <h4 className="text-sm font-bold text-slate-800">申诉填报信息</h4>
+              </div>
+
+              <div className="space-y-2">
                 <label className="text-sm font-bold text-slate-700 flex items-center gap-1">
                   是否申诉 <span className="text-rose-500">*</span>
                 </label>
-                <div className="flex gap-4">
+                <div className="flex gap-4 max-w-md">
                   <button 
                     disabled={isReadOnly || fillModal.isViewOnly}
                     onClick={() => setFillForm({...fillForm, confirm: "APPEAL"})}
                     className={cn(
-                      "flex-1 py-2.5 px-4 rounded-lg border-2 transition-all flex items-center justify-center gap-2",
+                      "flex-1 py-2.5 px-4 rounded-lg border transition-all flex items-center justify-center gap-2 font-medium text-sm",
                       fillForm.confirm === "APPEAL" 
-                        ? "border-blue-500 bg-blue-50/50 text-blue-700 shadow-sm" 
-                        : "border-slate-100 bg-white text-slate-500 hover:border-slate-200 hover:bg-slate-50"
+                        ? "border-blue-500 bg-blue-50/80 text-blue-700 shadow-sm ring-1 ring-blue-500/20" 
+                        : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50"
                     )}
                   >
-                    <CheckCircle2 className="w-4 h-4" />
-                    <span className="font-bold text-sm">申诉</span>
+                    <CheckCircle2 className="w-4 h-4 text-blue-600" />
+                    <span>申诉</span>
                   </button>
                   <button 
                     disabled={isReadOnly || fillModal.isViewOnly}
                     onClick={() => setFillForm({...fillForm, confirm: "NO_APPEAL"})}
                     className={cn(
-                      "flex-1 py-2.5 px-4 rounded-lg border-2 transition-all flex items-center justify-center gap-2",
+                      "flex-1 py-2.5 px-4 rounded-lg border transition-all flex items-center justify-center gap-2 font-medium text-sm",
                       fillForm.confirm === "NO_APPEAL" 
-                        ? "border-slate-600 bg-slate-600 text-white shadow-md" 
-                        : "border-slate-100 bg-white text-slate-500 hover:border-slate-200 hover:bg-slate-50"
+                        ? "border-slate-700 bg-slate-700 text-white shadow-md" 
+                        : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50"
                     )}
                   >
                     <X className="w-4 h-4" />
-                    <span className="font-bold text-sm">不申诉</span>
+                    <span>不申诉</span>
                   </button>
                 </div>
               </div>
 
-              <div className="space-y-3">
+              <div className="space-y-2">
                 <label className="text-sm font-bold text-slate-700">
                   申诉原因 {fillForm.confirm === "APPEAL" && <span className="text-rose-500">*</span>}
                 </label>
                 <textarea 
                   disabled={isReadOnly || fillModal.isViewOnly}
-                  className="w-full h-32 px-4 py-3 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500/20 focus:outline-none focus:border-blue-500 transition-all placeholder:text-slate-300 resize-none"
-                  placeholder={fillForm.confirm === "APPEAL" ? "请详细叙述申诉理由..." : "可选填..."}
+                  className="w-full h-28 px-4 py-2.5 bg-slate-50/60 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500/20 focus:outline-none focus:border-blue-500 transition-all placeholder:text-slate-300 resize-none text-slate-700"
+                  placeholder={fillForm.confirm === "APPEAL" ? "请详细叙述申诉理由与临床诊疗依据..." : "可选填申诉或不申诉说明..."}
                   value={fillForm.opinion}
                   onChange={(e) => setFillForm({...fillForm, opinion: e.target.value})}
                 />
@@ -845,37 +938,37 @@ export function FillReportDetail() {
 
               {/* 申诉附件仅在单条填报时显示 */}
               {!fillModal.isBatch && (
-                <div className="space-y-3">
+                <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <label className="text-sm font-bold text-slate-700">申诉附件</label>
                     <span className="text-xs text-slate-400">支持 PDF, JPG, PNG, DOCX (≤20MB)</span>
                   </div>
-                <div className="space-y-2">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
                   {fillForm.evidence.map((fileName, i) => {
                     const isImg = /\.(jpg|jpeg|png)$/i.test(fileName);
                     const isPdf = /\.pdf$/i.test(fileName);
                     const isWord = /\.(doc|docx)$/i.test(fileName);
                     
                     return (
-                      <div key={i} className="flex items-center justify-between p-3 bg-slate-50 border border-slate-200/60 rounded-xl group transition-all hover:bg-white hover:border-blue-200 hover:shadow-sm">
+                      <div key={i} className="flex items-center justify-between p-3 bg-slate-50 border border-slate-200/80 rounded-xl group transition-all hover:bg-white hover:border-blue-300 hover:shadow-sm">
                         <div className="flex items-center gap-3 min-w-0">
                           <div className={cn(
-                            "w-10 h-10 rounded-lg flex items-center justify-center shrink-0 shadow-sm",
+                            "w-9 h-9 rounded-lg flex items-center justify-center shrink-0 shadow-sm",
                             isImg ? "bg-blue-50 text-blue-500" : 
                             isPdf ? "bg-rose-50 text-rose-500" : 
                             isWord ? "bg-indigo-50 text-indigo-500" : "bg-slate-100 text-slate-500"
                           )}>
-                            {isImg ? <ImageIcon className="w-5 h-5" /> : <FileText className="w-5 h-5" />}
+                            {isImg ? <ImageIcon className="w-4 h-4" /> : <FileText className="w-4 h-4" />}
                           </div>
                           <div className="flex flex-col min-w-0">
-                            <span className="text-[13px] font-bold text-slate-700 truncate" title={fileName}>{fileName}</span>
+                            <span className="text-xs font-bold text-slate-700 truncate" title={fileName}>{fileName}</span>
                             <span className="text-[11px] text-slate-400 font-medium">1.2 MB</span>
                           </div>
                         </div>
                         {!isReadOnly && !fillModal.isViewOnly && (
                           <button 
                             onClick={() => setFillForm({...fillForm, evidence: fillForm.evidence.filter((_, idx) => idx !== i)})}
-                            className="p-1.5 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-all opacity-0 group-hover:opacity-100"
+                            className="p-1 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-all opacity-0 group-hover:opacity-100 ml-1"
                           >
                             <X className="w-4 h-4" />
                           </button>
@@ -883,55 +976,50 @@ export function FillReportDetail() {
                       </div>
                     );
                   })}
-                  
-                  {!isReadOnly && !fillModal.isViewOnly && fillForm.evidence.length < 5 && (
-                    <button 
-                      onClick={() => {
-                        let patientName = "张三";
-                        let dischargeDate = "2024-03-10";
-                        let projectName = "血常规";
-                        if (!fillModal.isBatch && fillModal.record?.data) {
-                          patientName = fillModal.record.data.PATIENT_NAME || "张三";
-                          dischargeDate = fillModal.record.data.DISCHARGE_DATE || fillModal.record.data.ADMIT_DATE || "2024-03-10";
-                          projectName = fillModal.record.data.PROJECT_NAME || "项目";
-                        } else if (fillModal.isBatch && selectedIds.length > 0) {
-                          const firstRec = records.find(r => r.id === selectedIds[0]);
-                          if (firstRec && firstRec.data) {
-                            patientName = firstRec.data.PATIENT_NAME || "张三";
-                            dischargeDate = firstRec.data.DISCHARGE_DATE || firstRec.data.ADMIT_DATE || "2024-03-10";
-                            projectName = firstRec.data.PROJECT_NAME || "项目";
-                          }
-                        }
-                        const sources = ["出院小结", "入院记录", "手术记录", "检查报告", "医嘱单"];
-                        const exts = [".pdf", ".docx", ".png", ".jpg", ".doc"];
-                        const index = fillForm.evidence.length;
-                        const src = sources[index % sources.length];
-                        const ext = exts[index % exts.length];
-                        const nextFile = `${patientName}_${dischargeDate}_${projectName}_${src}${ext}`;
-                        setFillForm({...fillForm, evidence: [...fillForm.evidence, nextFile]});
-                      }}
-                      className="w-full py-6 border-2 border-dashed border-slate-200 rounded-xl flex flex-col items-center justify-center gap-2 text-slate-400 hover:border-blue-400 hover:bg-blue-50 hover:text-blue-500 transition-all group mt-2"
-                    >
-                      <div className="w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center group-hover:bg-blue-100 transition-colors">
-                        <Upload className="w-5 h-5" />
-                      </div>
-                      <div className="text-center">
-                        <p className="text-sm font-bold">点击或拖拽上传</p>
-                        <p className="text-[11px] opacity-70">支持 pdf, jpg, png, doc, docx 格式</p>
-                      </div>
-                    </button>
-                  )}
                 </div>
+
+                {!isReadOnly && !fillModal.isViewOnly && fillForm.evidence.length < 5 && (
+                  <button 
+                    onClick={() => {
+                      let patientName = "张三";
+                      let dischargeDate = "2024-03-10";
+                      let projectName = "血常规";
+                      if (!fillModal.isBatch && fillModal.record?.data) {
+                        patientName = fillModal.record.data.PATIENT_NAME || "张三";
+                        dischargeDate = fillModal.record.data.DISCHARGE_DATE || fillModal.record.data.ADMIT_DATE || "2024-03-10";
+                        projectName = fillModal.record.data.PROJECT_NAME || "项目";
+                      } else if (fillModal.isBatch && selectedIds.length > 0) {
+                        const firstRec = records.find(r => r.id === selectedIds[0]);
+                        if (firstRec && firstRec.data) {
+                          patientName = firstRec.data.PATIENT_NAME || "张三";
+                          dischargeDate = firstRec.data.DISCHARGE_DATE || firstRec.data.ADMIT_DATE || "2024-03-10";
+                          projectName = firstRec.data.PROJECT_NAME || "项目";
+                        }
+                      }
+                      const sources = ["出院小结", "入院记录", "手术记录", "检查报告", "医嘱单"];
+                      const exts = [".pdf", ".docx", ".png", ".jpg", ".doc"];
+                      const index = fillForm.evidence.length;
+                      const src = sources[index % sources.length];
+                      const ext = exts[index % exts.length];
+                      const nextFile = `${patientName}_${dischargeDate}_${projectName}_${src}${ext}`;
+                      setFillForm({...fillForm, evidence: [...fillForm.evidence, nextFile]});
+                    }}
+                    className="w-full py-4 border-2 border-dashed border-slate-200 rounded-xl flex items-center justify-center gap-2 text-slate-500 hover:border-blue-400 hover:bg-blue-50/50 hover:text-blue-600 transition-all group mt-2"
+                  >
+                    <Upload className="w-4 h-4 text-slate-400 group-hover:text-blue-500" />
+                    <span className="text-xs font-semibold">点击上传新附件 (支持 PDF, JPG, PNG, DOCX)</span>
+                  </button>
+                )}
               </div>
               )}
 
-              <div className="space-y-3">
+              <div className="space-y-2 pt-1">
                 <label className="text-sm font-bold text-slate-700">
                   申诉备注
                 </label>
                 <textarea 
                   disabled={isReadOnly || fillModal.isViewOnly}
-                  className="w-full h-24 px-4 py-3 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500/20 focus:outline-none focus:border-blue-500 transition-all placeholder:text-slate-300 resize-none"
+                  className="w-full h-24 px-4 py-2.5 bg-slate-50/60 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500/20 focus:outline-none focus:border-blue-500 transition-all placeholder:text-slate-300 resize-none text-slate-700"
                   placeholder="可在此补充申诉备注说明..."
                   value={fillForm.remark}
                   onChange={(e) => setFillForm({...fillForm, remark: e.target.value})}
@@ -939,7 +1027,7 @@ export function FillReportDetail() {
               </div>
             </div>
           </div>
-          <div className="flex justify-end gap-3 p-5 border-t border-slate-100 bg-slate-50 shrink-0">
+          <div className="flex justify-end gap-3 px-6 py-4 border-t border-slate-100 bg-slate-50 shrink-0">
             <Button variant="ghost" onClick={() => setFillModal({ show: false, record: null, isBatch: false })} className="px-6">取消</Button>
             {!isReadOnly && !fillModal.isViewOnly && (
               <Button onClick={handleSaveFill} className="bg-blue-600 hover:bg-blue-700 shadow-sm px-8">确定</Button>
@@ -954,19 +1042,19 @@ export function FillReportDetail() {
         onClose={() => setAiBasisModal({ show: false, record: null })}
         title={
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center text-purple-600">
+            <div className="w-7 h-7 rounded-lg bg-purple-100 flex items-center justify-center text-purple-600">
               <Sparkles className="w-4 h-4" />
             </div>
             <span className="font-bold text-slate-800">AI 智能填报依据</span>
           </div>
         }
-        width="max-w-[450px]"
-        placement="left"
+        size="lg"
+        placement="right"
       >
         <div className="flex flex-col h-full bg-[#f8fafc]">
           <div className="flex-1 overflow-y-auto p-6">
-            <div className="mb-6">
-              <h3 className="text-sm font-bold text-slate-800 mb-2">思维链路</h3>
+            <div className="mb-6 bg-white p-4 rounded-xl border border-slate-200/80 shadow-sm">
+              <h3 className="text-sm font-bold text-slate-800 mb-1">思维链路与推理依据</h3>
               <p className="text-xs text-slate-500">以下为医保审核智能体提取并分析患者病历数据的完整推理过程：</p>
             </div>
             

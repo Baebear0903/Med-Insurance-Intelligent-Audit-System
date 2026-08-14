@@ -4,12 +4,11 @@ import { Button } from "@/src/components/ui/Button";
 import { UploadCloud, FileSpreadsheet, X, Download } from "lucide-react";
 import { toast } from "@/src/components/ui/Toast";
 import * as XLSX from "xlsx";
-import { getInsuranceCategories } from "@/src/lib/insuranceCategoryStore";
 
 interface ImportDeductionModalProps {
   isOpen: boolean;
   onClose: () => void;
-  mode: "manual" | "batch" | "update";
+  mode: "manual" | "batch";
   onConfirm: (taskName: string | null, file: File, category: string, belongingMonth?: string) => void;
 }
 
@@ -20,8 +19,6 @@ export function ImportDeductionModal({ isOpen, onClose, mode, onConfirm }: Impor
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const categories = getInsuranceCategories().filter(c => c.enabled);
-
   // Reset state when opened
   useEffect(() => {
     if (isOpen) {
@@ -29,15 +26,11 @@ export function ImportDeductionModal({ isOpen, onClose, mode, onConfirm }: Impor
       setBelongingMonth("");
       setIsDragging(false);
 
-      if (mode === "manual" || mode === "batch") {
-        // 默认带出一个已经上传好的表格以供演示
-        const dummyFile = new File(["dummy content"], "医保扣减明细数据_2024.xlsx", {
-          type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-        });
-        setFile(dummyFile);
-      } else {
-        setFile(null);
-      }
+      // 默认带出一个已经上传好的表格以供演示
+      const dummyFile = new File(["dummy content"], "医保扣减明细数据_2024.xlsx", {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+      });
+      setFile(dummyFile);
     }
   }, [isOpen, mode]);
 
@@ -88,10 +81,15 @@ export function ImportDeductionModal({ isOpen, onClose, mode, onConfirm }: Impor
 
   const handleConfirm = () => {
     if (mode === "manual") {
-      if (!category) {
-        toast("请选择医保业务分类", "error");
+      if (!category.trim()) {
+        toast("请输入医保业务分类", "error");
         return;
       }
+      if (!belongingMonth) {
+        toast("请选择所属年月", "error");
+        return;
+      }
+    } else if (mode === "batch") {
       if (!belongingMonth) {
         toast("请选择所属年月", "error");
         return;
@@ -103,14 +101,11 @@ export function ImportDeductionModal({ isOpen, onClose, mode, onConfirm }: Impor
       return;
     }
 
-    const generatedTaskName = mode === "manual" ? `${category} ${belongingMonth} 手动新增明细` : "批量导入明细";
-    onConfirm(generatedTaskName, file, category, mode === "manual" ? belongingMonth : undefined);
+    const generatedTaskName = mode === "manual" ? `${category.trim()} ${belongingMonth} 手动新增明细` : `批量导入明细_${belongingMonth}`;
+    onConfirm(generatedTaskName, file, category.trim(), belongingMonth);
   };
 
-  let title = "导入扣减明细";
-  if (mode === "manual") title = "手动新增扣减明细";
-  if (mode === "batch") title = "批量导入扣减明细";
-  if (mode === "update") title = "导入更新扣减明细";
+  const title = mode === "manual" ? "手动新增扣减明细" : "批量导入扣减明细";
 
   return (
     <Modal 
@@ -119,36 +114,43 @@ export function ImportDeductionModal({ isOpen, onClose, mode, onConfirm }: Impor
       title={title}
       width="max-w-2xl"
     >
-      <div className="space-y-6">
-        {mode === "update" && (
-          <div className="bg-amber-50 border border-amber-200 text-amber-800 px-4 py-3 rounded-md text-sm">
-            <strong className="font-semibold">注意：</strong>
-            本次更新会覆盖该任务对应的所有扣减明细，请确保上传的医保扣减明细无误。
+      <div className="space-y-5">
+        {mode === "batch" && (
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                所属年月 <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="month"
+                value={belongingMonth}
+                onChange={(e) => setBelongingMonth(e.target.value)}
+                className="w-full border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+              />
+              <p className="mt-1 text-xs text-slate-500">
+                系统将导入该月份已配置医保业务分类对应的扣减明细数据，数据仅在院内扣减管理生效。
+              </p>
+            </div>
           </div>
         )}
 
         {mode === "manual" && (
-          <>
+          <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">
                 医保业务分类 <span className="text-red-500">*</span>
               </label>
-              <select
+              <input
+                type="text"
+                placeholder="请输入医保业务分类"
                 value={category}
                 onChange={(e) => setCategory(e.target.value)}
                 className="w-full border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
-              >
-                <option value="">请选择</option>
-                {categories.map((c) => (
-                  <option key={c.id} value={c.categoryName}>
-                    {c.categoryName}
-                  </option>
-                ))}
-              </select>
+              />
             </div>
             
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">
                 所属年月 <span className="text-red-500">*</span>
               </label>
               <input
@@ -158,7 +160,7 @@ export function ImportDeductionModal({ isOpen, onClose, mode, onConfirm }: Impor
                 className="w-full border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
               />
             </div>
-          </>
+          </div>
         )}
 
         <div>

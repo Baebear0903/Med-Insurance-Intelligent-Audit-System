@@ -130,7 +130,9 @@ export function Table<T>({
               const key = rowKey(row);
               const isSelected = selectedRowKeys.includes(key);
               const customClass = rowClassName ? rowClassName(row, rowIndex) : "";
-              const cellBgClass = "bg-inherit";
+              const cellBgClass = isSelected 
+                ? "bg-blue-50" 
+                : "bg-white group-hover:bg-slate-50";
 
               return (
                 <tr 

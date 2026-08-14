@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Table, Column } from "@/src/components/ui/Table";
 import { Button } from "@/src/components/ui/Button";
-import { Settings, RotateCcw, ArrowDownToLine, Plus } from "lucide-react";
+import { Select } from "@/src/components/ui/Select";
+import { Settings, RotateCcw, ArrowDownToLine, Plus, ChevronDown, FileText, Upload } from "lucide-react";
 import { mockApi } from "@/src/lib/mockData";
 import { toast } from "@/src/components/ui/Toast";
 import { exportToExcel } from "@/src/lib/exportUtils";
@@ -9,6 +10,9 @@ import { ColumnSettingsModal, ColumnItem } from "@/src/components/ColumnSettings
 import { Modal } from "@/src/components/ui/Modal";
 import { useNavigate } from "react-router-dom";
 import { ImportDeductionModal } from "./ImportDeductionModal";
+import { getInsuranceCategories } from "@/src/lib/insuranceCategoryStore";
+import { addImportRecord } from "./import-records/index";
+import { cn } from "@/src/lib/utils";
 
 // --- Types ---
 interface TaskSummary {
@@ -24,16 +28,12 @@ interface TaskSummary {
   isManual?: boolean;
 }
 
-import { getInsuranceCategories } from "@/src/lib/insuranceCategoryStore";
-
-// --- Helper Functions ---
-
 export default function DeductionDetails() {
   const navigate = useNavigate();
   const [tasks, setTasks] = useState<TaskSummary[]>([]);
   
   // Get latest categories dynamically on render
-  const businessCategories = getInsuranceCategories().filter(c => c.enabled).map(c => c.categoryName);
+  const configCategories = getInsuranceCategories().filter(c => c.enabled).map(c => c.categoryName);
   
   // Filters
   const [filterMonth, setFilterMonth] = useState("");
@@ -42,23 +42,38 @@ export default function DeductionDetails() {
   // Selection
   const [selectedRowKeys, setSelectedRowKeys] = useState<string[]>([]);
   
-  // Modal
+  // Modal & Dropdown
   const [isMergeModalOpen, setIsMergeModalOpen] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
-  const [importMode, setImportMode] = useState<"manual" | "batch" | "update">("manual");
-  const [currentUpdateTaskId, setCurrentUpdateTaskId] = useState<string | null>(null);
+  const [importMode, setImportMode] = useState<"manual" | "batch">("manual");
+  const [isImportDropdownOpen, setIsImportDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     loadTasks();
   }, []);
 
+  // Close dropdown on outside click
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsImportDropdownOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
   const loadTasks = () => {
-    
     setTimeout(() => {
       const allTasks = mockApi.getTasks(1, 1000).data;
       const allTemplates = mockApi.getTemplates();
-      // "扣减明细" lists tasks, maybe it uses TPL_GZ_YB as before.
-      const validTasks = allTasks.filter(t => t.templateId === "TPL_GZ_YB" && t.status === "END" && !t.parentId);
+      // "扣减明细" lists deduction management tasks
+      const validTasks = allTasks.filter(t => 
+        (t.templateId === "TPL_GZ_YB" || t.templateId === "TPL_DED" || t.templateId === "TPL_DED_CUSTOM" || t.isDeductionOnly || t.isManual) && 
+        t.status === "END" && 
+        !t.parentId
+      );
       
       const viewedIds = JSON.parse(localStorage.getItem("viewed_deduction_tasks") || "[]");
 
@@ -86,13 +101,13 @@ export default function DeductionDetails() {
         }
 
         const details = mockApi.getTaskDetailRecords(t.id, false);
-        const validDetails = details.filter(d => d.data && d.data.IS_APPEAL === "否").map(d => d.data);
+        const validDetails = details.filter(d => d.data && (d.data.IS_APPEAL === "不申诉" || d.data.IS_APPEAL === "否" || d.data._PROJECT_CLASS)).map(d => d.data);
 
         let sumViolation = 0;
         let sumDeduction = 0;
         validDetails.forEach(d => {
           sumViolation += Number(d.VIOLATION_AMOUNT) || 0;
-          sumDeduction += (Number(d._DEDUCTION_MED_COM) || 0) + (Number(d._DEDUCTION_OTHER) || 0); // or _DEDUCTION_AMOUNT
+          sumDeduction += (Number(d._DEDUCTION_MED_COM) || 0) + (Number(d._DEDUCTION_OTHER) || 0) || (Number(d._DEDUCTION_AMOUNT) || 0);
         });
 
         groups[groupId].deductibleCount += validDetails.length;
@@ -106,7 +121,6 @@ export default function DeductionDetails() {
       });
 
       setTasks(Object.values(groups));
-      
     }, 300);
   };
 
@@ -125,7 +139,7 @@ export default function DeductionDetails() {
     let allDetails: any[] = [];
     task.taskIds.forEach(tId => {
       const details = mockApi.getTaskDetailRecords(tId, false);
-      const validDetails = details.filter(d => d.data && d.data.IS_APPEAL === "否").map(d => d.data);
+      const validDetails = details.filter(d => d.data && (d.data.IS_APPEAL === "否" || d.data._PROJECT_CLASS)).map(d => d.data);
       allDetails = allDetails.concat(validDetails);
     });
     exportToExcel(allDetails, `${task.name}明细.xlsx`);
@@ -145,48 +159,135 @@ export default function DeductionDetails() {
     setIsImportModalOpen(true);
   };
 
-  const handleBatchImport = () => {
+  const handleBatchImportClick = () => {
+    setIsImportDropdownOpen(false);
     setImportMode("batch");
     setIsImportModalOpen(true);
   };
 
-  const handleUpdateTask = (taskId: string) => {
-    setCurrentUpdateTaskId(taskId);
-    setImportMode("update");
-    setIsImportModalOpen(true);
+  const handleNavigateToImportRecords = () => {
+    setIsImportDropdownOpen(false);
+    navigate("/deduction-management/import-records/index");
   };
 
-  const handleImportConfirm = (taskName: string | null, _file: File, category?: string, belongingMonth?: string) => {
-    // 根据需求，生成随机数来充当扣减的记录数和金额
-    const recordCount = Math.floor(Math.random() * 16) + 5; // 5 to 20 records
-    const fakeRecords = Array.from({ length: recordCount }).map((_, i) => {
-      const deduction = Math.floor(Math.random() * 5000) + 100;
-      return {
-        id: `DED_CUSTOM_${Date.now()}_${i}`,
-        data: {
-          IS_APPEAL: "否",
-          VIOLATION_AMOUNT: deduction + Math.floor(Math.random() * 1000),
-          _DEDUCTION_MED_COM: deduction,
-          _DEDUCTION_OTHER: 0,
-          PATIENT_NAME: `患者${Math.floor(Math.random() * 1000)}`,
-          MEDICAL_CATEGORY: category || "普通门诊",
-          DEDUCTION_REASON: "违规扣减",
-          DEPARTMENT: "内科"
-        }
-      };
-    });
+  const handleImportConfirm = (taskName: string | null, file: File, category?: string, belongingMonth?: string) => {
+    const month = belongingMonth || new Date().toISOString().slice(0, 7);
 
-    if (importMode === "manual" || importMode === "batch") {
-      const generatedCategory = category || "未知分类";
-      const generatedMonth = belongingMonth || new Date().toISOString().slice(0,7);
-      const name = taskName || "导入的扣减明细";
+    if (importMode === "batch") {
+      // 批量导入：导入医保业务分类配置中已启用的分类对应的扣减数据，只在院内扣减管理模块生效
+      const enabledCategories = getInsuranceCategories().filter(c => c.enabled);
       
-      const newTask = mockApi.addTask(name, "TPL_GZ_YB", generatedCategory, generatedMonth, importMode === "manual");
+      if (enabledCategories.length === 0) {
+        toast("未找到已启用的医保业务分类配置", "error");
+        setIsImportModalOpen(false);
+        return;
+      }
+
+      enabledCategories.forEach((cat) => {
+        const recordCount = Math.floor(Math.random() * 12) + 5; // 5 to 16 records
+        const fakeRecords = Array.from({ length: recordCount }).map((_, i) => {
+          const deduction = Math.floor(Math.random() * 4000) + 200;
+          const dMedCom = Math.floor(deduction * 0.6);
+          const dOther = deduction - dMedCom;
+          return {
+            id: `DED_BATCH_${Date.now()}_${cat.id}_${i}`,
+            data: {
+              IS_APPEAL: "否",
+              VIOLATION_AMOUNT: (deduction + Math.floor(Math.random() * 800)).toFixed(2),
+              _PERSON_CATEGORY: cat.personnelCategory,
+              _IS_ONLINE: cat.onlineOffline,
+              _DEDUCTION_AMOUNT: deduction,
+              _DEDUCTION_MED_COM: dMedCom,
+              _DEDUCTION_OTHER: dOther,
+              PATIENT_NAME: `患者${Math.floor(Math.random() * 9000) + 1000}`,
+              ID_CARD: `44010619${Math.floor(Math.random() * 30 + 70)}${month.replace("-", "")}${1000 + i}`,
+              HOSPITAL_NO: `ZY${month.replace("-", "")}${100 + i}`,
+              ADMIT_DATE: `${month}-01`,
+              DISCHARGE_DATE: `${month}-12`,
+              MEDICAL_CATEGORY: cat.onlineOffline === "线上" ? "普通门诊" : "住院",
+              PROJECT_NAME: i % 2 === 0 ? "血常规" : "CT检查",
+              DEDUCTION_REASON: "违规扣减",
+              ORDER_DEPT: i % 2 === 0 ? "内科" : "外科",
+              DOCTOR_NAME: i % 2 === 0 ? "王医生" : "李医生",
+              _DEDUCTION_TARGET: i % 2 === 0 ? "内科" : "外科",
+              _DATA_SOURCE: `${month}批量导入扣减明细`
+            }
+          };
+        });
+
+        const task = mockApi.addTask(
+          `${cat.categoryName} ${month} 扣减明细`,
+          "TPL_DED_CUSTOM",
+          cat.categoryName,
+          month,
+          false,
+          true // isDeductionOnly = true: only in 院内扣减管理
+        );
+        mockApi.updateTaskDetails(task.id, fakeRecords);
+      });
+
+      // 记录到导入记录
+      addImportRecord({
+        fileName: file ? file.name : `扣减明细_${month}.xlsx`,
+        fileSize: file ? `${(file.size / 1024).toFixed(0)}kb` : "28kb",
+        operator: "当前用户",
+        uploadTime: new Date().toLocaleString("zh-CN", { hour12: false }).replace(/\//g, "-"),
+        status: "全部通过"
+      });
+
+      toast(`批量导入成功，已为 ${enabledCategories.length} 个医保业务分类生成 ${month} 扣减明细`, "success");
+    } else if (importMode === "manual") {
+      // 手动新增：医保业务分类支持手动自定义文本，只在院内扣减管理模块生效
+      const customCategory = category || "自定义业务分类";
+      const recordCount = Math.floor(Math.random() * 12) + 5;
+      const fakeRecords = Array.from({ length: recordCount }).map((_, i) => {
+        const deduction = Math.floor(Math.random() * 5000) + 100;
+        const dMedCom = Math.floor(deduction * 0.6);
+        const dOther = deduction - dMedCom;
+        return {
+          id: `DED_CUSTOM_${Date.now()}_${i}`,
+          data: {
+            IS_APPEAL: "不申诉",
+            VIOLATION_AMOUNT: (deduction + Math.floor(Math.random() * 1000)).toFixed(2),
+            _DEDUCTION_AMOUNT: deduction,
+            _DEDUCTION_MED_COM: dMedCom,
+            _DEDUCTION_OTHER: dOther,
+            PATIENT_NAME: `患者${Math.floor(Math.random() * 9000) + 1000}`,
+            ID_CARD: `44010619${Math.floor(Math.random() * 30 + 70)}${month.replace("-", "")}${1000 + i}`,
+            HOSPITAL_NO: `ZY${month.replace("-", "")}${100 + i}`,
+            ADMIT_DATE: `${month}-01`,
+            DISCHARGE_DATE: `${month}-12`,
+            MEDICAL_CATEGORY: "普通门诊",
+            PROJECT_NAME: "诊疗检查",
+            DEDUCTION_REASON: "违规扣减",
+            ORDER_DEPT: "内科",
+            DOCTOR_NAME: "赵医生",
+            _DEDUCTION_TARGET: "内科",
+            _DATA_SOURCE: `${customCategory} ${month} 手动新增`
+          }
+        };
+      });
+
+      const newTask = mockApi.addTask(
+        taskName || `${customCategory} ${month} 手动新增明细`,
+        "TPL_DED_CUSTOM",
+        customCategory,
+        month,
+        true, // isManual
+        true // isDeductionOnly
+      );
       mockApi.updateTaskDetails(newTask.id, fakeRecords);
-      toast("扣减明细导入成功", "success");
-    } else if (importMode === "update" && currentUpdateTaskId) {
-      mockApi.updateTaskDetails(currentUpdateTaskId, fakeRecords);
-      toast("扣减明细更新成功", "success");
+
+      // 记录到导入记录
+      addImportRecord({
+        fileName: file ? file.name : `${customCategory}_${month}.xlsx`,
+        fileSize: file ? `${(file.size / 1024).toFixed(0)}kb` : "24kb",
+        operator: "当前用户",
+        uploadTime: new Date().toLocaleString("zh-CN", { hour12: false }).replace(/\//g, "-"),
+        status: "全部通过"
+      });
+
+      toast("手动新增扣减明细成功", "success");
     }
 
     setIsImportModalOpen(false);
@@ -199,7 +300,7 @@ export default function DeductionDetails() {
     selectedTasks.forEach(task => {
       task.taskIds.forEach(tId => {
         const details = mockApi.getTaskDetailRecords(tId, false);
-        const validDetails = details.filter(d => d.data && d.data.IS_APPEAL === "否").map(d => d.data);
+        const validDetails = details.filter(d => d.data && (d.data.IS_APPEAL === "否" || d.data._PROJECT_CLASS)).map(d => d.data);
         allDetails = allDetails.concat(validDetails);
       });
     });
@@ -223,6 +324,8 @@ export default function DeductionDetails() {
     { key: "deductibleCount", title: "可扣减记录数", visible: true },
     { key: "totalDeductionAmount", title: "扣减金额合计 (元)", visible: true }
   ]);
+
+  const allAvailableCategories = Array.from(new Set([...configCategories, ...tasks.map(t => t.businessCategory)]));
 
   const filteredTasks = tasks.filter(t => 
     (filterMonth ? t.businessCategory === filterMonth : true) &&
@@ -254,7 +357,7 @@ export default function DeductionDetails() {
           </div>
         );
       } else if (c.key === "businessCategory") {
-        width = "160px";
+        width = "180px";
         render = (r) => (
           <div className="flex items-center space-x-2">
             <span className="truncate">{r.businessCategory}</span>
@@ -278,16 +381,15 @@ export default function DeductionDetails() {
       }
       return { key: c.key, title: c.title, width, align, render };
     }),
-    { key: "action", title: "操作", width: "220px", align: "left", fixed: "right", render: (r) => (
+    { key: "action", title: "操作", width: "180px", align: "left", fixed: "right", render: (r) => (
       <div className="flex items-center justify-start space-x-3">
         <button onClick={() => handleView(r.id)} className="text-blue-600 hover:text-blue-800 text-sm font-medium">查看详情</button>
         <button onClick={() => handleMockDownload(r)} className="text-blue-600 hover:text-blue-800 text-sm font-medium">下载明细</button>
-        <button onClick={() => handleUpdateTask(r.id)} className="text-blue-600 hover:text-blue-800 text-sm font-medium">导入更新</button>
-        {r.id.startsWith("T_CUSTOM_") && (
+        {r.isManual && (
           <button 
             onClick={() => {
               if (window.confirm("确定要删除该扣减明细吗？")) {
-                mockApi.deleteTask(r.id);
+                r.taskIds.forEach(id => mockApi.deleteTask(id));
                 toast("删除成功", "success");
                 loadTasks();
               }
@@ -305,55 +407,109 @@ export default function DeductionDetails() {
     <div className="h-full flex flex-col space-y-4">
       {/* Search Header */}
       <div className="bg-white p-4 rounded-md shadow-sm border border-slate-200 flex flex-wrap items-center justify-between gap-4">
-         <div className="flex items-center space-x-4">
-            <div className="flex items-center bg-slate-50 border border-slate-200 rounded-md px-3 py-1.5 focus-within:ring-1 focus-within:ring-blue-500 transition-shadow">
-              <select 
+          <div className="flex items-center space-x-3">
+            <div className="w-48">
+              <Select
                 value={filterMonth}
-                onChange={e => setFilterMonth(e.target.value)}
-                className="bg-transparent text-sm w-36 outline-none text-slate-700" 
-              >
-                <option value="">全部业务分类</option>
-                {businessCategories.map(cat => (
-                  <option key={cat} value={cat}>{cat}</option>
-                ))}
-              </select>
+                onChange={val => setFilterMonth(val || "")}
+                placeholder="全部业务分类"
+                size="sm"
+                allowClear
+                options={[
+                  { label: "全部业务分类", value: "" },
+                  ...allAvailableCategories.map(cat => ({ label: cat, value: cat }))
+                ]}
+              />
             </div>
-            <div className="flex items-center bg-slate-50 border border-slate-200 rounded-md px-3 py-1.5 focus-within:ring-1 focus-within:ring-blue-500 transition-shadow">
+            <div className="flex items-center bg-white border border-slate-300 rounded px-2.5 h-8 focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500 transition-all">
               <input 
                 type="month" 
                 value={filterBelongingMonth}
                 onChange={e => setFilterBelongingMonth(e.target.value)}
-                className="bg-transparent text-sm w-36 outline-none text-slate-700" 
+                className="bg-transparent text-xs outline-none text-slate-700 w-32" 
               />
             </div>
-            <div className="flex items-center space-x-2 pl-2">
+            <div className="flex items-center space-x-2 pl-1">
                <Button variant="primary" size="sm" onClick={() => {}}>查询</Button>
                <Button variant="outline" size="sm" className="gap-1.5" onClick={() => { setFilterMonth(""); setFilterBelongingMonth(""); }}>
                  <RotateCcw className="w-3.5 h-3.5" />
                  重置
                </Button>
             </div>
-         </div>
+          </div>
       </div>
 
       <div className="flex-1 flex flex-col bg-white rounded-md shadow-sm border border-slate-200 min-h-0">
         <div className="flex items-center justify-between p-4 border-b border-slate-100">
            <h2 className="text-base font-semibold text-slate-800">医保扣减清单</h2>
-           <div className="flex items-center space-x-3">
-              <Button variant="primary" size="sm" onClick={handleCreateTask} className="gap-2">
-                <Plus className="w-4 h-4" />
-                手动新增
+           <div className="flex items-center space-x-2.5">
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={handleCreateTask}
+                className="gap-1.5"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>手动新增</span>
               </Button>
-              <Button variant="outline" size="sm" onClick={handleBatchImport} className="gap-2">
-                <ArrowDownToLine className="w-4 h-4" />
-                批量导入
+              
+              {/* 批量导入下拉按钮 */}
+              <div className="relative inline-block text-left" ref={dropdownRef}>
+                <button
+                  type="button"
+                  onClick={() => setIsImportDropdownOpen(!isImportDropdownOpen)}
+                  className={cn(
+                    "h-8 px-3 inline-flex items-center gap-1.5 text-xs font-medium rounded border transition-all cursor-pointer select-none",
+                    isImportDropdownOpen
+                      ? "border-[#1677ff] text-[#1677ff] bg-blue-50/50"
+                      : "border-slate-300 text-slate-700 bg-white hover:bg-slate-50 hover:border-slate-400"
+                  )}
+                >
+                  <Upload className="w-3.5 h-3.5 text-slate-600" />
+                  <span>批量导入</span>
+                  <ChevronDown
+                    className={cn(
+                      "w-3 h-3 text-slate-400 transition-transform duration-200",
+                      isImportDropdownOpen && "rotate-180 text-blue-500"
+                    )}
+                  />
+                </button>
+
+                {isImportDropdownOpen && (
+                  <div className="absolute left-0 w-full min-w-[110px] mt-1 bg-white rounded-lg shadow-[0_6px_16px_0_rgba(0,0,0,0.08),0_3px_6px_-4px_rgba(0,0,0,0.06)] border border-slate-100 py-1 z-50 text-xs animate-in fade-in zoom-in-95 duration-100 divide-y divide-slate-100">
+                    <button
+                      onClick={handleBatchImportClick}
+                      className="w-full text-left px-3 py-2 text-slate-700 hover:bg-blue-50 hover:text-blue-600 flex items-center gap-2 transition-colors cursor-pointer"
+                    >
+                      <Upload className="w-3.5 h-3.5 text-slate-500" />
+                      <span>批量导入</span>
+                    </button>
+                    <button
+                      onClick={handleNavigateToImportRecords}
+                      className="w-full text-left px-3 py-2 text-slate-700 hover:bg-blue-50 hover:text-blue-600 flex items-center gap-2 transition-colors cursor-pointer"
+                    >
+                      <FileText className="w-3.5 h-3.5 text-slate-500" />
+                      <span>导入记录</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleMergeDownloadClick}
+                className="gap-1.5 text-[#1677ff] border-blue-200 hover:bg-blue-50"
+              >
+                <ArrowDownToLine className="w-3.5 h-3.5 text-[#1677ff]" />
+                <span>合并下载</span>
               </Button>
-              <Button variant="outline" size="sm" onClick={handleMergeDownloadClick} className="gap-2 text-blue-600 border-blue-200 hover:bg-blue-50">
-                <ArrowDownToLine className="w-4 h-4" />
-                合并下载
-              </Button>
-              <button className="text-slate-400 hover:text-slate-600 p-1 rounded-md hover:bg-slate-50 transition-colors" onClick={() => setIsColumnSettingsOpen(true)}>
-                <Settings className="w-5 h-5" />
+              <button 
+                className="text-slate-400 hover:text-slate-600 p-1.5 rounded hover:bg-slate-100 transition-colors flex items-center justify-center cursor-pointer" 
+                onClick={() => setIsColumnSettingsOpen(true)}
+                title="表格列设置"
+              >
+                <Settings className="w-4 h-4" />
               </button>
            </div>
         </div>
@@ -436,4 +592,3 @@ export default function DeductionDetails() {
     </div>
   );
 }
-

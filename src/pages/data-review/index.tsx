@@ -5,6 +5,7 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/src/components/ui/Button";
 import { Modal } from "@/src/components/ui/Modal";
 import { Badge } from "@/src/components/ui/Badge";
+import { Select } from "@/src/components/ui/Select";
 import { motion, AnimatePresence } from "motion/react";
 import { toast } from "@/src/components/ui/Toast";
 import { mockApi } from "@/src/lib/mockData";
@@ -380,21 +381,19 @@ export function DataReview() {
                     </div>
                     <div className="flex items-center gap-3">
                       <span className="text-sm font-medium text-slate-600 whitespace-nowrap">任务状态</span>
-                      <div className="relative w-72">
-                        <select 
-                          className="w-full pl-3 pr-8 py-1.5 bg-white border border-slate-200 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all appearance-none cursor-pointer shadow-inner"
-                          value={filterStatus}
-                          onChange={(e) => setFilterStatus(e.target.value)}
-                        >
-                          <option value="">请选择</option>
-                          {Object.entries(TASK_STATUS).filter(([key]) => key !== 'CREATE').map(([key, label]) => (
-                            <option key={key} value={key}>{label}</option>
-                          ))}
-                        </select>
-                        <div className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
-                          <Clock className="w-3.5 h-3.5" />
-                        </div>
-                      </div>
+                      <Select
+                        value={filterStatus}
+                        onChange={(val) => setFilterStatus(val as string)}
+                        placeholder="请选择"
+                        options={[
+                          { label: "请选择", value: "" },
+                          ...Object.entries(TASK_STATUS).filter(([key]) => key !== 'CREATE').map(([key, label]) => ({
+                            label,
+                            value: key
+                          }))
+                        ]}
+                        className="w-72"
+                      />
                     </div>
                   </div>
                   
@@ -538,24 +537,28 @@ export function DataReview() {
 
             {/* Toolbar */}
             <div className="flex items-center justify-between mt-2">
-              <div className="w-48 relative">
-                <select 
+              <div className="w-48">
+                <Select
                   value={progressFilter}
-                  onChange={(e) => setProgressFilter(e.target.value)}
-                  className="w-full px-4 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 appearance-none text-slate-600 cursor-pointer"
-                >
-                  <option value="">全部进度</option>
-                  {!progressModalStats.isDeduction && <option value="填报中">填报中</option>}
-                  {!progressModalStats.isDeduction && <option value="已提交">已提交</option>}
-                  {!progressModalStats.isDeduction && <option value="已驳回">已驳回</option>}
-                  {!progressModalStats.isDeduction && <option value="审核完成">审核完成</option>}
-                  {!progressModalStats.isDeduction && <option value="已撤回">已撤回</option>}
-                  {!progressModalStats.isDeduction && <option value="已取消">已取消</option>}
-                  {!progressModalStats.isDeduction && <option value="已结束">已结束</option>}
-                  {progressModalStats.isDeduction && <option value="已读确认">已读确认</option>}
-                  {progressModalStats.isDeduction && <option value="未读">未读</option>}
-                </select>
-                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                  onChange={(val) => setProgressFilter(val as string)}
+                  placeholder="全部进度"
+                  options={[
+                    { label: "全部进度", value: "" },
+                    ...(!progressModalStats.isDeduction ? [
+                      { label: "填报中", value: "填报中" },
+                      { label: "已提交", value: "已提交" },
+                      { label: "已驳回", value: "已驳回" },
+                      { label: "审核完成", value: "审核完成" },
+                      { label: "已撤回", value: "已撤回" },
+                      { label: "已取消", value: "已取消" },
+                      { label: "已结束", value: "已结束" }
+                    ] : [
+                      { label: "已读确认", value: "已读确认" },
+                      { label: "未读", value: "未读" }
+                    ])
+                  ]}
+                  className="w-full"
+                />
               </div>
               
               <Button onClick={handleBatchUrge} className="bg-blue-600 hover:bg-blue-700">

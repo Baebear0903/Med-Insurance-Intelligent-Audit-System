@@ -26,7 +26,7 @@ const STANDARD_FIELDS = [
   { name: "ORDER_DEPT", comment: "开单科室", remark: "标准开单科室" },
   { name: "EXECUTE_DEPT", comment: "执行科室", remark: "标准执行科室" },
   { name: "DISPATCH_DEPT", comment: "下发科室", remark: "标准下发科室" },
-  { name: "IS_APPEAL", comment: "是/否申诉", remark: "标准是/否申诉" },
+  { name: "IS_APPEAL", comment: "是否申诉", remark: "标准是否申诉" },
   { name: "APPEAL_REASON", comment: "申诉原因", remark: "标准申诉原因" },
   { name: "APPEAL_ATTACHMENT", comment: "申诉附件", remark: "标准申诉附件" },
   { name: "APPEAL_REMARK", comment: "申诉备注", remark: "标准申诉备注" },
@@ -36,7 +36,7 @@ const DEFAULT_FEEDBACK_FIELDS: TemplateField[] = [
   { id: "DF_ORDER_DEPT", name: "ORDER_DEPT", comment: "开单科室", type: "VARCHAR", length: 100, decimal: 0, isPrimaryKey: false, isNotNull: false, isRequired: false, isShow: true, displayName: "开单科室", isQueryable: false, isFeedback: false, noUpdate: true, mappedStandardField: "ORDER_DEPT" },
   { id: "DF_EXECUTE_DEPT", name: "EXECUTE_DEPT", comment: "执行科室", type: "VARCHAR", length: 100, decimal: 0, isPrimaryKey: false, isNotNull: false, isRequired: false, isShow: true, displayName: "执行科室", isQueryable: false, isFeedback: false, noUpdate: true, mappedStandardField: "EXECUTE_DEPT" },
   { id: "DF_DISPATCH_DEPT", name: "DISPATCH_DEPT", comment: "下发科室", type: "VARCHAR", length: 100, decimal: 0, isPrimaryKey: false, isNotNull: false, isRequired: false, isShow: true, displayName: "下发科室", isQueryable: true, isFeedback: false, noUpdate: true, mappedStandardField: "DISPATCH_DEPT" },
-  { id: "DF_IS_APPEAL", name: "IS_APPEAL", comment: "是/否申诉", type: "VARCHAR", length: 10, decimal: 0, isPrimaryKey: false, isNotNull: false, isRequired: false, isShow: true, displayName: "是/否申诉", isQueryable: false, isFeedback: true, noUpdate: false, mappedStandardField: "IS_APPEAL" },
+  { id: "DF_IS_APPEAL", name: "IS_APPEAL", comment: "是否申诉", type: "VARCHAR", length: 10, decimal: 0, isPrimaryKey: false, isNotNull: false, isRequired: false, isShow: true, displayName: "是否申诉", isQueryable: true, isFeedback: true, noUpdate: false, mappedStandardField: "IS_APPEAL" },
   { id: "DF_APPEAL_REASON", name: "APPEAL_REASON", comment: "申诉原因", type: "VARCHAR", length: 500, decimal: 0, isPrimaryKey: false, isNotNull: false, isRequired: false, isShow: true, displayName: "申诉原因", isQueryable: false, isFeedback: true, noUpdate: false, mappedStandardField: "APPEAL_REASON" },
   { id: "DF_APPEAL_ATTACHMENT", name: "APPEAL_ATTACHMENT", comment: "申诉附件", type: "VARCHAR", length: 500, decimal: 0, isPrimaryKey: false, isNotNull: false, isRequired: false, isShow: true, displayName: "申诉附件", isQueryable: false, isFeedback: true, noUpdate: false, mappedStandardField: "APPEAL_ATTACHMENT" },
   { id: "DF_APPEAL_REMARK", name: "APPEAL_REMARK", comment: "申诉备注", type: "VARCHAR", length: 500, decimal: 0, isPrimaryKey: false, isNotNull: false, isRequired: false, isShow: true, displayName: "申诉备注", isQueryable: false, isFeedback: true, noUpdate: true, mappedStandardField: "APPEAL_REMARK" },
@@ -659,28 +659,28 @@ export function AddReviewTemplate() {
             </div>
 
             <div className="border rounded-lg border-slate-200 shadow-sm overflow-hidden flex flex-col">
-              <div className="overflow-x-auto">
+              <div className="overflow-auto max-h-[560px] relative">
                 <table className="w-full text-sm text-left border-separate border-spacing-0 min-w-[900px]">
-                  <thead className="bg-slate-50 text-slate-600">
+                  <thead className="text-slate-600">
                     <tr>
-                      <th rowSpan={2} className="px-4 py-3 font-semibold w-[220px] border-b border-r border-slate-200 bg-slate-50 sticky left-0 z-10 shadow-[2px_0_4px_-2px_rgba(0,0,0,0.05)]">字段信息</th>
-                      <th colSpan={2} className="px-4 py-2 text-center font-semibold border-b border-r border-slate-200 bg-blue-50 text-blue-700 text-xs">数据导入阶段</th>
-                      <th colSpan={5} className="px-4 py-2 text-center font-semibold border-b border-r border-slate-200 bg-emerald-50 text-emerald-700 text-xs">数据填报阶段</th>
-                      <th colSpan={2} className="px-4 py-2 text-center font-semibold border-b border-slate-200 bg-amber-50 text-amber-700 text-xs">任务收尾阶段</th>
+                      <th rowSpan={2} className="px-4 py-3 font-semibold w-[220px] border-b border-r border-slate-200 bg-slate-100 sticky top-0 left-0 z-30 shadow-[2px_0_4px_-2px_rgba(0,0,0,0.05)]">字段信息</th>
+                      <th colSpan={2} className="px-4 py-2 text-center font-semibold border-b border-r border-slate-200 bg-blue-100 text-blue-800 text-xs sticky top-0 z-20">数据导入阶段</th>
+                      <th colSpan={5} className="px-4 py-2 text-center font-semibold border-b border-r border-slate-200 bg-emerald-100 text-emerald-800 text-xs sticky top-0 z-20">数据填报阶段</th>
+                      <th colSpan={2} className="px-4 py-2 text-center font-semibold border-b border-slate-200 bg-amber-100 text-amber-800 text-xs sticky top-0 z-20">任务收尾阶段</th>
                     </tr>
-                    <tr className="text-[11px] bg-slate-50">
+                    <tr className="text-[11px]">
                       {[
-                        { name: "唯一识别", title: "确定该字段作为数据更新的唯一判定依据" },
-                        { name: "导入必有值", title: "导入数据时，此字段的值不能为空" },
-                        { name: "列表展示", title: "在任务列表及详情数据中是否默认展示此字段" },
-                        { name: "仅医保办可见", title: "勾选后，该字段及数据仅对医保办工作人员展示" },
-                        { name: "支持查询", title: "在数据列表中，是否支持按此字段进行快速检索查询" },
-                        { name: "填报必填", title: "在数据填报时，要求此字段必须填写内容" },
-                        { name: "导入不更新", title: "二次导入数据时，以此字段原有数据为准，不被覆盖更新" },
-                        { name: "辅助字段", title: "属于内部流转控制字段，不在导入模板中体现" },
-                        { name: "结果反馈", title: "标识此字段内容是否作为处理结果反馈给相关人员" }
+                        { name: "唯一识别", title: "确定该字段作为数据更新的唯一判定依据", bg: "bg-blue-50" },
+                        { name: "导入必有值", title: "导入数据时，此字段的值不能为空", bg: "bg-blue-50" },
+                        { name: "列表展示", title: "在任务列表及详情数据中是否默认展示此字段", bg: "bg-emerald-50" },
+                        { name: "仅医保办可见", title: "勾选后，该字段及数据仅对医保办工作人员展示", bg: "bg-emerald-50" },
+                        { name: "支持查询", title: "在数据列表中，是否支持按此字段进行快速检索查询", bg: "bg-emerald-50" },
+                        { name: "填报必填", title: "在数据填报时，要求此字段必须填写内容", bg: "bg-emerald-50" },
+                        { name: "导入不更新", title: "二次导入数据时，以此字段原有数据为准，不被覆盖更新", bg: "bg-emerald-50" },
+                        { name: "辅助字段", title: "属于内部流转控制字段，不在导入模板中体现", bg: "bg-amber-50" },
+                        { name: "结果反馈", title: "标识此字段内容是否作为处理结果反馈给相关人员", bg: "bg-amber-50" }
                       ].map((header, i) => (
-                        <th key={header.name} className={cn("px-2 py-2 text-center font-medium border-b border-slate-200 w-20 group relative cursor-help hover:z-50", i !== 8 && "border-r")}>
+                        <th key={header.name} className={cn("px-2 py-2 text-center font-medium border-b border-slate-200 w-20 group relative cursor-help hover:z-50 sticky top-[33px] z-20", header.bg, i !== 8 && "border-r")}>
                           <div className="flex flex-col items-center justify-center gap-0.5">
                             <span>{header.name}</span>
                             <HelpCircle className="w-3 h-3 text-slate-400 group-hover:text-blue-500 transition-colors" />

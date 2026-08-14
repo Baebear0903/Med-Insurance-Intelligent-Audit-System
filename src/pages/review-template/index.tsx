@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Plus, LayoutTemplate, FileText, Search, Trash2, Edit3, Copy, User } from "lucide-react";
 import { Button } from "@/src/components/ui/Button";
 import { Modal } from "@/src/components/ui/Modal";
+import { Select } from "@/src/components/ui/Select";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "@/src/components/ui/Toast";
 import { mockApi } from "@/src/lib/mockData";
@@ -84,32 +85,28 @@ export function ReviewTemplate() {
             />
             <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
           </div>
-          <select
+          <Select
             value={typeFilter}
-            onChange={(e) => setTypeFilter(e.target.value)}
-            className={cn(
-              "w-40 h-9 px-3 rounded border border-slate-300 bg-white text-sm outline-none transition-all focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none cursor-pointer",
-              typeFilter === "" ? "text-slate-400" : "text-slate-700"
-            )}
-            style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2394a3b8' stroke-width='2'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 0.75rem center', backgroundSize: '1rem' }}
-          >
-            <option value="" className="text-slate-400">全部类型</option>
-            <option value="医保审核反馈" className="text-slate-700">医保审核反馈</option>
-            <option value="医保明细下发" className="text-slate-700">医保明细下发</option>
-          </select>
-          <select
+            onChange={(val) => setTypeFilter(val as string)}
+            placeholder="全部类型"
+            options={[
+              { label: "全部类型", value: "" },
+              { label: "医保审核反馈", value: "医保审核反馈" },
+              { label: "医保明细下发", value: "医保明细下发" }
+            ]}
+            className="w-40"
+          />
+          <Select
             value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className={cn(
-              "w-40 h-9 px-3 rounded border border-slate-300 bg-white text-sm outline-none transition-all focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none cursor-pointer",
-              statusFilter === "" ? "text-slate-400" : "text-slate-700"
-            )}
-            style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2394a3b8' stroke-width='2'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 0.75rem center', backgroundSize: '1rem' }}
-          >
-            <option value="" className="text-slate-400">全部状态</option>
-            <option value="ENABLED" className="text-slate-700">启用中</option>
-            <option value="DISABLED" className="text-slate-700">已禁用</option>
-          </select>
+            onChange={(val) => setStatusFilter(val as string)}
+            placeholder="全部状态"
+            options={[
+              { label: "全部状态", value: "" },
+              { label: "启用中", value: "ENABLED" },
+              { label: "已禁用", value: "DISABLED" }
+            ]}
+            className="w-40"
+          />
           <Button variant="primary" size="sm" onClick={handleSearch}>搜索</Button>
           <Button variant="outline" size="sm" onClick={handleReset}>重置</Button>
         </div>

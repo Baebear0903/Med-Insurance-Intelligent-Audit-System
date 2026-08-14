@@ -2,7 +2,7 @@ import React from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { ImportRecordsView } from "@/src/components/ImportRecordsView";
 
-export default function IssueData() {
+export default function TaskImportRecords() {
   const [searchParams] = useSearchParams();
   const taskId = searchParams.get("id") || searchParams.get("taskId");
   const taskName = searchParams.get("name") || searchParams.get("taskName");

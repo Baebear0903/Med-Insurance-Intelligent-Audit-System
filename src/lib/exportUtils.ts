@@ -241,7 +241,7 @@ export async function parseUploadFile(
         data: {
           ...foundRecord.data,
           ...rowObj, // 表格中可能包含在外部修改后的各个字段
-          IS_APPEAL: "是",
+          IS_APPEAL: rowObj.IS_APPEAL === "不申诉" ? "不申诉" : (rowObj.IS_APPEAL === "申诉" ? "申诉" : (rowObj.IS_APPEAL || "申诉")),
           APPEAL_ATTACHMENT: mergedEvidence.join(", "),
           APPEAL_REASON: rowObj.APPEAL_REASON || rowObj.APPEAL_COMMENT || foundRecord.data.APPEAL_REASON || "批量导入申诉：数据符合规范要求，请审核。"
         }

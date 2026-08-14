@@ -270,7 +270,7 @@ export default function DeductionSummary() {
     setTimeout(() => {
       const allTasks = mockApi.getTasks(1, 1000).data;
       const endedTasks = allTasks.filter(t => 
-        (t.templateName?.includes("反馈") || t.templateName?.includes("扣减")) && 
+        (t.templateName?.includes("反馈") || t.templateName?.includes("扣减") || t.templateId === "TPL_GZ_YB" || t.templateId === "TPL_DED_CUSTOM" || t.isDeductionOnly || t.isManual) && 
         t.status === "END" && 
         !t.parentId
       );

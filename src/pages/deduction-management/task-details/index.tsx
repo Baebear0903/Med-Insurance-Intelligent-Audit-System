@@ -7,7 +7,6 @@ import { mockApi } from "@/src/lib/mockData";
 import { toast } from "@/src/components/ui/Toast";
 import { exportToExcel } from "@/src/lib/exportUtils";
 import { ColumnSettingsModal, ColumnItem } from "@/src/components/ColumnSettingsModal";
-import { ImportDeductionModal } from "../ImportDeductionModal";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { getInsuranceCategories } from "@/src/lib/insuranceCategoryStore";
 
@@ -65,7 +64,6 @@ export default function DeductionTaskDetails() {
   
   const [columnsSettings, setColumnsSettings] = useState<ColumnItem[]>(BASE_COLUMNS);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
 
   useEffect(() => {
     if (taskId) {
@@ -91,7 +89,7 @@ export default function DeductionTaskDetails() {
         
         const allTemplates = mockApi.getTemplates();
         matchedTasks = allTasks.filter(t => {
-          if (t.templateId !== "TPL_GZ_YB" || t.status !== "END" || t.parentId || t.isManual) return false;
+          if (t.status !== "END" || t.parentId || t.isManual) return false;
           const template = allTemplates.find(tpl => tpl.id === t.templateId);
           const tBc = t.businessCategory || template?.businessCategory || "广州医保（线下）";
           const tMonth = t.belongingMonth || "-";
@@ -108,7 +106,7 @@ export default function DeductionTaskDetails() {
       let validDetails: any[] = [];
       matchedTasks.forEach(t => {
         const details = mockApi.getTaskDetailRecords(t.id, false)
-          .filter(d => d.data && d.data.IS_APPEAL === "否")
+          .filter(d => d.data && (d.data.IS_APPEAL === "否" || d.data._PROJECT_CLASS))
           .map(d => ({...d.data, id: d.id, taskId: t.id}));
         validDetails = validDetails.concat(details);
       });
@@ -117,8 +115,8 @@ export default function DeductionTaskDetails() {
       
       const configs = getInsuranceCategories();
       const matchedConfig = configs.find(c => c.categoryName === bc);
-      const personCategory = matchedConfig ? matchedConfig.personnelCategory : "广州医保";
-      const onlineOffline = matchedConfig ? matchedConfig.onlineOffline : "线下";
+      const personCategory = matchedConfig ? matchedConfig.personnelCategory : (bc.includes("异地") ? "异地医保" : "广州医保");
+      const onlineOffline = matchedConfig ? matchedConfig.onlineOffline : (bc.includes("线上") ? "线上" : "线下");
       
       let sumViolation = 0;
       let sumDeduction = 0;
@@ -138,9 +136,13 @@ export default function DeductionTaskDetails() {
          };
       });
       
+      setTotal(validDetails.length);
+      const start = (page - 1) * pageSize;
+      setData(validDetails.slice(start, start + pageSize));
+
       setTaskSummary({
         id: taskId,
-        name: matchedTasks.length === 1 && matchedTasks[0].isManual ? matchedTasks[0].name : `${bc} ${month} 扣减明细`,
+        name: taskId.startsWith("T_CUSTOM_") && matchedTasks[0] ? matchedTasks[0].name : `${bc} ${month} 扣减明细`,
         businessCategory: bc,
         belongingMonth: month,
         deductibleCount: validDetails.length,
@@ -149,51 +151,38 @@ export default function DeductionTaskDetails() {
         isNew: false
       });
 
-      setTotal(validDetails.length);
-      const start = (page - 1) * pageSize;
-      setData(validDetails.slice(start, start + pageSize));
       setIsLoading(false);
     }, 300);
   };
 
   const handleExport = () => {
     if (!taskId) return;
-    const details = mockApi.getTaskDetailRecords(taskId, false);
-    const exportData = details.filter(d => d.data && d.data.IS_APPEAL === "否").map(d => d.data);
-
-    if (exportData.length === 0) {
-      toast("没有可导出的数据", "info");
-      return;
+    const allTasks = mockApi.getTasks(1, 1000).data;
+    let matchedTasks = allTasks.filter(t => t.id === taskId);
+    if (matchedTasks.length === 0 && taskId.includes("_")) {
+      const parts = taskId.split("_");
+      const month = parts.pop() || "";
+      const bc = parts.join("_");
+      const allTemplates = mockApi.getTemplates();
+      matchedTasks = allTasks.filter(t => {
+        if (t.status !== "END" || t.parentId || t.isManual) return false;
+        const template = allTemplates.find(tpl => tpl.id === t.templateId);
+        const tBc = t.businessCategory || template?.businessCategory || "广州医保（线下）";
+        const tMonth = t.belongingMonth || "-";
+        return tBc === bc && tMonth === month;
+      });
     }
-    exportToExcel(exportData, `${taskSummary?.businessCategory || ""}医保扣减明细.xlsx`);
-    toast("院内扣减明细已下载", "success");
-  };
 
-  const handleImportConfirm = (_taskName: string | null, _file: File, category?: string) => {
-    if (!taskId) return;
-    const recordCount = Math.floor(Math.random() * 16) + 5; // 5 to 20 records
-    const fakeRecords = Array.from({ length: recordCount }).map((_, i) => {
-      const deduction = Math.floor(Math.random() * 5000) + 100;
-      return {
-        id: `DED_CUSTOM_${Date.now()}_${i}`,
-        data: {
-          IS_APPEAL: "否",
-          VIOLATION_AMOUNT: deduction + Math.floor(Math.random() * 1000),
-          _DEDUCTION_MED_COM: deduction,
-          _DEDUCTION_OTHER: 0,
-          PATIENT_NAME: `患者${Math.floor(Math.random() * 1000)}`,
-          MEDICAL_CATEGORY: category || taskSummary?.businessCategory || "普通门诊",
-          DEDUCTION_REASON: "违规扣减",
-          DEPARTMENT: "内科"
-        }
-      };
+    let allDetails: any[] = [];
+    matchedTasks.forEach(t => {
+      const details = mockApi.getTaskDetailRecords(t.id, false)
+        .filter(d => d.data && (d.data.IS_APPEAL === "否" || d.data._PROJECT_CLASS))
+        .map(d => d.data);
+      allDetails = allDetails.concat(details);
     });
 
-    mockApi.updateTaskDetails(taskId, fakeRecords);
-    toast("扣减明细更新成功", "success");
-
-    setIsImportModalOpen(false);
-    loadData();
+    exportToExcel(allDetails, `${taskSummary?.name || "扣减"}明细.xlsx`);
+    toast("下载完成", "success");
   };
 
   const visibleTableColumns: Column<any>[] = columnsSettings.filter(c => c.visible).map(c => {
@@ -234,9 +223,6 @@ export default function DeductionTaskDetails() {
              <span className="bg-slate-100 text-slate-600 text-xs px-2.5 py-1 rounded-full font-medium">已结束</span>
            </div>
            <div className="flex space-x-3">
-             <Button variant="outline" size="sm" onClick={() => setIsImportModalOpen(true)} className="gap-2 text-blue-600 border-blue-200 hover:bg-blue-50">
-               导入更新
-             </Button>
              <Button variant="outline" size="sm" onClick={handleExport} className="gap-2 text-blue-600 border-blue-200 hover:bg-blue-50">
                <Download className="w-4 h-4" />
                下载明细
@@ -293,12 +279,6 @@ export default function DeductionTaskDetails() {
         onClose={() => setIsSettingsOpen(false)}
         columns={columnsSettings}
         onConfirm={(updated) => { setColumnsSettings(updated); setIsSettingsOpen(false); }}
-      />
-      <ImportDeductionModal 
-        isOpen={isImportModalOpen}
-        onClose={() => setIsImportModalOpen(false)}
-        mode="update"
-        onConfirm={handleImportConfirm}
       />
     </div>
   );

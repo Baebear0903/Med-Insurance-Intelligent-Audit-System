@@ -15,6 +15,7 @@ import {
 import { Table, Column } from "@/src/components/ui/Table";
 import { Badge } from "@/src/components/ui/Badge";
 import { Button } from "@/src/components/ui/Button";
+import { Select } from "@/src/components/ui/Select";
 import { Pagination } from "@/src/components/ui/Pagination";
 import { Modal } from "@/src/components/ui/Modal";
 import { toast } from "@/src/components/ui/Toast";
@@ -516,21 +517,19 @@ export function TaskFillReport() {
                     </div>
                     <div className="flex items-center gap-3">
                       <span className="text-sm font-medium text-slate-600 whitespace-nowrap">任务状态</span>
-                      <div className="relative w-72">
-                        <select 
-                          className="w-full pl-3 pr-8 py-1.5 bg-white border border-slate-200 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all appearance-none cursor-pointer shadow-inner"
-                          value={filterStatus}
-                          onChange={(e) => setFilterStatus(e.target.value)}
-                        >
-                          <option value="">请选择</option>
-                          {Object.entries(TASK_STATUS).filter(([key]) => key !== 'CREATE').map(([key, label]) => (
-                            <option key={key} value={key}>{label}</option>
-                          ))}
-                        </select>
-                        <div className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
-                          <Clock className="w-3.5 h-3.5" /> {/* Small placeholder icon for arrow */}
-                        </div>
-                      </div>
+                      <Select
+                        value={filterStatus}
+                        onChange={(val) => setFilterStatus(val as string)}
+                        placeholder="请选择"
+                        options={[
+                          { label: "请选择", value: "" },
+                          ...Object.entries(TASK_STATUS).filter(([key]) => key !== 'CREATE').map(([key, label]) => ({
+                            label,
+                            value: key
+                          }))
+                        ]}
+                        className="w-72"
+                      />
                     </div>
                   </div>
                   

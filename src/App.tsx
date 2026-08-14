@@ -23,6 +23,8 @@ import DataQuery from "@/src/pages/task-management/task-list/data-query/index";
 import { Audit } from "@/src/pages/data-review/audit/index";
 import { HistoricalData } from "@/src/pages/data-review/historical-data/index";
 import DeductionTaskDetails from "@/src/pages/deduction-management/task-details/index";
+import DeductionImportRecords from "@/src/pages/deduction-management/import-records/index";
+import TaskImportRecords from "@/src/pages/task-management/task-list/import-records/index";
 
 export default function App() {
   return (
@@ -53,6 +55,8 @@ export default function App() {
             <Route path="data-review/historical-data/index" element={<HistoricalData />} />
             <Route path="review-template/add-review-template/index" element={<AddReviewTemplate />} />
             <Route path="deduction-management/task-details/index" element={<DeductionTaskDetails />} />
+            <Route path="deduction-management/import-records/index" element={<DeductionImportRecords />} />
+            <Route path="task-management/task-list/import-records/index" element={<TaskImportRecords />} />
           </Route>
         </Routes>
       </UserProvider>
