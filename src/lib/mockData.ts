@@ -1,9 +1,9 @@
 import { TASK_STATUS, AUDIT_STATUS, FILL_STATUS, DEPARTMENTS } from "./constants";
 
 if (typeof window !== 'undefined') {
-  if (localStorage.getItem("mock_data_version") !== "v27") {
+  if (localStorage.getItem("mock_data_version") !== "v29") {
       localStorage.clear();
-      localStorage.setItem("mock_data_version", "v27");
+      localStorage.setItem("mock_data_version", "v29");
   }
 }
 
@@ -193,15 +193,26 @@ const INITIAL_TEMPLATES: ReviewTemplate[] = [
   }
 ];
 
-function generateGZRecords(month: string) {
+function generateGZRecords(month: string, isAiCompleted: boolean = false) {
     const records = [];
     const depts = ["内科", "外科"];
     const patientNames = ["李伟", "王芳", "张强", "刘洋", "陈静", "杨烁", "黄勇", "周杰", "吴凡", "赵丽", "徐宁", "孙亮"];
     
     for (let i = 0; i < 12; i++) {
-        const isAppeal = i % 3 === 0;
-        const isNoAppeal = i % 3 === 1;
+        const caseType = i % 3; // 0: 申诉, 1: 不申诉, 2: 无法处理
+        const isAppeal = caseType === 0;
+        const isNoAppeal = caseType === 1;
+        const isUnable = caseType === 2;
+        
         const appealVal = isAppeal ? "申诉" : (isNoAppeal ? "不申诉" : "");
+        const appealReason = isAppeal 
+            ? "经智能病历全量分析，患者入院主诉明确且临床生化检验指标相符，符合基本医保限定支付指征，具备合理诊疗依据。" 
+            : (isNoAppeal ? "经医保规则库核对，该项目使用超出限定计费频次与单日推荐用量，病历中未查见抢救或特殊指征，违规事实清楚，建议接受核减。" : "");
+        const appealAttachment = isAppeal ? `${patientNames[i]}_住院小结及用药记录.pdf` : "";
+        const appealRemark = isUnable 
+            ? "【无法处理】病历系统中未检索到该患者第3日手术麻醉记录单及影像PACS报告原件，关键佐证材料缺失，智能规则无法自动定性，需人工审核判定。" 
+            : (isAppeal ? "建议调取患者住院病程记录与生化检验单进行核验" : "科室已核实该项目确实存在多计费情况，确认不发起申诉");
+
         const dateMonth = month.padStart(2, '0');
         
         records.push({
@@ -221,10 +232,10 @@ function generateGZRecords(month: string) {
                 ORDER_DEPT: depts[i % 2], 
                 DOCTOR_NAME: i % 2 === 0 ? "赵医生" : "钱医生", 
                 DISPATCH_DEPT: depts[i % 2], 
-                IS_APPEAL: appealVal, 
-                APPEAL_REASON: isAppeal ? "符合规范，建议申诉。" : (isNoAppeal ? "经科室核实无误，接受核减。" : ""), 
-                APPEAL_ATTACHMENT: isAppeal ? `${patientNames[i]}_小结.pdf` : "", 
-                APPEAL_REMARK: "",
+                IS_APPEAL: isAiCompleted ? appealVal : "", 
+                APPEAL_REASON: isAiCompleted ? appealReason : "", 
+                APPEAL_ATTACHMENT: isAiCompleted ? appealAttachment : "", 
+                APPEAL_REMARK: isAiCompleted ? appealRemark : "",
                 REMARK: "",
                 DISEASE_NAME: i % 2 === 0 ? "上呼吸道感染" : "高血压",
                 HOSPITAL_ITEM_NAME: i % 2 === 0 ? "静脉采血" : "胸部CT",
@@ -233,18 +244,34 @@ function generateGZRecords(month: string) {
                 HOSPITAL_DAYS: "9",
                 FEE_DATE: `2024-${dateMonth}-05`,
             }, 
-            evidence: isAppeal ? [`${patientNames[i]}_小结.pdf`] : [], 
-            fillStatus: 2, 
-            auditStatus: 1, 
-            submitter: "系统", 
-            updateTime: `2024-${dateMonth}-15 14:00`, 
+            ...(isAiCompleted ? {
+                aiResult: {
+                    IS_APPEAL: appealVal,
+                    APPEAL_REASON: appealReason,
+                    APPEAL_ATTACHMENT: appealAttachment,
+                    APPEAL_REMARK: appealRemark
+                },
+                isAiFilled: true,
+                evidence: appealAttachment ? [appealAttachment] : [],
+                fillStatus: 2, 
+                auditStatus: 1, 
+                submitter: "系统", 
+                updateTime: `2024-${dateMonth}-15 14:00`,
+            } : {
+                isAiFilled: false,
+                evidence: [],
+                fillStatus: 0, 
+                auditStatus: 7, 
+                submitter: "-", 
+                updateTime: "-", 
+            }),
             dispatchStatus: "已下发" 
         });
     }
     return records;
 }
 
-function generateDEDRecords(month: string) {
+function generateDEDRecords(month: string, isAiCompleted: boolean = false) {
     const records = [];
     const depts = ["内科", "外科"];
     const patientNames = ["王伟", "李芳", "张明", "刘燕", "陈强", "杨帆", "黄渤", "周迅", "吴京", "赵薇", "徐峥", "孙红雷"];
@@ -274,7 +301,7 @@ function generateDEDRecords(month: string) {
                 ORDER_DEPT: depts[i % 2], 
                 DISPATCH_DEPT: depts[i % 2], 
                 DOCTOR_NAME: i % 2 === 0 ? "王大夫" : "李大夫", 
-                IS_APPEAL: appealVal, 
+                IS_APPEAL: isAiCompleted ? appealVal : "", 
                 REMARK: "",
                 
                 // --- 后台数据治理补充的业务字段 ---
@@ -289,10 +316,10 @@ function generateDEDRecords(month: string) {
                 _DATA_SOURCE: `2024年${dateMonth}月医保院内扣减公示`
             }, 
             evidence: [], 
-            fillStatus: 2, 
-            auditStatus: 1, 
-            submitter: "系统", 
-            updateTime: `2024-${dateMonth}-20 14:00`, 
+            fillStatus: isAiCompleted ? 2 : 0, 
+            auditStatus: isAiCompleted ? 1 : 7, 
+            submitter: isAiCompleted ? "系统" : "-", 
+            updateTime: isAiCompleted ? `2024-${dateMonth}-20 14:00` : "-", 
             dispatchStatus: "已下发" 
         });
     }
@@ -300,16 +327,59 @@ function generateDEDRecords(month: string) {
 }
 
 const ALL_MOCK_DETAILS: Record<string, any[]> = {
-    "task_records_T_2024_01_GZ": generateGZRecords("1").map((r, i) => i % 3 === 0 ? { ...r, fillStatus: 6, auditStatus: 9 } : r).map((r, i) => i === 11 ? { ...r, doNotIssue: true } : r),
-    "task_records_T_2024_02_GZ": generateGZRecords("2").map((r, i) => i % 3 === 0 ? { ...r, fillStatus: 6, auditStatus: 9 } : r).map((r, i) => i === 11 ? { ...r, doNotIssue: true } : r),
-    "task_records_T_2024_03_GZ": generateGZRecords("3").map((r, i) => i % 3 === 0 ? { ...r, fillStatus: 6, auditStatus: 9 } : r).map((r, i) => i === 11 ? { ...r, doNotIssue: true } : r),
-    "task_records_T_2024_04_GZ": generateGZRecords("4").map((r) => r.data.DISPATCH_DEPT === "内科" ? { ...r, fillStatus: 0, auditStatus: 7, submitter: "-", submitTime: "-", auditor: "-", auditTime: "-" } : { ...r, fillStatus: 8, auditStatus: 8, submitter: "专管员", submitTime: "2024-04-15 14:00" }).map((r, i) => i === 11 ? { ...r, doNotIssue: true } : r),
-    "task_records_T_2024_05_GZ": generateGZRecords("5").map((r) => r.data.DISPATCH_DEPT === "内科" ? { ...r, fillStatus: 1, auditStatus: 8, submitter: "专管员", submitTime: "2024-05-15 14:00", auditor: "-", auditTime: "-" } : { ...r, fillStatus: 0, auditStatus: 7, submitter: "-", submitTime: "-", auditor: "-", auditTime: "-" }).map((r, i) => i === 11 ? { ...r, doNotIssue: true } : r),
-    "task_records_T_2024_06_GZ": generateGZRecords("6").map((r) => ({ ...r, fillStatus: 0, auditStatus: 7, submitter: "-", submitTime: "-", auditor: "-", auditTime: "-" })).map((r, i) => i === 11 ? { ...r, doNotIssue: true } : r),
+    "task_records_T_2024_01_GZ": generateGZRecords("1", true).map((r, i) => i % 3 === 0 ? { ...r, fillStatus: 6, auditStatus: 9 } : r).map((r, i) => i === 11 ? { ...r, doNotIssue: true } : r),
+    "task_records_T_2024_02_GZ": generateGZRecords("2", true).map((r, i) => i % 3 === 0 ? { ...r, fillStatus: 6, auditStatus: 9 } : r).map((r, i) => i === 11 ? { ...r, doNotIssue: true } : r),
+    "task_records_T_2024_03_GZ": generateGZRecords("3", true).map((r, i) => i % 3 === 0 ? { ...r, fillStatus: 6, auditStatus: 9 } : r).map((r, i) => i === 11 ? { ...r, doNotIssue: true } : r),
+    "task_records_T_2024_04_GZ": generateGZRecords("4", false).map((r, i) => r.data.DISPATCH_DEPT === "内科" ? { 
+      ...r, 
+      fillStatus: 0, 
+      auditStatus: 7, 
+      submitter: "-", 
+      submitTime: "-", 
+      auditor: "-", 
+      auditTime: "-" 
+    } : { 
+      ...r, 
+      fillStatus: 8, 
+      auditStatus: 8, 
+      submitter: "专管员", 
+      submitTime: "2024-04-15 14:00",
+      data: {
+        ...r.data,
+        IS_APPEAL: i % 2 === 0 ? "申诉" : "不申诉",
+        APPEAL_REASON: i % 2 === 0 ? "经外科科室复核，患者术后指征明确，符合用药与检查规范。" : "经科室核对无误，接受核减。",
+        APPEAL_REMARK: i % 2 === 0 ? "已调取住院小结，请医保办复核" : "",
+        APPEAL_ATTACHMENT: i % 2 === 0 ? `${r.data.PATIENT_NAME}_住院小结及用药记录.pdf` : ""
+      },
+      evidence: i % 2 === 0 ? [`${r.data.PATIENT_NAME}_住院小结及用药记录.pdf`] : []
+    }).map((r, i) => i === 11 ? { ...r, doNotIssue: true } : r),
+    "task_records_T_2024_05_GZ": generateGZRecords("5", false).map((r, i) => r.data.DISPATCH_DEPT === "内科" ? { 
+      ...r, 
+      fillStatus: 1, 
+      auditStatus: 8, 
+      submitter: "专管员", 
+      submitTime: "2024-05-15 14:00", 
+      auditor: "-", 
+      auditTime: "-",
+      data: {
+        ...r.data,
+        IS_APPEAL: i % 2 === 0 ? "申诉" : "不申诉",
+        APPEAL_REASON: i % 2 === 0 ? "临床诊疗指征明确" : "接受核减",
+      }
+    } : { 
+      ...r, 
+      fillStatus: 0, 
+      auditStatus: 7, 
+      submitter: "-", 
+      submitTime: "-", 
+      auditor: "-", 
+      auditTime: "-" 
+    }).map((r, i) => i === 11 ? { ...r, doNotIssue: true } : r),
+    "task_records_T_2024_06_GZ": generateGZRecords("6", false).map((r) => ({ ...r, fillStatus: 0, auditStatus: 7, submitter: "-", submitTime: "-", auditor: "-", auditTime: "-" })).map((r, i) => i === 11 ? { ...r, doNotIssue: true } : r),
 };
 
-ALL_MOCK_DETAILS["task_records_T_2024_01_DED"] = generateDEDRecords("1").map((r, i) => i === 11 ? { ...r, doNotIssue: true } : r);
-ALL_MOCK_DETAILS["task_records_T_2024_02_DED"] = generateDEDRecords("2").map((r, i) => i === 11 ? { ...r, doNotIssue: true } : r);
+ALL_MOCK_DETAILS["task_records_T_2024_01_DED"] = generateDEDRecords("1", true).map((r, i) => i === 11 ? { ...r, doNotIssue: true } : r);
+ALL_MOCK_DETAILS["task_records_T_2024_02_DED"] = generateDEDRecords("2", false).map((r, i) => i === 11 ? { ...r, doNotIssue: true } : r);
 
 let activeIntervals: Record<string, NodeJS.Timeout> = {};
 
@@ -368,19 +438,39 @@ export const mockApi = {
             const patient = d.data.PATIENT_NAME || "";
             const outDate = d.data.DISCHARGE_DATE || "";
             const proj = d.data.PROJECT_NAME || "";
-            const attachment = `${patient}_${outDate}_${proj}_病历系统.pdf`;
+    
+            const caseType = i % 3; // 0: 申诉, 1: 不申诉, 2: 无法处理
+            const isAppeal = caseType === 0;
+            const isNoAppeal = caseType === 1;
+            const isUnable = caseType === 2;
+            
+            const appealVal = isAppeal ? "申诉" : (isNoAppeal ? "不申诉" : "");
+            const appealReason = isAppeal 
+                ? "经智能病历全量分析，患者入院主诉明确且临床生化检验指标相符，符合基本医保限定支付指征，具备合理诊疗依据。" 
+                : (isNoAppeal ? "经医保规则库核对，该项目使用超出限定计费频次与单日推荐用量，病历中未查见抢救或特殊指征，违规事实清楚，建议接受核减。" : "");
+            const appealAttachment = isAppeal ? `${patient}_${outDate}_${proj}_住院小结及用药记录.pdf` : "";
+            const appealRemark = isUnable 
+                ? "【无法处理】病历系统中未检索到该患者第3日手术麻醉记录单及影像PACS报告原件，关键佐证材料缺失，智能规则无法自动定性，需人工审核判定。" 
+                : (isAppeal ? "建议调取患者住院病程记录与生化检验单进行核验" : "科室已核实该项目确实存在多计费情况，确认不发起申诉");
     
             currentData[i] = {
               ...d,
               fillStatus: 5,
+              isAiFilled: true,
               data: {
                 ...d.data,
-                IS_APPEAL: "申诉",
-                APPEAL_REASON: "AI识别符合申诉条件",
-                APPEAL_REMARK: "建议去病历系统或HIS系统查找相关附件材料",
-                APPEAL_ATTACHMENT: attachment
+                IS_APPEAL: appealVal,
+                APPEAL_REASON: appealReason,
+                APPEAL_ATTACHMENT: appealAttachment,
+                APPEAL_REMARK: appealRemark
               },
-              evidence: [attachment]
+              aiResult: {
+                IS_APPEAL: appealVal,
+                APPEAL_REASON: appealReason,
+                APPEAL_ATTACHMENT: appealAttachment,
+                APPEAL_REMARK: appealRemark
+              },
+              evidence: appealAttachment ? [appealAttachment] : []
             };
             modified = true;
             found = true;

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
-import { ArrowLeft, Search, CheckCircle2, Info, Filter, Settings, FileText, X, Image as ImageIcon, Upload } from "lucide-react";
+import { ArrowLeft, Search, CheckCircle2, Info, Filter, Settings, FileText, X, Image as ImageIcon, Upload, ChevronDown, Sparkles, AlertCircle } from "lucide-react";
 import { ColumnSettingsModal, ColumnItem } from "@/src/components/ColumnSettingsModal";
+import { AiBasisDrawer } from "@/src/components/AiBasisDrawer";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { Button } from "@/src/components/ui/Button";
 import { Table } from "@/src/components/ui/Table";
@@ -37,6 +38,8 @@ export function Audit() {
 
   // Modal states
   const [auditModal, setAuditModal] = useState(false);
+  const [isAiResultOpen, setIsAiResultOpen] = useState(false);
+  const [aiBasisModal, setAiBasisModal] = useState<{ show: boolean, record: any | null }>({ show: false, record: null });
   const [batchAuditModal, setBatchAuditModal] = useState(false);
   const [rejectModal, setRejectModal] = useState(false);
   const [rejectOpinion, setRejectOpinion] = useState("");
@@ -333,6 +336,7 @@ export function Audit() {
           size="sm" 
           onClick={() => {
             setActiveRecord(r);
+            setIsAiResultOpen(false);
             setAuditForm({
               confirm: (r.data.IS_APPEAL === "不申诉" || r.data.IS_APPEAL === "否") ? "NO_APPEAL" : ((r.data.IS_APPEAL === "申诉" || r.data.IS_APPEAL === "是") ? "APPEAL" : ""),
               opinion: r.data.APPEAL_REASON || "",
@@ -683,12 +687,6 @@ export function Audit() {
                     </div>
                     <p className="text-sm font-bold text-slate-800 tracking-tight">数据基本信息</p>
                   </div>
-                  {activeRecord.data.VIOLATION_AMOUNT && (
-                    <div className="flex items-center gap-1.5 px-3 py-1 bg-rose-50 border border-rose-100 rounded-full text-rose-700 text-xs font-semibold">
-                      <span>违规金额:</span>
-                      <span className="font-mono text-sm font-bold">¥{Number(activeRecord.data.VIOLATION_AMOUNT).toFixed(2)}</span>
-                    </div>
-                  )}
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-4 text-[13px]">
                   {[
@@ -854,6 +852,102 @@ export function Audit() {
                 />
               </div>
             </div>
+
+            {/* AI填报结果展示参考 - 仅当有AI填报结论时展示，默认折叠 */}
+            {activeRecord && (activeRecord.fillStatus === 5 || activeRecord.isAiFilled || (activeRecord.aiResult && Object.keys(activeRecord.aiResult).length > 0)) && (
+              <div className="border border-slate-200/80 rounded-xl overflow-hidden bg-white shadow-sm transition-all">
+                <button
+                  type="button"
+                  onClick={() => setIsAiResultOpen(!isAiResultOpen)}
+                  className="w-full px-5 py-3.5 flex items-center justify-between bg-slate-50/90 hover:bg-slate-100/90 transition-colors text-left"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-6 h-6 rounded-md bg-purple-100 text-purple-600 flex items-center justify-center">
+                      <Sparkles className="w-3.5 h-3.5" />
+                    </div>
+                    <span className="text-sm font-bold text-slate-800">AI填报结果参考</span>
+                    <Badge status="success">AI已填报</Badge>
+                    {activeRecord.doNotIssue && (
+                      <Badge status="default">不下发</Badge>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-1.5 text-xs font-medium text-slate-500">
+                    <span>{isAiResultOpen ? "收起" : "展开查看"}</span>
+                    <ChevronDown className={cn("w-4 h-4 text-slate-400 transition-transform duration-200", isAiResultOpen && "rotate-180")} />
+                  </div>
+                </button>
+
+                <AnimatePresence initial={false}>
+                  {isAiResultOpen && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: "auto", opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      transition={{ duration: 0.2 }}
+                      className="overflow-hidden"
+                    >
+                      <div className="p-5 border-t border-slate-100 space-y-4">
+                        <div className="p-3 bg-amber-50/80 border border-amber-200/70 rounded-lg text-amber-800 text-xs flex items-start gap-2">
+                          <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-amber-600" />
+                          <span>该AI审核/填报结果仅用于参考，已默认回填至上方表单，您可根据实际情况进行复核与调整。</span>
+                        </div>
+
+                        <div className="bg-blue-50/40 rounded-lg p-4 border border-blue-100/80">
+                          <div className="grid grid-cols-1 gap-y-4">
+                            {template.fields.filter(f => f.isFeedback && (role === "ADMIN" || !f.adminVisible)).map(f => {
+                              const recordData = activeRecord?.data || {};
+                              const val = activeRecord?.aiResult?.[f.name] !== undefined ? activeRecord?.aiResult?.[f.name] : recordData[f.name];
+                              const isAttachment = f.name.includes("ATTACHMENT") || f.comment?.includes("附件");
+                              const hasValue = val !== undefined && val !== null && String(val).trim() !== "" && String(val).trim() !== "-";
+                              
+                              return (
+                                <div key={f.name} className="flex flex-col gap-1.5">
+                                  <span className="text-xs font-semibold text-slate-600">{f.displayName || f.comment || f.name}</span>
+                                  {hasValue ? (
+                                    isAttachment ? (
+                                      <div 
+                                        className="flex items-center gap-1.5 text-sm font-medium text-blue-600 hover:underline cursor-pointer"
+                                        onClick={() => handlePreviewFile(val)}
+                                        title="点击在浏览器新标签页中打开预览"
+                                      >
+                                        <FileText className="w-3.5 h-3.5 text-blue-500" />
+                                        <span className="break-all">{val}</span>
+                                      </div>
+                                    ) : (
+                                      <span className="text-sm break-all text-slate-800 font-medium whitespace-pre-wrap bg-white/80 p-2.5 rounded-lg border border-blue-100/50">
+                                        {val}
+                                      </span>
+                                    )
+                                  ) : (
+                                    <span className="text-sm text-slate-400 font-normal">
+                                      -
+                                    </span>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+
+                        {/* 查看填报依据按钮 */}
+                        <div className="flex justify-end pt-2">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setAiBasisModal({ show: true, record: activeRecord })}
+                            className="text-purple-600 hover:text-purple-700 hover:bg-purple-50 font-medium text-xs flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-purple-200"
+                          >
+                            <Sparkles className="w-3.5 h-3.5" />
+                            查看填报依据
+                          </Button>
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            )}
           </div>
 
           <div className="flex justify-end gap-3 px-6 py-4 border-t border-slate-100 bg-slate-50 shrink-0">
@@ -862,6 +956,13 @@ export function Audit() {
           </div>
         </div>
       </Drawer>
+
+      {/* AI Basis Drawer */}
+      <AiBasisDrawer
+        isOpen={aiBasisModal.show}
+        onClose={() => setAiBasisModal({ show: false, record: null })}
+        record={aiBasisModal.record}
+      />
 
       <Modal 
         isOpen={rejectModal}

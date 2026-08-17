@@ -9,6 +9,7 @@ import {
   Upload,
   FileText,
   AlertCircle,
+  Sparkles,
 } from "lucide-react";
 import { Link, useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "motion/react";
@@ -30,6 +31,7 @@ import {
 import { TASK_STATUS } from "@/src/lib/constants";
 import { downloadZipWithExcel } from "@/src/lib/exportUtils";
 import { ColumnSettingsModal, ColumnItem } from "@/src/components/ColumnSettingsModal";
+import { AiBasisDrawer } from "@/src/components/AiBasisDrawer";
 import { useUser } from "@/src/lib/userContext";
 
 // Mock data generator no longer used, removed
@@ -71,6 +73,7 @@ export default function DataQuery() {
   const [page, setPage] = useState(1);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [selectedRecord, setSelectedRecord] = useState<any>(null);
+  const [aiBasisModal, setAiBasisModal] = useState<{ show: boolean, record: any | null }>({ show: false, record: null });
   const [showFilters, setShowFilters] = useState(false);
   const [searchValues, setSearchValues] = useState<Record<string, string>>({});
   const [appliedSearch, setAppliedSearch] = useState<Record<string, string>>({});
@@ -228,6 +231,8 @@ export default function DataQuery() {
         id: rec.id,
         fillStatus: rec.fillStatus,
         doNotIssue: rec.doNotIssue,
+        aiResult: rec.aiResult,
+        isAiFilled: rec.isAiFilled,
       }));
       tableData.sort((a: any, b: any) => {
         if (a.doNotIssue && !b.doNotIssue) return 1;
@@ -874,12 +879,6 @@ export default function DataQuery() {
                     <FileText className="w-4 h-4 text-slate-500" />
                     数据摘要
                   </h4>
-                  {selectedRecord.VIOLATION_AMOUNT && (
-                    <div className="flex items-center gap-1.5 px-3 py-1 bg-rose-50 border border-rose-100 rounded-full text-rose-700 text-xs font-semibold">
-                      <span>违规金额:</span>
-                      <span className="font-mono text-sm font-bold">¥{Number(selectedRecord.VIOLATION_AMOUNT).toFixed(2)}</span>
-                    </div>
-                  )}
                 </div>
                 <div className="bg-slate-50/80 p-5 rounded-xl border border-slate-200/80 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-4 text-[13px]">
                   {[
@@ -915,8 +914,8 @@ export default function DataQuery() {
                 </div>
               </section>
               
-              {/* AI填报结果 - 仅当记录为AI填报时显示 */}
-              {(selectedRecord.fillStatus === 5 || selectedRecord.fillStatus === 51 || selectedRecord.fillStatus === 52) && (
+              {/* AI填报结果 - 仅当记录存在AI结论时显示 */}
+              {(selectedRecord.fillStatus === 5 || selectedRecord.isAiFilled || (selectedRecord.aiResult && Object.keys(selectedRecord.aiResult).length > 0)) && (
                 <section>
                   <div className="flex items-center justify-between mb-4 pb-2 border-b border-slate-100">
                     <h4 className="text-sm font-semibold text-slate-800">AI填报结果</h4>
@@ -938,12 +937,13 @@ export default function DataQuery() {
                   <div className="bg-blue-50/50 rounded-lg p-5 border border-blue-100">
                     <div className="grid grid-cols-1 gap-y-5">
                       {template.fields.filter(f => f.isFeedback && (role === "ADMIN" || !f.adminVisible)).map(f => {
-                        const val = selectedRecord[f.name];
+                        const val = selectedRecord?.aiResult?.[f.name] !== undefined ? selectedRecord?.aiResult?.[f.name] : selectedRecord?.[f.name];
                         const isAttachment = f.name.includes("ATTACHMENT") || f.comment?.includes("附件");
+                        const hasValue = val !== undefined && val !== null && String(val).trim() !== "" && String(val).trim() !== "-";
                         return (
                           <div key={f.name} className="flex flex-col gap-1.5">
                             <span className="text-xs font-medium text-slate-600">{f.displayName || f.comment || f.name}</span>
-                            {val ? (
+                            {hasValue ? (
                               isAttachment ? (
                                 <a 
                                   href="#" 
@@ -958,13 +958,27 @@ export default function DataQuery() {
                                 </span>
                               )
                             ) : (
-                              <span className="text-sm break-all text-slate-400">
-                                未填报
+                              <span className="text-sm break-all text-slate-400 font-normal">
+                                -
                               </span>
                             )}
                           </div>
                         );
                       })}
+                    </div>
+
+                    {/* 查看填报依据按钮 */}
+                    <div className="flex justify-end pt-3 mt-4 border-t border-blue-100/80">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setAiBasisModal({ show: true, record: selectedRecord })}
+                        className="text-purple-600 hover:text-purple-700 hover:bg-purple-50 font-medium text-xs flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-purple-200"
+                      >
+                        <Sparkles className="w-3.5 h-3.5" />
+                        查看填报依据
+                      </Button>
                     </div>
                   </div>
                 </section>
@@ -972,6 +986,13 @@ export default function DataQuery() {
             </div>
           )}
         </Drawer>
+
+        {/* AI Basis Drawer */}
+        <AiBasisDrawer
+          isOpen={aiBasisModal.show}
+          onClose={() => setAiBasisModal({ show: false, record: null })}
+          record={aiBasisModal.record}
+        />
 
         {/* 更改下发情况弹窗 */}
         <Modal

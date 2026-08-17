@@ -14,9 +14,9 @@ import {
   X,
   ChevronDown,
   Settings,
-  Sparkles,
-  Clock} from "lucide-react";
+  Sparkles} from "lucide-react";
 import { ColumnSettingsModal, ColumnItem } from "@/src/components/ColumnSettingsModal";
+import { AiBasisDrawer } from "@/src/components/AiBasisDrawer";
 import { Button } from "@/src/components/ui/Button";
 import { Table } from "@/src/components/ui/Table";
 import { Badge } from "@/src/components/ui/Badge";
@@ -66,6 +66,7 @@ export function FillReportDetail() {
 
   // Modals
   const [fillModal, setFillModal] = useState<{ show: boolean, record: any | null, isBatch: boolean, isViewOnly?: boolean }>({ show: false, record: null, isBatch: false, isViewOnly: false });
+  const [isAiResultOpen, setIsAiResultOpen] = useState(false);
   const [assignModal, setAssignModal] = useState(false);
   const [deptModal, setDeptModal] = useState(false);
   const [confirmModal, setConfirmModal] = useState<{ show: boolean, type: string, title: string, content: string }>({ show: false, type: "", title: "", content: "" });
@@ -185,6 +186,7 @@ export function FillReportDetail() {
   };
 
   const handleRowFill = (record: any, viewOnly: boolean = false) => {
+    setIsAiResultOpen(false);
     const data = record?.data || {};
     let evidence = [];
     if (data.APPEAL_ATTACHMENT) {
@@ -564,17 +566,6 @@ export function FillReportDetail() {
                     填报
                   </Button>
                 )}
-            {r.fillStatus === 5 && (
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                onClick={() => setAiBasisModal({ show: true, record: r })}
-                className="text-purple-600 hover:text-purple-700 font-medium px-2 flex items-center gap-1"
-              >
-                <Sparkles className="w-3.5 h-3.5" />
-                依据
-              </Button>
-            )}
             <Button 
               variant="ghost" 
               size="sm" 
@@ -841,12 +832,6 @@ export function FillReportDetail() {
                     </div>
                     <p className="text-sm font-bold text-slate-800 tracking-tight">数据基本信息</p>
                   </div>
-                  {fillModal.record.data.VIOLATION_AMOUNT && (
-                    <div className="flex items-center gap-1.5 px-3 py-1 bg-rose-50 border border-rose-100 rounded-full text-rose-700 text-xs font-semibold">
-                      <span>违规金额:</span>
-                      <span className="font-mono text-sm font-bold">¥{Number(fillModal.record.data.VIOLATION_AMOUNT).toFixed(2)}</span>
-                    </div>
-                  )}
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-4 text-[13px]">
                   {[
@@ -1026,6 +1011,98 @@ export function FillReportDetail() {
                 />
               </div>
             </div>
+
+            {/* AI填报结果展示参考 - 仅当有AI填报结论时展示，默认折叠 */}
+            {!fillModal.isBatch && fillModal.record && (fillModal.record.fillStatus === 5 || fillModal.record.isAiFilled || (fillModal.record.aiResult && Object.keys(fillModal.record.aiResult).length > 0)) && (
+              <div className="border border-slate-200/80 rounded-xl overflow-hidden bg-white shadow-sm transition-all">
+                <button
+                  type="button"
+                  onClick={() => setIsAiResultOpen(!isAiResultOpen)}
+                  className="w-full px-5 py-3.5 flex items-center justify-between bg-slate-50/90 hover:bg-slate-100/90 transition-colors text-left"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-6 h-6 rounded-md bg-purple-100 text-purple-600 flex items-center justify-center">
+                      <Sparkles className="w-3.5 h-3.5" />
+                    </div>
+                    <span className="text-sm font-bold text-slate-800">AI填报结果参考</span>
+                    <Badge status="success">AI已填报</Badge>
+                    {fillModal.record.doNotIssue && (
+                      <Badge status="default">不下发</Badge>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-1.5 text-xs font-medium text-slate-500">
+                    <span>{isAiResultOpen ? "收起" : "展开查看"}</span>
+                    <ChevronDown className={cn("w-4 h-4 text-slate-400 transition-transform duration-200", isAiResultOpen && "rotate-180")} />
+                  </div>
+                </button>
+
+                <AnimatePresence initial={false}>
+                  {isAiResultOpen && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: "auto", opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      transition={{ duration: 0.2 }}
+                      className="overflow-hidden"
+                    >
+                      <div className="p-5 border-t border-slate-100 space-y-4">
+                        <div className="p-3 bg-amber-50/80 border border-amber-200/70 rounded-lg text-amber-800 text-xs flex items-start gap-2">
+                          <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-amber-600" />
+                          <span>该AI填报结果仅用于参考，已默认回填至上方表单，您可根据实际情况进行调整。</span>
+                        </div>
+
+                        <div className="bg-blue-50/40 rounded-lg p-4 border border-blue-100/80">
+                          <div className="grid grid-cols-1 gap-y-4">
+                            {template.fields.filter(f => f.isFeedback && (role === "ADMIN" || !f.adminVisible)).map(f => {
+                              const recordData = fillModal.record?.data || {};
+                              const val = fillModal.record?.aiResult?.[f.name] !== undefined ? fillModal.record?.aiResult?.[f.name] : recordData[f.name];
+                              const isAttachment = f.name.includes("ATTACHMENT") || f.comment?.includes("附件");
+                              const hasValue = val !== undefined && val !== null && String(val).trim() !== "" && String(val).trim() !== "-";
+                              
+                              return (
+                                <div key={f.name} className="flex flex-col gap-1.5">
+                                  <span className="text-xs font-semibold text-slate-600">{f.displayName || f.comment || f.name}</span>
+                                  {hasValue ? (
+                                    isAttachment ? (
+                                      <div className="flex items-center gap-1.5 text-sm font-medium text-blue-600">
+                                        <FileText className="w-3.5 h-3.5 text-blue-500" />
+                                        <span className="break-all">{val}</span>
+                                      </div>
+                                    ) : (
+                                      <span className="text-sm break-all text-slate-800 font-medium whitespace-pre-wrap bg-white/80 p-2.5 rounded-lg border border-blue-100/50">
+                                        {val}
+                                      </span>
+                                    )
+                                  ) : (
+                                    <span className="text-sm text-slate-400 font-normal">
+                                      -
+                                    </span>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+
+                        {/* 查看填报依据按钮 */}
+                        <div className="flex justify-end pt-2">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setAiBasisModal({ show: true, record: fillModal.record })}
+                            className="text-purple-600 hover:text-purple-700 hover:bg-purple-50 font-medium text-xs flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-purple-200"
+                          >
+                            <Sparkles className="w-3.5 h-3.5" />
+                            查看填报依据
+                          </Button>
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            )}
           </div>
           <div className="flex justify-end gap-3 px-6 py-4 border-t border-slate-100 bg-slate-50 shrink-0">
             <Button variant="ghost" onClick={() => setFillModal({ show: false, record: null, isBatch: false })} className="px-6">取消</Button>
@@ -1037,91 +1114,11 @@ export function FillReportDetail() {
       </Drawer>
 
       {/* AI Basis Drawer */}
-      <Drawer
+      <AiBasisDrawer
         isOpen={aiBasisModal.show}
         onClose={() => setAiBasisModal({ show: false, record: null })}
-        title={
-          <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg bg-purple-100 flex items-center justify-center text-purple-600">
-              <Sparkles className="w-4 h-4" />
-            </div>
-            <span className="font-bold text-slate-800">AI 智能填报依据</span>
-          </div>
-        }
-        size="lg"
-        placement="right"
-      >
-        <div className="flex flex-col h-full bg-[#f8fafc]">
-          <div className="flex-1 overflow-y-auto p-6">
-            <div className="mb-6 bg-white p-4 rounded-xl border border-slate-200/80 shadow-sm">
-              <h3 className="text-sm font-bold text-slate-800 mb-1">思维链路与推理依据</h3>
-              <p className="text-xs text-slate-500">以下为医保审核智能体提取并分析患者病历数据的完整推理过程：</p>
-            </div>
-            
-            <div className="space-y-0 relative before:absolute before:inset-0 before:ml-4 before:-translate-x-px before:h-full before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-slate-200 before:to-transparent">
-              {/* Timeline Item 1 */}
-              <div className="relative flex items-center justify-start group is-active pb-8">
-                <div className="flex items-center justify-center w-8 h-8 rounded-full border border-white bg-purple-500 text-white shadow shadow-purple-200 shrink-0 z-10">
-                  <span className="text-xs font-bold leading-none">1</span>
-                </div>
-                <div className="w-[calc(100%-3rem)] bg-white p-4 rounded-xl border border-slate-200 shadow-sm ml-4">
-                  <div className="flex items-center justify-between mb-1">
-                    <div className="font-bold text-slate-800 text-sm">解析诊断信息</div>
-                    <Badge status="success">符合</Badge>
-                  </div>
-                  <div className="text-slate-600 text-xs mb-3">诊断为营养不良</div>
-                  <div className="flex items-center text-[10px] text-slate-400 gap-3">
-                    <span className="flex items-center gap-1"><FileText className="w-3 h-3" /> 出院小结</span>
-                    <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> 2024-03-10 10:20</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Timeline Item 2 */}
-              <div className="relative flex items-center justify-start group is-active pb-8">
-                <div className="flex items-center justify-center w-8 h-8 rounded-full border border-white bg-purple-500 text-white shadow shadow-purple-200 shrink-0 z-10">
-                  <span className="text-xs font-bold leading-none">2</span>
-                </div>
-                <div className="w-[calc(100%-3rem)] bg-white p-4 rounded-xl border border-slate-200 shadow-sm ml-4">
-                  <div className="flex items-center justify-between mb-1">
-                    <div className="font-bold text-slate-800 text-sm">营养风险筛查</div>
-                    <Badge status="success">符合</Badge>
-                  </div>
-                  <div className="text-slate-600 text-xs mb-3">营养风险筛查为高风险</div>
-                  <div className="flex items-center text-[10px] text-slate-400 gap-3">
-                    <span className="flex items-center gap-1"><FileText className="w-3 h-3" /> 护理记录单</span>
-                    <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> 2024-03-11 09:15</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Timeline Item 3 */}
-              <div className="relative flex items-center justify-start group is-active pb-4">
-                <div className="flex items-center justify-center w-8 h-8 rounded-full border-2 border-white bg-purple-500 text-white shadow shadow-purple-200 shrink-0 relative z-10">
-                  <span className="absolute -inset-1 rounded-full animate-ping bg-purple-400 opacity-20"></span>
-                  <span className="text-xs font-bold leading-none">3</span>
-                </div>
-                <div className="w-[calc(100%-3rem)] bg-white p-4 rounded-xl border border-purple-200 shadow-sm ring-1 ring-purple-500/20 ml-4">
-                  <div className="flex items-center justify-between mb-1">
-                    <div className="font-bold text-purple-800 text-sm">医嘱与会诊记录比对</div>
-                    <Badge status="success">符合</Badge>
-                  </div>
-                  <div className="text-slate-700 font-medium text-xs mb-3">营养科会诊记录描述患者经进食不能改善</div>
-                  <div className="flex items-center text-[10px] text-slate-400 gap-3">
-                    <span className="flex items-center gap-1"><FileText className="w-3 h-3" /> 会诊记录单</span>
-                    <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> 2024-03-12 14:30</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-          <div className="p-4 bg-white border-t border-slate-200 flex justify-end shrink-0">
-            <Button onClick={() => setAiBasisModal({ show: false, record: null })} className="bg-purple-600 hover:bg-purple-700 text-white">
-              我知道了
-            </Button>
-          </div>
-        </div>
-      </Drawer>
+        record={aiBasisModal.record}
+      />
 
       {/* Confirm Action Modal */}
       <Modal
