@@ -205,13 +205,17 @@ function generateGZRecords(month: string, isAiCompleted: boolean = false) {
         const isUnable = caseType === 2;
         
         const appealVal = isAppeal ? "申诉" : (isNoAppeal ? "不申诉" : "");
+        // 申诉情况：申诉原因展示推理结论；不申诉与无法处理情况：申诉原因置空
         const appealReason = isAppeal 
             ? "经智能病历全量分析，患者入院主诉明确且临床生化检验指标相符，符合基本医保限定支付指征，具备合理诊疗依据。" 
-            : (isNoAppeal ? "经医保规则库核对，该项目使用超出限定计费频次与单日推荐用量，病历中未查见抢救或特殊指征，违规事实清楚，建议接受核减。" : "");
+            : "";
         const appealAttachment = isAppeal ? `${patientNames[i]}_住院小结及用药记录.pdf` : "";
+        // 不申诉情况：申诉备注展示推理结论；无法处理：展示无法处理原因；申诉：展示建议备注
         const appealRemark = isUnable 
             ? "【无法处理】病历系统中未检索到该患者第3日手术麻醉记录单及影像PACS报告原件，关键佐证材料缺失，智能规则无法自动定性，需人工审核判定。" 
-            : (isAppeal ? "建议调取患者住院病程记录与生化检验单进行核验" : "科室已核实该项目确实存在多计费情况，确认不发起申诉");
+            : (isNoAppeal 
+                ? "经医保规则库核对，该项目使用超出限定计费频次与单日推荐用量，病历中未查见抢救或特殊指征，违规事实清楚，建议接受核减。" 
+                : "建议调取患者住院病程记录与生化检验单进行核验");
 
         const dateMonth = month.padStart(2, '0');
         
@@ -347,8 +351,8 @@ const ALL_MOCK_DETAILS: Record<string, any[]> = {
       data: {
         ...r.data,
         IS_APPEAL: i % 2 === 0 ? "申诉" : "不申诉",
-        APPEAL_REASON: i % 2 === 0 ? "经外科科室复核，患者术后指征明确，符合用药与检查规范。" : "经科室核对无误，接受核减。",
-        APPEAL_REMARK: i % 2 === 0 ? "已调取住院小结，请医保办复核" : "",
+        APPEAL_REASON: i % 2 === 0 ? "经外科科室复核，患者术后指征明确，符合用药与检查规范。" : "",
+        APPEAL_REMARK: i % 2 === 0 ? "已调取住院小结，请医保办复核" : "经科室核对无误，该项目使用超出单日限额，确认接受核减。",
         APPEAL_ATTACHMENT: i % 2 === 0 ? `${r.data.PATIENT_NAME}_住院小结及用药记录.pdf` : ""
       },
       evidence: i % 2 === 0 ? [`${r.data.PATIENT_NAME}_住院小结及用药记录.pdf`] : []
@@ -364,7 +368,8 @@ const ALL_MOCK_DETAILS: Record<string, any[]> = {
       data: {
         ...r.data,
         IS_APPEAL: i % 2 === 0 ? "申诉" : "不申诉",
-        APPEAL_REASON: i % 2 === 0 ? "临床诊疗指征明确" : "接受核减",
+        APPEAL_REASON: i % 2 === 0 ? "临床诊疗指征明确" : "",
+        APPEAL_REMARK: i % 2 === 0 ? "" : "接受核减",
       }
     } : { 
       ...r, 
@@ -396,7 +401,7 @@ export const mockApi = {
       }
     }
     const realTaskId = isSubtask ? parentId : taskId;
-    const key = `task_records_v24_${realTaskId}`;
+    const key = `task_records_v25_${realTaskId}`;
     let data = JSON.parse(localStorage.getItem(key) || "null");
     if (data) {
       if (restart) {
@@ -445,13 +450,17 @@ export const mockApi = {
             const isUnable = caseType === 2;
             
             const appealVal = isAppeal ? "申诉" : (isNoAppeal ? "不申诉" : "");
+            // 申诉情况：申诉原因展示推理结论；不申诉与无法处理情况：申诉原因置空
             const appealReason = isAppeal 
                 ? "经智能病历全量分析，患者入院主诉明确且临床生化检验指标相符，符合基本医保限定支付指征，具备合理诊疗依据。" 
-                : (isNoAppeal ? "经医保规则库核对，该项目使用超出限定计费频次与单日推荐用量，病历中未查见抢救或特殊指征，违规事实清楚，建议接受核减。" : "");
+                : "";
             const appealAttachment = isAppeal ? `${patient}_${outDate}_${proj}_住院小结及用药记录.pdf` : "";
+            // 不申诉情况：申诉备注展示推理结论；无法处理：展示无法处理原因；申诉：展示建议备注
             const appealRemark = isUnable 
                 ? "【无法处理】病历系统中未检索到该患者第3日手术麻醉记录单及影像PACS报告原件，关键佐证材料缺失，智能规则无法自动定性，需人工审核判定。" 
-                : (isAppeal ? "建议调取患者住院病程记录与生化检验单进行核验" : "科室已核实该项目确实存在多计费情况，确认不发起申诉");
+                : (isNoAppeal 
+                    ? "经医保规则库核对，该项目使用超出限定计费频次与单日推荐用量，病历中未查见抢救或特殊指征，违规事实清楚，建议接受核减。" 
+                    : "建议调取患者住院病程记录与生化检验单进行核验");
     
             currentData[i] = {
               ...d,
@@ -493,7 +502,7 @@ export const mockApi = {
     }
   },
   abortAIFill: (taskId: string) => {
-    let tasks = JSON.parse(localStorage.getItem("tasks_v25") || "null");
+    let tasks = JSON.parse(localStorage.getItem("tasks_v26") || "null");
     let isSubtask = false;
     let parentId = null;
     if (tasks) {
@@ -504,7 +513,7 @@ export const mockApi = {
       }
     }
     const realTaskId = isSubtask ? parentId : taskId;
-    const key = `task_records_v24_${realTaskId}`;
+    const key = `task_records_v25_${realTaskId}`;
     
     if (activeIntervals[key]) {
       clearInterval(activeIntervals[key]);
@@ -513,8 +522,6 @@ export const mockApi = {
     
     let data = JSON.parse(localStorage.getItem(key) || "null");
     if (data) {
-      // Mark still in progress as AI_ABORTED to differentiate them, or leave as AI_FILLING 
-      // but without interval they just stop. Better mark them as AI_PAUSED or just leave as UNFILLED/AI_FILLING
       data = data.map((d: any) => {
         if (d.fillStatus === 51) {
            return { ...d, fillStatus: 52 };
@@ -529,15 +536,15 @@ export const mockApi = {
   resetData: () => {},
 
   getTasks: (page = 1, pageSize = 10, filters: any = {}): { data: Task[], total: number } => {
-    let tasks = JSON.parse(localStorage.getItem("tasks_v25") || "null");
+    let tasks = JSON.parse(localStorage.getItem("tasks_v26") || "null");
     
     if (!tasks) {
       tasks = INITIAL_TASKS;
-      localStorage.setItem("tasks_v25", JSON.stringify(tasks));
-      localStorage.setItem("records_v24", JSON.stringify(INITIAL_REPORTS));
-      localStorage.setItem("templates_v24", JSON.stringify(INITIAL_TEMPLATES));
+      localStorage.setItem("tasks_v26", JSON.stringify(tasks));
+      localStorage.setItem("records_v25", JSON.stringify(INITIAL_REPORTS));
+      localStorage.setItem("templates_v25", JSON.stringify(INITIAL_TEMPLATES));
       Object.keys(ALL_MOCK_DETAILS).forEach(key => {
-         const newKey = key.replace("task_records_", "task_records_v24_");
+         const newKey = key.replace("task_records_", "task_records_v25_");
          localStorage.setItem(newKey, JSON.stringify(ALL_MOCK_DETAILS[key]));
       });
     }
@@ -589,7 +596,7 @@ export const mockApi = {
   },
 
   getTaskById: (id: string): Task | null => {
-    let tasks = JSON.parse(localStorage.getItem("tasks_v25") || "null");
+    let tasks = JSON.parse(localStorage.getItem("tasks_v26") || "null");
     if (!tasks) tasks = INITIAL_TASKS;
     const task = tasks.find((t: Task) => t.id === id);
     if (!task) return null;
@@ -613,7 +620,7 @@ export const mockApi = {
   },
 
   getReviewRecords: (taskId?: string): ReviewRecord[] => {
-    let records = JSON.parse(localStorage.getItem("records_v24") || "null");
+    let records = JSON.parse(localStorage.getItem("records_v25") || "null");
     if (!records) records = INITIAL_REPORTS;
     if (taskId) {
       return records.filter((r: ReviewRecord) => r.taskId === taskId);
@@ -622,7 +629,7 @@ export const mockApi = {
   },
 
   getTemplates: (search = "", status?: string, typeFilter?: string): ReviewTemplate[] => {
-    let templates = JSON.parse(localStorage.getItem("templates_v24") || "null");
+    let templates = JSON.parse(localStorage.getItem("templates_v25") || "null");
     if (!templates) {
       templates = INITIAL_TEMPLATES;
     } else {
@@ -635,7 +642,7 @@ export const mockApi = {
         }
       });
       if (modified) {
-        localStorage.setItem("templates_v24", JSON.stringify(templates));
+        localStorage.setItem("templates_v25", JSON.stringify(templates));
       }
     }
     let filtered = templates;
@@ -646,7 +653,7 @@ export const mockApi = {
   },
 
   saveTemplate: (template: ReviewTemplate) => {
-    let templates = JSON.parse(localStorage.getItem("templates_v24") || "null");
+    let templates = JSON.parse(localStorage.getItem("templates_v25") || "null");
     if (!templates) templates = INITIAL_TEMPLATES;
     const index = templates.findIndex((t: ReviewTemplate) => t.id === template.id);
     if (index > -1) {
@@ -656,12 +663,12 @@ export const mockApi = {
       template.createTime = new Date().toLocaleString();
       templates.unshift(template);
     }
-    localStorage.setItem("templates_v24", JSON.stringify(templates));
+    localStorage.setItem("templates_v25", JSON.stringify(templates));
   },
   deleteTemplates: (..._args: any[]) => {},
 
   updateTaskStatus: (taskId: string, status: keyof typeof TASK_STATUS) => {
-    let tasks = JSON.parse(localStorage.getItem("tasks_v25") || "null");
+    let tasks = JSON.parse(localStorage.getItem("tasks_v26") || "null");
     if (!tasks) return;
     const index = tasks.findIndex((t: Task) => t.id === taskId);
     if (index > -1) {
@@ -678,7 +685,7 @@ export const mockApi = {
         });
       }
 
-      localStorage.setItem("tasks_v25", JSON.stringify(tasks));
+      localStorage.setItem("tasks_v26", JSON.stringify(tasks));
       
       // For deductions, update parent if all children are END
       if (tasks[index].parentId && status === "END") {
@@ -689,7 +696,7 @@ export const mockApi = {
               if (parentIdx > -1) {
                   tasks[parentIdx].status = "END";
                   tasks[parentIdx].updateTime = new Date().toLocaleString();
-                  localStorage.setItem("tasks_v25", JSON.stringify(tasks));
+                  localStorage.setItem("tasks_v26", JSON.stringify(tasks));
               }
           }
       }
@@ -697,7 +704,7 @@ export const mockApi = {
   },
 
   getTaskDetailRecords: (taskId: string, includeDoNotIssue: boolean = true) => {
-    let tasks = JSON.parse(localStorage.getItem("tasks_v25") || "null");
+    let tasks = JSON.parse(localStorage.getItem("tasks_v26") || "null");
     let isSubtask = false;
     let parentId = null;
     let currentDeptName = null;
@@ -711,7 +718,7 @@ export const mockApi = {
     }
 
     const realTaskId = isSubtask ? parentId : taskId;
-    const key = `task_records_v24_${realTaskId}`;
+    const key = `task_records_v25_${realTaskId}`;
     let data = JSON.parse(localStorage.getItem(key) || "null");
 
     if (!data && ALL_MOCK_DETAILS[`task_records_${realTaskId}`]) {
@@ -733,19 +740,19 @@ export const mockApi = {
 
   dispatchTask: (taskId: string) => {
       // Just mock returning true for deduction tasks if they are dispatched
-      let tasks = JSON.parse(localStorage.getItem("tasks_v25") || "null");
+      let tasks = JSON.parse(localStorage.getItem("tasks_v26") || "null");
       if (!tasks) return false;
       const index = tasks.findIndex((t: Task) => t.id === taskId);
       if (index > -1 && tasks[index].status === "CREATE") {
           tasks[index].status = "PUBLISH";
-          localStorage.setItem("tasks_v25", JSON.stringify(tasks));
+          localStorage.setItem("tasks_v26", JSON.stringify(tasks));
           return true;
       }
       return false;
   },
 
   saveTaskDetailRecord: (taskId: string, record: any) => {
-    let tasks = JSON.parse(localStorage.getItem("tasks_v25") || "null");
+    let tasks = JSON.parse(localStorage.getItem("tasks_v26") || "null");
     let isSubtask = false;
     let parentId = null;
     if (tasks) {
@@ -756,7 +763,7 @@ export const mockApi = {
       }
     }
     const realTaskId = isSubtask ? parentId : taskId;
-    const key = `task_records_v24_${realTaskId}`;
+    const key = `task_records_v25_${realTaskId}`;
     let data = JSON.parse(localStorage.getItem(key) || "null");
     if (!data) return;
     const idx = data.findIndex((d: any) => d.id === record.id);
@@ -766,7 +773,7 @@ export const mockApi = {
     }
   },
   toggleDoNotIssue: (taskId: string, ids: string[], doNotIssue: boolean) => {
-    let tasks = JSON.parse(localStorage.getItem("tasks_v25") || "null");
+    let tasks = JSON.parse(localStorage.getItem("tasks_v26") || "null");
     let isSubtask = false;
     let parentId = null;
     if (tasks) {
@@ -777,7 +784,7 @@ export const mockApi = {
       }
     }
     const realTaskId = isSubtask ? parentId : taskId;
-    const key = `task_records_v24_${realTaskId}`;
+    const key = `task_records_v25_${realTaskId}`;
     let data = JSON.parse(localStorage.getItem(key) || "null");
     if (!data) return;
     data = data.map((d: any) => {
@@ -792,17 +799,17 @@ export const mockApi = {
   deleteTaskDetailRecords: (..._args: any[]) => {},
   
   deleteTask: (taskId: string) => {
-    let tasks = JSON.parse(localStorage.getItem("tasks_v25") || "null");
+    let tasks = JSON.parse(localStorage.getItem("tasks_v26") || "null");
     if (tasks) {
       tasks = tasks.filter((t: any) => t.id !== taskId);
-      localStorage.setItem("tasks_v25", JSON.stringify(tasks));
-      localStorage.removeItem(`task_records_v24_${taskId}`);
+      localStorage.setItem("tasks_v26", JSON.stringify(tasks));
+      localStorage.removeItem(`task_records_v25_${taskId}`);
       window.dispatchEvent(new Event("task_updated"));
     }
   },
 
   addTask: (taskName: string, templateId: string, businessCategory?: string, belongingMonth?: string, isManual?: boolean, isDeductionOnly?: boolean) => {
-    let tasks = JSON.parse(localStorage.getItem("tasks_v25") || "null");
+    let tasks = JSON.parse(localStorage.getItem("tasks_v26") || "null");
     if (!tasks) tasks = INITIAL_TASKS;
     const newTask: Task = {
         id: "T_CUSTOM_" + Date.now() + "_" + Math.floor(Math.random() * 10000),
@@ -822,12 +829,12 @@ export const mockApi = {
         isDeductionOnly
     };
     tasks.unshift(newTask);
-    localStorage.setItem("tasks_v25", JSON.stringify(tasks));
+    localStorage.setItem("tasks_v26", JSON.stringify(tasks));
     return newTask;
   },
 
   updateTaskDetails: (taskId: string, newRecords: any[]) => {
-    const key = `task_records_v24_${taskId}`;
+    const key = `task_records_v25_${taskId}`;
     localStorage.setItem(key, JSON.stringify(newRecords));
     window.dispatchEvent(new Event("task_updated"));
   }

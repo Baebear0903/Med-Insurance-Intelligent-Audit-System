@@ -9,7 +9,6 @@ import {
   Upload,
   FileText,
   AlertCircle,
-  Sparkles,
 } from "lucide-react";
 import { Link, useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "motion/react";
@@ -31,7 +30,7 @@ import {
 import { TASK_STATUS } from "@/src/lib/constants";
 import { downloadZipWithExcel } from "@/src/lib/exportUtils";
 import { ColumnSettingsModal, ColumnItem } from "@/src/components/ColumnSettingsModal";
-import { AiBasisDrawer } from "@/src/components/AiBasisDrawer";
+import { AiReasoningCard } from "@/src/components/AiReasoningCard";
 import { useUser } from "@/src/lib/userContext";
 
 // Mock data generator no longer used, removed
@@ -73,7 +72,6 @@ export default function DataQuery() {
   const [page, setPage] = useState(1);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [selectedRecord, setSelectedRecord] = useState<any>(null);
-  const [aiBasisModal, setAiBasisModal] = useState<{ show: boolean, record: any | null }>({ show: false, record: null });
   const [showFilters, setShowFilters] = useState(false);
   const [searchValues, setSearchValues] = useState<Record<string, string>>({});
   const [appliedSearch, setAppliedSearch] = useState<Record<string, string>>({});
@@ -914,85 +912,75 @@ export default function DataQuery() {
                 </div>
               </section>
               
-              {/* AI填报结果 - 仅当记录存在AI结论时显示 */}
+              {/* AI填报结果与依据 - 仅当记录存在AI结论时显示 */}
               {(selectedRecord.fillStatus === 5 || selectedRecord.isAiFilled || (selectedRecord.aiResult && Object.keys(selectedRecord.aiResult).length > 0)) && (
-                <section>
-                  <div className="flex items-center justify-between mb-4 pb-2 border-b border-slate-100">
-                    <h4 className="text-sm font-semibold text-slate-800">AI填报结果</h4>
-                    <div className="flex items-center gap-2">
-                      <Badge status="success">AI已填报</Badge>
-                      {selectedRecord.doNotIssue && (
-                         <Badge status="default">不下发</Badge>
-                      )}
+                <section className="space-y-6">
+                  {/* AI填报结果 (4个标准反馈字段) */}
+                  <div>
+                    <div className="flex items-center justify-between mb-4 pb-2 border-b border-slate-100">
+                      <h4 className="text-sm font-semibold text-slate-800">AI填报结果</h4>
+                      <div className="flex items-center gap-2">
+                        <Badge status="success">AI已填报</Badge>
+                        {selectedRecord.doNotIssue && (
+                          <Badge status="default">不下发</Badge>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                  
-                  {selectedRecord.doNotIssue && (
-                    <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg text-amber-700 text-sm flex items-start gap-2">
-                      <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-                      <span>该AI审核结果仅用于参考，不影响实际数据填报</span>
-                    </div>
-                  )}
+                    
+                    {selectedRecord.doNotIssue && (
+                      <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg text-amber-700 text-sm flex items-start gap-2">
+                        <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                        <span>该AI审核结果仅用于参考，不影响实际数据填报</span>
+                      </div>
+                    )}
 
-                  <div className="bg-blue-50/50 rounded-lg p-5 border border-blue-100">
-                    <div className="grid grid-cols-1 gap-y-5">
-                      {template.fields.filter(f => f.isFeedback && (role === "ADMIN" || !f.adminVisible)).map(f => {
-                        const val = selectedRecord?.aiResult?.[f.name] !== undefined ? selectedRecord?.aiResult?.[f.name] : selectedRecord?.[f.name];
-                        const isAttachment = f.name.includes("ATTACHMENT") || f.comment?.includes("附件");
-                        const hasValue = val !== undefined && val !== null && String(val).trim() !== "" && String(val).trim() !== "-";
-                        return (
-                          <div key={f.name} className="flex flex-col gap-1.5">
-                            <span className="text-xs font-medium text-slate-600">{f.displayName || f.comment || f.name}</span>
-                            {hasValue ? (
-                              isAttachment ? (
-                                <a 
-                                  href="#" 
-                                  className="text-sm font-medium text-blue-600 hover:underline break-all" 
-                                  onClick={(e) => { e.preventDefault(); /* Mock download */ }}
-                                >
-                                  {val}
-                                </a>
+                    <div className="bg-blue-50/50 rounded-lg p-5 border border-blue-100">
+                      <div className="grid grid-cols-1 gap-y-5">
+                        {template.fields.filter(f => f.isFeedback && (role === "ADMIN" || !f.adminVisible)).map(f => {
+                          const val = selectedRecord?.aiResult?.[f.name] !== undefined ? selectedRecord?.aiResult?.[f.name] : selectedRecord?.[f.name];
+                          const isAttachment = f.name.includes("ATTACHMENT") || f.comment?.includes("附件");
+                          const hasValue = val !== undefined && val !== null && String(val).trim() !== "" && String(val).trim() !== "-";
+                          return (
+                            <div key={f.name} className="flex flex-col gap-1.5">
+                              <span className="text-xs font-medium text-slate-600">{f.displayName || f.comment || f.name}</span>
+                              {hasValue ? (
+                                isAttachment ? (
+                                  <a 
+                                    href={`/mock-files/${encodeURIComponent(String(val).replace(/[()]/g, "").trim())}`}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="text-sm font-medium text-blue-600 hover:underline break-all inline-flex items-center gap-1.5" 
+                                  >
+                                    <FileText className="w-4 h-4 text-blue-500 shrink-0" />
+                                    <span>{val}</span>
+                                  </a>
+                                ) : (
+                                  <span className="text-sm break-all text-slate-900 font-medium whitespace-pre-wrap">
+                                    {val}
+                                  </span>
+                                )
                               ) : (
-                                <span className="text-sm break-all text-slate-900 font-medium">
-                                  {val}
+                                <span className="text-sm break-all text-slate-400 font-normal">
+                                  -
                                 </span>
-                              )
-                            ) : (
-                              <span className="text-sm break-all text-slate-400 font-normal">
-                                -
-                              </span>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-
-                    {/* 查看填报依据按钮 */}
-                    <div className="flex justify-end pt-3 mt-4 border-t border-blue-100/80">
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setAiBasisModal({ show: true, record: selectedRecord })}
-                        className="text-purple-600 hover:text-purple-700 hover:bg-purple-50 font-medium text-xs flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-purple-200"
-                      >
-                        <Sparkles className="w-3.5 h-3.5" />
-                        查看填报依据
-                      </Button>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
                     </div>
                   </div>
+
+                  {/* AI智能填报依据 */}
+                  <AiReasoningCard
+                    record={selectedRecord}
+                    defaultExpanded={true}
+                  />
                 </section>
               )}
             </div>
           )}
         </Drawer>
-
-        {/* AI Basis Drawer */}
-        <AiBasisDrawer
-          isOpen={aiBasisModal.show}
-          onClose={() => setAiBasisModal({ show: false, record: null })}
-          record={aiBasisModal.record}
-        />
 
         {/* 更改下发情况弹窗 */}
         <Modal

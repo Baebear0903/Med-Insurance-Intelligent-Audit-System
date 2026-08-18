@@ -13,10 +13,9 @@ import {
   Image as ImageIcon,
   X,
   ChevronDown,
-  Settings,
-  Sparkles} from "lucide-react";
+  Settings} from "lucide-react";
 import { ColumnSettingsModal, ColumnItem } from "@/src/components/ColumnSettingsModal";
-import { AiBasisDrawer } from "@/src/components/AiBasisDrawer";
+import { AiReasoningCard } from "@/src/components/AiReasoningCard";
 import { Button } from "@/src/components/ui/Button";
 import { Table } from "@/src/components/ui/Table";
 import { Badge } from "@/src/components/ui/Badge";
@@ -66,14 +65,12 @@ export function FillReportDetail() {
 
   // Modals
   const [fillModal, setFillModal] = useState<{ show: boolean, record: any | null, isBatch: boolean, isViewOnly?: boolean }>({ show: false, record: null, isBatch: false, isViewOnly: false });
-  const [isAiResultOpen, setIsAiResultOpen] = useState(false);
   const [assignModal, setAssignModal] = useState(false);
   const [deptModal, setDeptModal] = useState(false);
   const [confirmModal, setConfirmModal] = useState<{ show: boolean, type: string, title: string, content: string }>({ show: false, type: "", title: "", content: "" });
   const [historyModal, setHistoryModal] = useState(false);
   const [patient360Modal, setPatient360Modal] = useState<{ show: boolean, record: any | null }>({ show: false, record: null });
   const [rejectOpinionModal, setRejectOpinionModal] = useState<{ show: boolean, opinion: string }>({ show: false, opinion: "" });
-  const [aiBasisModal, setAiBasisModal] = useState<{ show: boolean, record: any | null }>({ show: false, record: null });
   const [showFilter, setShowFilter] = useState(false);
   const [filterStatus, setFilterStatus] = useState("全部"); // 全部, 已填报, 未填报
   const [searchValues, setSearchValues] = useState<Record<string, string>>({});
@@ -186,7 +183,6 @@ export function FillReportDetail() {
   };
 
   const handleRowFill = (record: any, viewOnly: boolean = false) => {
-    setIsAiResultOpen(false);
     const data = record?.data || {};
     let evidence = [];
     if (data.APPEAL_ATTACHMENT) {
@@ -1012,96 +1008,12 @@ export function FillReportDetail() {
               </div>
             </div>
 
-            {/* AI填报结果展示参考 - 仅当有AI填报结论时展示，默认折叠 */}
+            {/* AI智能填报依据 - 仅当有AI填报结论时展示，同屏展示参考依据、思维链路、推理结论 */}
             {!fillModal.isBatch && fillModal.record && (fillModal.record.fillStatus === 5 || fillModal.record.isAiFilled || (fillModal.record.aiResult && Object.keys(fillModal.record.aiResult).length > 0)) && (
-              <div className="border border-slate-200/80 rounded-xl overflow-hidden bg-white shadow-sm transition-all">
-                <button
-                  type="button"
-                  onClick={() => setIsAiResultOpen(!isAiResultOpen)}
-                  className="w-full px-5 py-3.5 flex items-center justify-between bg-slate-50/90 hover:bg-slate-100/90 transition-colors text-left"
-                >
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-6 h-6 rounded-md bg-purple-100 text-purple-600 flex items-center justify-center">
-                      <Sparkles className="w-3.5 h-3.5" />
-                    </div>
-                    <span className="text-sm font-bold text-slate-800">AI填报结果参考</span>
-                    <Badge status="success">AI已填报</Badge>
-                    {fillModal.record.doNotIssue && (
-                      <Badge status="default">不下发</Badge>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-1.5 text-xs font-medium text-slate-500">
-                    <span>{isAiResultOpen ? "收起" : "展开查看"}</span>
-                    <ChevronDown className={cn("w-4 h-4 text-slate-400 transition-transform duration-200", isAiResultOpen && "rotate-180")} />
-                  </div>
-                </button>
-
-                <AnimatePresence initial={false}>
-                  {isAiResultOpen && (
-                    <motion.div
-                      initial={{ height: 0, opacity: 0 }}
-                      animate={{ height: "auto", opacity: 1 }}
-                      exit={{ height: 0, opacity: 0 }}
-                      transition={{ duration: 0.2 }}
-                      className="overflow-hidden"
-                    >
-                      <div className="p-5 border-t border-slate-100 space-y-4">
-                        <div className="p-3 bg-amber-50/80 border border-amber-200/70 rounded-lg text-amber-800 text-xs flex items-start gap-2">
-                          <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-amber-600" />
-                          <span>该AI填报结果仅用于参考，已默认回填至上方表单，您可根据实际情况进行调整。</span>
-                        </div>
-
-                        <div className="bg-blue-50/40 rounded-lg p-4 border border-blue-100/80">
-                          <div className="grid grid-cols-1 gap-y-4">
-                            {template.fields.filter(f => f.isFeedback && (role === "ADMIN" || !f.adminVisible)).map(f => {
-                              const recordData = fillModal.record?.data || {};
-                              const val = fillModal.record?.aiResult?.[f.name] !== undefined ? fillModal.record?.aiResult?.[f.name] : recordData[f.name];
-                              const isAttachment = f.name.includes("ATTACHMENT") || f.comment?.includes("附件");
-                              const hasValue = val !== undefined && val !== null && String(val).trim() !== "" && String(val).trim() !== "-";
-                              
-                              return (
-                                <div key={f.name} className="flex flex-col gap-1.5">
-                                  <span className="text-xs font-semibold text-slate-600">{f.displayName || f.comment || f.name}</span>
-                                  {hasValue ? (
-                                    isAttachment ? (
-                                      <div className="flex items-center gap-1.5 text-sm font-medium text-blue-600">
-                                        <FileText className="w-3.5 h-3.5 text-blue-500" />
-                                        <span className="break-all">{val}</span>
-                                      </div>
-                                    ) : (
-                                      <span className="text-sm break-all text-slate-800 font-medium whitespace-pre-wrap bg-white/80 p-2.5 rounded-lg border border-blue-100/50">
-                                        {val}
-                                      </span>
-                                    )
-                                  ) : (
-                                    <span className="text-sm text-slate-400 font-normal">
-                                      -
-                                    </span>
-                                  )}
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </div>
-
-                        {/* 查看填报依据按钮 */}
-                        <div className="flex justify-end pt-2">
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setAiBasisModal({ show: true, record: fillModal.record })}
-                            className="text-purple-600 hover:text-purple-700 hover:bg-purple-50 font-medium text-xs flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-purple-200"
-                          >
-                            <Sparkles className="w-3.5 h-3.5" />
-                            查看填报依据
-                          </Button>
-                        </div>
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
+              <AiReasoningCard
+                record={fillModal.record}
+                defaultExpanded={true}
+              />
             )}
           </div>
           <div className="flex justify-end gap-3 px-6 py-4 border-t border-slate-100 bg-slate-50 shrink-0">
@@ -1112,13 +1024,6 @@ export function FillReportDetail() {
           </div>
         </div>
       </Drawer>
-
-      {/* AI Basis Drawer */}
-      <AiBasisDrawer
-        isOpen={aiBasisModal.show}
-        onClose={() => setAiBasisModal({ show: false, record: null })}
-        record={aiBasisModal.record}
-      />
 
       {/* Confirm Action Modal */}
       <Modal
