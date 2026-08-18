@@ -151,7 +151,6 @@ const INITIAL_TEMPLATES: ReviewTemplate[] = [
       { id: "F_REMARK", name: "REMARK", comment: "备注", type: "DECIMAL", length: 500, decimal: 0, isPrimaryKey: false, isNotNull: false, isRequired: false, isQueryable: false, isFeedback: false, noUpdate: true, isShow: true, displayName: "备注" },
       { id: "F_ATTACH", name: "APPEAL_ATTACHMENT", comment: "申诉附件", type: "VARCHAR", length: 2000, decimal: 0, isPrimaryKey: false, isNotNull: false, isRequired: false, isQueryable: false, isFeedback: true, noUpdate: false, isShow: true, displayName: "申诉附件", mappedStandardField: "APPEAL_ATTACHMENT" },
       { id: "F_APPEAL_REMARK", name: "APPEAL_REMARK", comment: "申诉备注", type: "VARCHAR", length: 2000, decimal: 0, isPrimaryKey: false, isNotNull: false, isRequired: false, isQueryable: false, isFeedback: true, noUpdate: true, isShow: true, displayName: "申诉备注", mappedStandardField: "APPEAL_REMARK" },
-      { id: "F_PROJ", name: "PROJECT_NAME", comment: "项目名称", type: "VARCHAR", length: 100, decimal: 0, isPrimaryKey: false, isNotNull: false, isRequired: false, isQueryable: false, isFeedback: false, noUpdate: true, isShow: true, displayName: "项目名称" },
     ]
   },
   {
@@ -230,7 +229,6 @@ function generateGZRecords(month: string, isAiCompleted: boolean = false) {
                 ADMIT_DATE: `2024-${dateMonth}-01`, 
                 DISCHARGE_DATE: `2024-${dateMonth}-10`, 
                 MEDICAL_CATEGORY: "住院", 
-                PROJECT_NAME: i % 2 === 0 ? "血常规" : "CT", 
                 VIOLATION_AMOUNT: ((i + 1) * 110.5).toString(), 
                 VIOLATION_DESC: "高频检查", 
                 ORDER_DEPT: depts[i % 2], 
@@ -401,7 +399,7 @@ export const mockApi = {
       }
     }
     const realTaskId = isSubtask ? parentId : taskId;
-    const key = `task_records_v25_${realTaskId}`;
+    const key = `task_records_v26_${realTaskId}`;
     let data = JSON.parse(localStorage.getItem(key) || "null");
     if (data) {
       if (restart) {
@@ -442,7 +440,7 @@ export const mockApi = {
             const d = currentData[i];
             const patient = d.data.PATIENT_NAME || "";
             const outDate = d.data.DISCHARGE_DATE || "";
-            const proj = d.data.PROJECT_NAME || "";
+            const proj = d.data.HOSPITAL_ITEM_NAME || d.data.PROJECT_NAME || "";
     
             const caseType = i % 3; // 0: 申诉, 1: 不申诉, 2: 无法处理
             const isAppeal = caseType === 0;
@@ -502,7 +500,7 @@ export const mockApi = {
     }
   },
   abortAIFill: (taskId: string) => {
-    let tasks = JSON.parse(localStorage.getItem("tasks_v26") || "null");
+    let tasks = JSON.parse(localStorage.getItem("tasks_v27") || "null");
     let isSubtask = false;
     let parentId = null;
     if (tasks) {
@@ -513,7 +511,7 @@ export const mockApi = {
       }
     }
     const realTaskId = isSubtask ? parentId : taskId;
-    const key = `task_records_v25_${realTaskId}`;
+    const key = `task_records_v26_${realTaskId}`;
     
     if (activeIntervals[key]) {
       clearInterval(activeIntervals[key]);
@@ -536,15 +534,15 @@ export const mockApi = {
   resetData: () => {},
 
   getTasks: (page = 1, pageSize = 10, filters: any = {}): { data: Task[], total: number } => {
-    let tasks = JSON.parse(localStorage.getItem("tasks_v26") || "null");
+    let tasks = JSON.parse(localStorage.getItem("tasks_v27") || "null");
     
     if (!tasks) {
       tasks = INITIAL_TASKS;
-      localStorage.setItem("tasks_v26", JSON.stringify(tasks));
-      localStorage.setItem("records_v25", JSON.stringify(INITIAL_REPORTS));
-      localStorage.setItem("templates_v25", JSON.stringify(INITIAL_TEMPLATES));
+      localStorage.setItem("tasks_v27", JSON.stringify(tasks));
+      localStorage.setItem("records_v26", JSON.stringify(INITIAL_REPORTS));
+      localStorage.setItem("templates_v26", JSON.stringify(INITIAL_TEMPLATES));
       Object.keys(ALL_MOCK_DETAILS).forEach(key => {
-         const newKey = key.replace("task_records_", "task_records_v25_");
+         const newKey = key.replace("task_records_", "task_records_v26_");
          localStorage.setItem(newKey, JSON.stringify(ALL_MOCK_DETAILS[key]));
       });
     }
@@ -596,7 +594,7 @@ export const mockApi = {
   },
 
   getTaskById: (id: string): Task | null => {
-    let tasks = JSON.parse(localStorage.getItem("tasks_v26") || "null");
+    let tasks = JSON.parse(localStorage.getItem("tasks_v27") || "null");
     if (!tasks) tasks = INITIAL_TASKS;
     const task = tasks.find((t: Task) => t.id === id);
     if (!task) return null;
@@ -620,7 +618,7 @@ export const mockApi = {
   },
 
   getReviewRecords: (taskId?: string): ReviewRecord[] => {
-    let records = JSON.parse(localStorage.getItem("records_v25") || "null");
+    let records = JSON.parse(localStorage.getItem("records_v26") || "null");
     if (!records) records = INITIAL_REPORTS;
     if (taskId) {
       return records.filter((r: ReviewRecord) => r.taskId === taskId);
@@ -629,7 +627,7 @@ export const mockApi = {
   },
 
   getTemplates: (search = "", status?: string, typeFilter?: string): ReviewTemplate[] => {
-    let templates = JSON.parse(localStorage.getItem("templates_v25") || "null");
+    let templates = JSON.parse(localStorage.getItem("templates_v26") || "null");
     if (!templates) {
       templates = INITIAL_TEMPLATES;
     } else {
@@ -642,7 +640,7 @@ export const mockApi = {
         }
       });
       if (modified) {
-        localStorage.setItem("templates_v25", JSON.stringify(templates));
+        localStorage.setItem("templates_v26", JSON.stringify(templates));
       }
     }
     let filtered = templates;
@@ -653,7 +651,7 @@ export const mockApi = {
   },
 
   saveTemplate: (template: ReviewTemplate) => {
-    let templates = JSON.parse(localStorage.getItem("templates_v25") || "null");
+    let templates = JSON.parse(localStorage.getItem("templates_v26") || "null");
     if (!templates) templates = INITIAL_TEMPLATES;
     const index = templates.findIndex((t: ReviewTemplate) => t.id === template.id);
     if (index > -1) {
@@ -663,12 +661,12 @@ export const mockApi = {
       template.createTime = new Date().toLocaleString();
       templates.unshift(template);
     }
-    localStorage.setItem("templates_v25", JSON.stringify(templates));
+    localStorage.setItem("templates_v26", JSON.stringify(templates));
   },
   deleteTemplates: (..._args: any[]) => {},
 
   updateTaskStatus: (taskId: string, status: keyof typeof TASK_STATUS) => {
-    let tasks = JSON.parse(localStorage.getItem("tasks_v26") || "null");
+    let tasks = JSON.parse(localStorage.getItem("tasks_v27") || "null");
     if (!tasks) return;
     const index = tasks.findIndex((t: Task) => t.id === taskId);
     if (index > -1) {
@@ -685,7 +683,7 @@ export const mockApi = {
         });
       }
 
-      localStorage.setItem("tasks_v26", JSON.stringify(tasks));
+      localStorage.setItem("tasks_v27", JSON.stringify(tasks));
       
       // For deductions, update parent if all children are END
       if (tasks[index].parentId && status === "END") {
@@ -696,7 +694,7 @@ export const mockApi = {
               if (parentIdx > -1) {
                   tasks[parentIdx].status = "END";
                   tasks[parentIdx].updateTime = new Date().toLocaleString();
-                  localStorage.setItem("tasks_v26", JSON.stringify(tasks));
+                  localStorage.setItem("tasks_v27", JSON.stringify(tasks));
               }
           }
       }
@@ -704,7 +702,7 @@ export const mockApi = {
   },
 
   getTaskDetailRecords: (taskId: string, includeDoNotIssue: boolean = true) => {
-    let tasks = JSON.parse(localStorage.getItem("tasks_v26") || "null");
+    let tasks = JSON.parse(localStorage.getItem("tasks_v27") || "null");
     let isSubtask = false;
     let parentId = null;
     let currentDeptName = null;
@@ -718,7 +716,7 @@ export const mockApi = {
     }
 
     const realTaskId = isSubtask ? parentId : taskId;
-    const key = `task_records_v25_${realTaskId}`;
+    const key = `task_records_v26_${realTaskId}`;
     let data = JSON.parse(localStorage.getItem(key) || "null");
 
     if (!data && ALL_MOCK_DETAILS[`task_records_${realTaskId}`]) {
@@ -740,19 +738,19 @@ export const mockApi = {
 
   dispatchTask: (taskId: string) => {
       // Just mock returning true for deduction tasks if they are dispatched
-      let tasks = JSON.parse(localStorage.getItem("tasks_v26") || "null");
+      let tasks = JSON.parse(localStorage.getItem("tasks_v27") || "null");
       if (!tasks) return false;
       const index = tasks.findIndex((t: Task) => t.id === taskId);
       if (index > -1 && tasks[index].status === "CREATE") {
           tasks[index].status = "PUBLISH";
-          localStorage.setItem("tasks_v26", JSON.stringify(tasks));
+          localStorage.setItem("tasks_v27", JSON.stringify(tasks));
           return true;
       }
       return false;
   },
 
   saveTaskDetailRecord: (taskId: string, record: any) => {
-    let tasks = JSON.parse(localStorage.getItem("tasks_v26") || "null");
+    let tasks = JSON.parse(localStorage.getItem("tasks_v27") || "null");
     let isSubtask = false;
     let parentId = null;
     if (tasks) {
@@ -763,7 +761,7 @@ export const mockApi = {
       }
     }
     const realTaskId = isSubtask ? parentId : taskId;
-    const key = `task_records_v25_${realTaskId}`;
+    const key = `task_records_v26_${realTaskId}`;
     let data = JSON.parse(localStorage.getItem(key) || "null");
     if (!data) return;
     const idx = data.findIndex((d: any) => d.id === record.id);
@@ -773,7 +771,7 @@ export const mockApi = {
     }
   },
   toggleDoNotIssue: (taskId: string, ids: string[], doNotIssue: boolean) => {
-    let tasks = JSON.parse(localStorage.getItem("tasks_v26") || "null");
+    let tasks = JSON.parse(localStorage.getItem("tasks_v27") || "null");
     let isSubtask = false;
     let parentId = null;
     if (tasks) {
@@ -784,7 +782,7 @@ export const mockApi = {
       }
     }
     const realTaskId = isSubtask ? parentId : taskId;
-    const key = `task_records_v25_${realTaskId}`;
+    const key = `task_records_v26_${realTaskId}`;
     let data = JSON.parse(localStorage.getItem(key) || "null");
     if (!data) return;
     data = data.map((d: any) => {
@@ -799,17 +797,17 @@ export const mockApi = {
   deleteTaskDetailRecords: (..._args: any[]) => {},
   
   deleteTask: (taskId: string) => {
-    let tasks = JSON.parse(localStorage.getItem("tasks_v26") || "null");
+    let tasks = JSON.parse(localStorage.getItem("tasks_v27") || "null");
     if (tasks) {
       tasks = tasks.filter((t: any) => t.id !== taskId);
-      localStorage.setItem("tasks_v26", JSON.stringify(tasks));
-      localStorage.removeItem(`task_records_v25_${taskId}`);
+      localStorage.setItem("tasks_v27", JSON.stringify(tasks));
+      localStorage.removeItem(`task_records_v26_${taskId}`);
       window.dispatchEvent(new Event("task_updated"));
     }
   },
 
   addTask: (taskName: string, templateId: string, businessCategory?: string, belongingMonth?: string, isManual?: boolean, isDeductionOnly?: boolean) => {
-    let tasks = JSON.parse(localStorage.getItem("tasks_v26") || "null");
+    let tasks = JSON.parse(localStorage.getItem("tasks_v27") || "null");
     if (!tasks) tasks = INITIAL_TASKS;
     const newTask: Task = {
         id: "T_CUSTOM_" + Date.now() + "_" + Math.floor(Math.random() * 10000),
@@ -829,12 +827,12 @@ export const mockApi = {
         isDeductionOnly
     };
     tasks.unshift(newTask);
-    localStorage.setItem("tasks_v26", JSON.stringify(tasks));
+    localStorage.setItem("tasks_v27", JSON.stringify(tasks));
     return newTask;
   },
 
   updateTaskDetails: (taskId: string, newRecords: any[]) => {
-    const key = `task_records_v25_${taskId}`;
+    const key = `task_records_v26_${taskId}`;
     localStorage.setItem(key, JSON.stringify(newRecords));
     window.dispatchEvent(new Event("task_updated"));
   }

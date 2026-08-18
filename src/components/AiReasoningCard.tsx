@@ -223,14 +223,14 @@ export const AiReasoningCard: React.FC<AiReasoningCardProps> = ({
           {isAppeal && (
             <span className="inline-flex items-center gap-1 bg-emerald-600 text-white text-xs font-medium px-2.5 py-0.5 rounded-full shadow-xs">
               <Check className="w-3.5 h-3.5" />
-              <span>AI判定建议申诉</span>
+              <span>AI建议申诉</span>
             </span>
           )}
 
           {isNoAppeal && (
             <span className="inline-flex items-center gap-1 bg-slate-600 text-white text-xs font-medium px-2.5 py-0.5 rounded-full shadow-xs">
               <X className="w-3.5 h-3.5" />
-              <span>AI判定建议不申诉，接受核减</span>
+              <span>AI建议不申诉</span>
             </span>
           )}
         </div>
@@ -256,9 +256,21 @@ export const AiReasoningCard: React.FC<AiReasoningCardProps> = ({
             className="overflow-hidden"
           >
             <div className="p-5 border-t border-slate-100 space-y-4 text-xs">
-              {/* Part 1: 参考依据 · 药品说明书 */}
+              {/* Part 1: 推理结论 (放在最前面) */}
               <div>
-                <div className="text-xs text-slate-400 font-medium mb-2.5">
+                <div className="text-xs font-semibold text-amber-800 flex items-center gap-1.5 mb-2">
+                  <span>💡</span>
+                  <span>推理结论</span>
+                </div>
+
+                <div className="bg-[#fef9ee] border border-[#fde68a] rounded-lg p-3.5 text-xs text-slate-700 leading-relaxed font-normal shadow-2xs">
+                  {conclusionText}
+                </div>
+              </div>
+
+              {/* Part 2: 参考依据 */}
+              <div>
+                <div className="text-xs text-slate-400 font-medium mt-4 mb-2.5">
                   {docCategory}
                 </div>
                 
@@ -294,7 +306,7 @@ export const AiReasoningCard: React.FC<AiReasoningCardProps> = ({
                 </div>
               </div>
 
-              {/* Part 2: 思维链路 */}
+              {/* Part 3: 思维链路 */}
               <div>
                 <div className="text-xs text-slate-400 font-medium mt-4 mb-3">
                   思维链路
@@ -338,18 +350,6 @@ export const AiReasoningCard: React.FC<AiReasoningCardProps> = ({
                       </div>
                     </div>
                   ))}
-                </div>
-              </div>
-
-              {/* Part 3: 推理结论 */}
-              <div>
-                <div className="text-xs font-semibold text-amber-800 flex items-center gap-1.5 mt-4 mb-2">
-                  <span>💡</span>
-                  <span>推理结论</span>
-                </div>
-
-                <div className="bg-[#fef9ee] border border-[#fde68a] rounded-lg p-3.5 text-xs text-slate-700 leading-relaxed font-normal shadow-2xs">
-                  {conclusionText}
                 </div>
               </div>
             </div>

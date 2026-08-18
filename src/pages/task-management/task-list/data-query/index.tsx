@@ -884,6 +884,7 @@ export default function DataQuery() {
                     "PATIENT_NAME",
                     "ADMIT_DATE",
                     "DISCHARGE_DATE",
+                    "HOSPITAL_ITEM_NAME",
                     "PROJECT_NAME",
                     "VIOLATION_AMOUNT",
                     "VIOLATION_DESC"
