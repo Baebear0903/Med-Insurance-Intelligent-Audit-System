@@ -9,6 +9,7 @@ import {
   Upload,
   FileText,
   AlertCircle,
+  FileSpreadsheet,
 } from "lucide-react";
 import { Link, useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "motion/react";
@@ -32,6 +33,7 @@ import { downloadZipWithExcel } from "@/src/lib/exportUtils";
 import { ColumnSettingsModal, ColumnItem } from "@/src/components/ColumnSettingsModal";
 import { AiReasoningCard } from "@/src/components/AiReasoningCard";
 import { useUser } from "@/src/lib/userContext";
+import { useTaskParsing, setTaskParsing, incrementTaskRefreshClickCount } from "@/src/lib/taskParsingStore";
 
 // Mock data generator no longer used, removed
 const MOCK_USERS = [
@@ -64,6 +66,7 @@ const MOCK_USERS = [
 
 export default function DataQuery() {
   const { role } = useUser();
+  const { isParsing } = useTaskParsing();
   const [searchParams] = useSearchParams();
   const id = searchParams.get("id");
   const [task, setTask] = useState<Task | null>(null);
@@ -78,6 +81,23 @@ export default function DataQuery() {
   const pageSize = 20;
   const [isSwitchDeptOpen, setIsSwitchDeptOpen] = useState(false);
   const [selectedDept, setSelectedDept] = useState("内科");
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const handleRefreshPage = () => {
+    if (!task) return;
+    setIsRefreshing(true);
+    setTimeout(() => {
+      setIsRefreshing(false);
+      const nextCount = incrementTaskRefreshClickCount(task.id);
+      if (nextCount >= 3) {
+        setTaskParsing(task.id, false);
+        toast("数据解析校验已完成，最新数据已更新", "success");
+        fetchTaskData();
+      } else {
+        toast("后台数据正在解析校验中，请稍候刷新...", "info");
+      }
+    }, 400);
+  };
 
   const handleDownload = async (type: "部分数据" | "所有数据") => {
     if (!task || !template) return;
@@ -268,17 +288,19 @@ export default function DataQuery() {
   }, []);
 
   const handleImport = () => {
-    if (!importFile) {
-      toast("请选择需要导入的文件", "error");
-      return;
-    }
-    if (importFile.size > 20 * 1024 * 1024) {
+    const targetFile = importFile || new File(["demo-content"], `${task?.name || "疑点明细"}_数据导入更新表.xlsx`, {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    });
+    if (targetFile.size > 20 * 1024 * 1024) {
       toast("单个文件不超过 20MB", "error");
       return;
     }
     setIsImportModalOpen(false);
-    toast("导入成功并生成了问题数据", "success");
     setImportFile(null);
+    if (task) {
+      setTaskParsing(task.id, true);
+    }
+    toast("数据导入更新成功，当前数据解析更新中，请稍候", "warning");
   };
 
   useEffect(() => {
@@ -501,6 +523,53 @@ export default function DataQuery() {
 
   const currentData = filteredData.slice((page - 1) * pageSize, page * pageSize);
 
+  if (task && isParsing(task.id)) {
+    return (
+      <div className="p-5 flex flex-col h-full bg-slate-50/50">
+        <div className="bg-white rounded-lg shadow-sm border border-slate-200 flex flex-col h-full p-5">
+          <div className="flex items-center justify-between mb-4 pb-4 border-b border-slate-100">
+            <div className="flex items-center gap-3">
+              <h1 className="text-xl font-bold text-slate-800">数据查询</h1>
+              <span className="text-slate-400">/</span>
+              <h2 className="text-base text-slate-700 font-medium">{task.name}</h2>
+            </div>
+            <Link to="/task-management/task-list/index">
+              <Button variant="outline" size="sm">
+                返回任务列表
+              </Button>
+            </Link>
+          </div>
+
+          <div className="flex-1 flex flex-col items-center justify-center p-8 text-center max-w-lg mx-auto">
+            <div className="w-16 h-16 bg-amber-50 text-amber-500 rounded-full flex items-center justify-center mb-5 border border-amber-200 shadow-sm animate-pulse">
+              <RefreshCw className="w-8 h-8 animate-spin text-amber-600" />
+            </div>
+            <h2 className="text-xl font-bold text-slate-800 mb-2">当前数据解析更新中，请稍候</h2>
+            <p className="text-slate-500 text-sm mb-6 leading-relaxed">
+              任务【{task.name}】正在进行数据解析校验与更新，数据更新完成前暂不支持查看明细。
+            </p>
+            <div className="flex items-center gap-3">
+              <Link to="/task-management/task-list/index">
+                <Button variant="primary">
+                  返回任务列表
+                </Button>
+              </Link>
+              <Button
+                variant="outline"
+                disabled={isRefreshing}
+                onClick={handleRefreshPage}
+                className="min-w-[100px]"
+              >
+                <RefreshCw className={cn("w-4 h-4 mr-1.5", isRefreshing && "animate-spin text-blue-600")} />
+                刷新页面
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="p-5 flex flex-col h-full bg-slate-50/50">
       <div className="bg-white rounded-lg shadow-sm border border-slate-200 flex flex-col h-full p-5">
@@ -644,7 +713,13 @@ export default function DataQuery() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setIsImportModalOpen(true)}
+                onClick={() => {
+                  const demoFile = new File(["demo-content"], `${task?.name || "疑点明细"}_数据导入更新表.xlsx`, {
+                    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                  });
+                  setImportFile(demoFile);
+                  setIsImportModalOpen(true);
+                }}
               >
                 <Upload className="w-4 h-4 mr-1.5" />
                 导入更新
@@ -812,14 +887,33 @@ export default function DataQuery() {
           title="数据导入更新" width="max-w-md"
           footer={<><Button variant="outline" onClick={() => setIsImportModalOpen(false)}>取消</Button><Button variant="primary" onClick={handleImport}>确认</Button></>}
         >
-          <div className="flex flex-col gap-4 text-sm text-center py-6">
+          <div className="flex flex-col gap-4 text-sm py-3">
             <input type="file" id="file_upload_update" className="hidden" accept=".xls,.xlsx" onChange={(e) => { 
               const files = e.target.files;
               if(files && files.length > 0) setImportFile(files[0]);
             }}/>
-            <Button variant="outline" className="mx-auto w-32" onClick={() => document.getElementById("file_upload_update")?.click()}>选择文件</Button>
-            <div className="text-slate-500">
-              {importFile ? <span className="text-blue-600 font-medium">{importFile.name}</span> : "暂未选择文件"}
+            
+            <div className="border border-slate-200 bg-slate-50/80 rounded-lg p-3.5 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3 overflow-hidden">
+                <div className="w-10 h-10 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0 border border-emerald-200">
+                  <FileSpreadsheet className="w-5 h-5" />
+                </div>
+                <div className="text-left truncate">
+                  <div className="text-xs font-semibold text-slate-800 truncate" title={importFile?.name || `${task?.name || "疑点明细"}_数据导入更新表.xlsx`}>
+                    {importFile?.name || `${task?.name || "疑点明细"}_数据导入更新表.xlsx`}
+                  </div>
+                  <div className="text-[11px] text-slate-500 mt-1">
+                    468 KB
+                  </div>
+                </div>
+              </div>
+              <Button size="sm" variant="outline" className="shrink-0 h-8 px-2.5 text-xs text-slate-600 hover:bg-white" onClick={() => document.getElementById("file_upload_update")?.click()}>
+                更换文件
+              </Button>
+            </div>
+
+            <div className="text-slate-400 text-xs text-left">
+              <p>支持格式：.xls, .xlsx，单个文件不超过 20MB</p>
             </div>
           </div>
         </Modal>

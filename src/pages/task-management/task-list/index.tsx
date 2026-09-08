@@ -8,11 +8,12 @@ import { toast } from "@/src/components/ui/Toast";
 import { mockApi, Task, ReviewTemplate } from "@/src/lib/mockData";
 import { downloadZipWithExcel } from "@/src/lib/exportUtils";
 import { TASK_STATUS, DEPARTMENTS } from "@/src/lib/constants";
-import { Search, Plus, MoreVertical, Settings, Filter, Download, Trash2, XCircle } from "lucide-react";
+import { Search, Plus, MoreVertical, Settings, Filter, Download, Trash2, XCircle, FileSpreadsheet } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Modal } from "@/src/components/ui/Modal";
 import { cn } from "@/src/lib/utils";
 import { addImportRecord } from "@/src/components/ImportRecordsView";
+import { setTaskParsing } from "@/src/lib/taskParsingStore";
 
 export function TaskList() {
   const [isColumnSettingsOpen, setIsColumnSettingsOpen] = useState(false);
@@ -215,13 +216,32 @@ export function TaskList() {
       linkTo: `/task-management/task-list/import-records/index?taskId=${r.id}&taskName=${encodeURIComponent(r.name)}`, 
       onClick: () => {} 
     };
-    const resultImport = { label: "结果导入", onClick: () => { setActiveTask(r); setIsResultImportModalOpen(true); } };
+    const createDemoFile = (name: string) => {
+      return new File(["demo-binary-data"], name, {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+      });
+    };
+    const resultImport = { 
+      label: "结果导入", 
+      onClick: () => { 
+        setActiveTask(r); 
+        setImportFile(createDemoFile(`${r.name || "医保明细"}_医保局反馈结果.xlsx`));
+        setIsResultImportModalOpen(true); 
+      } 
+    };
     const intelligentFill = { label: "AI填报", onClick: () => { 
       toast("正在进行AI填报", "success"); 
       mockApi.startAIFill(r.id);
       fetchData();
     } };
-    const importAction = { label: "导入", onClick: () => { setActiveTask(r); setIsImportModalOpen(true); } };
+    const importAction = { 
+      label: "导入", 
+      onClick: () => { 
+        setActiveTask(r); 
+        setImportFile(createDemoFile(`${r.name || "医保明细"}_数据导入模板.xlsx`));
+        setIsImportModalOpen(true); 
+      } 
+    };
     const dispatchAction = { label: "下发", onClick: () => { setActiveTask(r); setIsDispatchModalOpen(true); } };
     const downloadDataAction = { label: "下载数据", onClick: () => handleDownloadTask(r) };
 
@@ -303,7 +323,19 @@ export function TaskList() {
       )
     },
     { key: "index", title: "序号", width: "60px", render: (r: Task) => (page - 1) * pageSize + data.findIndex(d => d.id === r.id) + 1 },
-    { key: "name", title: "任务名称", width: "22%", render: (r: Task) => <Link to={`/task-management/task-list/data-query/index?id=${r.id}`} className="text-blue-600 hover:text-blue-800 font-medium decoration-blue-600/30 underline-offset-4 hover:underline">{r.name}</Link> },
+    { 
+      key: "name", 
+      title: "任务名称", 
+      width: "22%", 
+      render: (r: Task) => (
+        <Link 
+          to={`/task-management/task-list/data-query/index?id=${r.id}`} 
+          className="text-blue-600 hover:text-blue-800 font-medium decoration-blue-600/30 underline-offset-4 hover:underline"
+        >
+          {r.name}
+        </Link>
+      )
+    },
     { key: "departmentId", title: "创建科室", width: "12%", render: (r: any) => DEPARTMENTS[r.departmentId as keyof typeof DEPARTMENTS] || "-" },
     { key: "templateName", title: "数据模板", width: "12%", render: (r: Task) => r.templateName || "-" },
     { key: "belongingMonth", title: "所属年月", width: "10%", render: (r: Task) => r.belongingMonth || "-" },
@@ -356,37 +388,43 @@ export function TaskList() {
   };
 
   const handleImport = (isResult = false) => {
-    if (!importFile) {
-      toast("请先上传文件", "error");
-      return;
-    }
-    if (importFile.size > 20 * 1024 * 1024) {
+    const defaultName = isResult ? `${activeTask?.name || "医保明细"}_医保局反馈结果.xlsx` : `${activeTask?.name || "医保明细"}_数据导入模板.xlsx`;
+    const targetFile = importFile || new File(["demo-binary-data"], defaultName, {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    });
+    if (targetFile.size > 20 * 1024 * 1024) {
       toast("单个文件不超过 20MB", "error");
       return;
     }
-    const fileSizeStr = (importFile.size / 1024).toFixed(0) + "kb";
+    const fileSizeStr = targetFile.size > 1000 ? (targetFile.size / 1024).toFixed(0) + "kb" : "524kb";
     const now = new Date();
     const timeStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")} ${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}:${String(now.getSeconds()).padStart(2, "0")}`;
 
     if (isResult) {
+      if (activeTask?.id) {
+        setTaskParsing(activeTask.id, true);
+      }
       setIsResultImportModalOpen(false);
-      toast("医保局反馈结果更新成功", "success");
+      toast("医保局反馈结果导入成功，当前数据解析更新中，请稍候", "warning");
       addImportRecord({
         taskId: activeTask?.id,
         taskName: activeTask?.name,
-        fileName: importFile.name,
+        fileName: targetFile.name,
         fileSize: fileSizeStr,
         operator: "当前用户",
         uploadTime: timeStr,
         status: "全部通过"
       }, "task_import_records_v1");
     } else {
+      if (activeTask?.id) {
+        setTaskParsing(activeTask.id, true);
+      }
       setIsImportModalOpen(false);
-      toast("导入成功并生成了问题数据", "success");
+      toast("导入成功，当前数据解析更新中，请稍候", "warning");
       addImportRecord({
         taskId: activeTask?.id,
         taskName: activeTask?.name,
-        fileName: importFile.name,
+        fileName: targetFile.name,
         fileSize: fileSizeStr,
         operator: "当前用户",
         uploadTime: timeStr,
@@ -646,20 +684,40 @@ export function TaskList() {
         title={isResultImportModalOpen ? "结果导入" : "数据导入"} width="max-w-md"
         footer={<><Button variant="outline" onClick={() => { setIsImportModalOpen(false); setIsResultImportModalOpen(false); }}>取消</Button><Button variant="primary" onClick={() => handleImport(isResultImportModalOpen)}>确认</Button></>}
       >
-        <div className="flex flex-col gap-4 text-sm text-center py-6">
+        <div className="flex flex-col gap-4 text-sm py-3">
           <input type="file" id="file_upload" className="hidden" accept=".xls,.xlsx" onChange={(e) => { 
             const files = e.target.files;
             if(files && files.length > 0) setImportFile(files[0]);
           }}/>
-          <Button variant="outline" className="mx-auto w-32" onClick={() => document.getElementById("file_upload")?.click()}>选择文件</Button>
-          <div className="text-slate-500">
-            {importFile ? <span className="text-blue-600 font-medium">{importFile.name}</span> : "暂未选择文件"}
+          
+          <div className="border border-slate-200 bg-slate-50/80 rounded-lg p-3.5 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3 overflow-hidden">
+              <div className="w-10 h-10 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0 border border-emerald-200">
+                <FileSpreadsheet className="w-5 h-5" />
+              </div>
+              <div className="text-left truncate">
+                <div className="text-xs font-semibold text-slate-800 truncate" title={importFile?.name || (isResultImportModalOpen ? `${activeTask?.name || "医保明细"}_医保局反馈结果.xlsx` : `${activeTask?.name || "医保明细"}_数据导入模板.xlsx`)}>
+                  {importFile?.name || (isResultImportModalOpen ? `${activeTask?.name || "医保明细"}_医保局反馈结果.xlsx` : `${activeTask?.name || "医保明细"}_数据导入模板.xlsx`)}
+                </div>
+                <div className="text-[11px] text-slate-500 mt-1">
+                  524 KB
+                </div>
+              </div>
+            </div>
+            <Button size="sm" variant="outline" className="shrink-0 h-8 px-2.5 text-xs text-slate-600 hover:bg-white" onClick={() => document.getElementById("file_upload")?.click()}>
+              更换文件
+            </Button>
           </div>
-          <div className="text-slate-400 text-xs mt-2 space-y-1">
-            <p>支持上传 .xls, .xlsx 格式文件</p>
-            <p>单个文件不超过 20MB</p>
-            {isResultImportModalOpen && <p className="text-orange-500 mt-2">注意：只更新医保局反馈结果列对应的字段</p>}
+
+          <div className="text-slate-400 text-xs text-left space-y-1">
+            <p>支持格式：.xls, .xlsx，单个文件不超过 20MB</p>
           </div>
+
+          {isResultImportModalOpen && (
+            <div className="text-orange-700 bg-orange-50/80 border border-orange-200 rounded-md p-2.5 text-left text-xs">
+              <span className="font-semibold">注意：</span>结果导入将更新医保局反馈结论及审核状态字段。
+            </div>
+          )}
         </div>
       </Modal>
 

@@ -13,7 +13,10 @@ import {
   Image as ImageIcon,
   X,
   ChevronDown,
-  Settings} from "lucide-react";
+  Clock,
+  Settings,
+  RefreshCw,
+  FileSpreadsheet} from "lucide-react";
 import { ColumnSettingsModal, ColumnItem } from "@/src/components/ColumnSettingsModal";
 import { AiReasoningCard } from "@/src/components/AiReasoningCard";
 import { Button } from "@/src/components/ui/Button";
@@ -30,6 +33,7 @@ import { cn } from "@/src/lib/utils";
 import { downloadZipWithExcel, parseUploadFile } from "@/src/lib/exportUtils";
 
 import { useUser } from "@/src/lib/userContext";
+import { useTaskParsing, setTaskParsing, incrementTaskRefreshClickCount } from "@/src/lib/taskParsingStore";
 
 // inside FillReportDetail component
 export function FillReportDetail() {
@@ -37,6 +41,7 @@ export function FillReportDetail() {
   const navigate = useNavigate();
   const taskId = searchParams.get("id");
   const { role } = useUser();
+  const { isParsing } = useTaskParsing();
   
   const [task, setTask] = useState<Task | null>(null);
   const [template, setTemplate] = useState<ReviewTemplate | null>(null);
@@ -77,6 +82,33 @@ export function FillReportDetail() {
   const [appliedSearch, setAppliedSearch] = useState<Record<string, string>>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [parsedResults, setParsedResults] = useState<any[]>([]);
+  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const hasAlertedRef = useRef(false);
+
+  const handleRefreshPage = () => {
+    if (!task) return;
+    setIsRefreshing(true);
+    setTimeout(() => {
+      setIsRefreshing(false);
+      const nextCount = incrementTaskRefreshClickCount(task.id);
+      if (nextCount >= 3) {
+        setTaskParsing(task.id, false);
+        toast("数据解析校验已完成，最新数据已更新", "success");
+        fetchData();
+      } else {
+        toast("后台数据正在解析校验中，请稍候刷新...", "info");
+      }
+    }, 400);
+  };
+
+  useEffect(() => {
+    if (taskId && isParsing(taskId) && !hasAlertedRef.current) {
+      hasAlertedRef.current = true;
+      toast("当前数据解析更新中，请稍候", "warning");
+    }
+  }, [taskId, isParsing]);
 
   // Form states
   const [fillForm, setFillForm] = useState({
@@ -300,31 +332,54 @@ export function FillReportDetail() {
   };
 
   const handleUpload = () => {
-    fileInputRef.current?.click();
+    const defaultFile = new File(["demo-binary-data"], `【${task?.name || "科室"}】申报明细及佐证材料.xlsx`, {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    });
+    setUploadFile(defaultFile);
+    setIsUploadModalOpen(true);
+  };
+
+  const handleConfirmUpload = () => {
+    if (!taskId) return;
+    if (parsedResults && parsedResults.length > 0) {
+      parsedResults.forEach(r => {
+        mockApi.saveTaskDetailRecord(taskId, r);
+      });
+    } else {
+      // 默认演示表格数据写入：将该任务所有明细记录设为已填报，并预置合规申诉与佐证材料
+      records.forEach((r, idx) => {
+        mockApi.saveTaskDetailRecord(taskId, {
+          ...r,
+          fillStatus: 1,
+          auditStatus: 8,
+          evidence: r.evidence && r.evidence.length > 0 ? r.evidence : ["出院小结_核实证明.pdf"],
+          submitter: "当前用户",
+          data: {
+            ...r.data,
+            IS_APPEAL: idx % 2 === 0 ? "申诉" : "不申诉",
+            APPEAL_REASON: "经科室核实，该诊疗项目及耗材使用合规，已附相关诊疗佐证材料。"
+          }
+        });
+      });
+    }
+    setParsedResults([]);
+    setIsUploadModalOpen(false);
+    setTaskParsing(taskId, true);
+    toast("申报数据上传成功，当前数据解析更新中，请稍候", "warning");
+    fetchData();
   };
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       const file = e.target.files[0];
+      setUploadFile(file);
       toast("正在读取并解析上传的申报文件...", "info");
       
       try {
         const result = await parseUploadFile(file, template?.fields || [], records);
-        if (result.success) {
+        if (result.list && result.list.length > 0) {
           setParsedResults(result.list);
-          setConfirmModal({
-            show: true,
-            type: "upload_success",
-            title: "解析及匹配成功",
-            content: `${result.message} 是否立即将这 ${result.list.length} 条数据保存并覆盖至当前任务填报库中？`
-          });
-        } else {
-          setConfirmModal({
-            show: true,
-            type: "upload_fail",
-            title: "匹配重组失败",
-            content: result.message
-          });
+          toast(`已成功识别并匹配 ${result.list.length} 条表格明细数据`, "success");
         }
       } catch (err) {
         console.error(err);
@@ -420,11 +475,12 @@ export function FillReportDetail() {
         parsedResults.forEach(r => {
           mockApi.saveTaskDetailRecord(taskId!, r);
         });
-        toast(`成功批量覆盖并保存了 ${parsedResults.length} 条数据明细及附件关联！`, "success");
-      } else {
-        toast("未发现任何符合可更新匹配条件的数据内容", "info");
       }
       setParsedResults([]);
+      if (taskId) {
+        setTaskParsing(taskId, true);
+        toast("申报数据已上传确认，当前数据解析更新中，请稍候", "warning");
+      }
     } else if (confirmModal.type === "read") {
       if (!taskId) return;
       records.forEach(r => {
@@ -482,6 +538,60 @@ export function FillReportDetail() {
       </div>
     </div>
   );
+
+  if (task && isParsing(task.id)) {
+    return (
+      <div className="flex flex-col h-full bg-[#f8fafc] overflow-hidden">
+        {/* Header */}
+        <div className="bg-white border-b border-slate-200 px-6 py-4 shrink-0 shadow-sm z-10">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <button 
+                onClick={handleBack}
+                className="p-1.5 hover:bg-slate-50 rounded-lg transition-colors border border-slate-200 shadow-sm cursor-pointer"
+              >
+                <ChevronLeft className="w-5 h-5 text-slate-600" />
+              </button>
+              <div className="flex items-center gap-3">
+                <h1 className="text-lg font-bold text-slate-800">{task.name}</h1>
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200">
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                  数据解析更新中
+                </span>
+              </div>
+            </div>
+            <Button variant="outline" size="sm" onClick={handleBack}>
+              返回
+            </Button>
+          </div>
+        </div>
+
+        <div className="flex-1 p-8 flex flex-col items-center justify-center text-center max-w-lg mx-auto">
+          <div className="w-16 h-16 bg-amber-50 text-amber-500 rounded-full flex items-center justify-center mb-5 border border-amber-200 shadow-sm animate-pulse">
+            <Clock className="w-8 h-8 text-amber-600 animate-spin" />
+          </div>
+          <h2 className="text-xl font-bold text-slate-800 mb-2">当前数据解析更新中，请稍候</h2>
+          <p className="text-slate-500 text-sm mb-6 leading-relaxed">
+            任务【{task.name}】上传的申报数据正在进行解析校验与更新，在数据更新完成前暂不允许查看或编辑填报明细。
+          </p>
+          <div className="flex items-center gap-3">
+            <Button variant="primary" onClick={handleBack}>
+              返回任务填报列表
+            </Button>
+            <Button
+              variant="outline"
+              disabled={isRefreshing}
+              onClick={handleRefreshPage}
+              className="min-w-[100px]"
+            >
+              <RefreshCw className={cn("w-4 h-4 mr-1.5", isRefreshing && "animate-spin text-blue-600")} />
+              刷新页面
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const isDeductionTask = task?.templateId === "TPL_DED";
 
@@ -1222,6 +1332,49 @@ export function FillReportDetail() {
             <Button onClick={() => setRejectOpinionModal({ show: false, opinion: "" })} className="px-6 bg-blue-600 hover:bg-blue-700 text-white border-0">
               我知道了
             </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* 上传申报弹窗 */}
+      <Modal
+        isOpen={isUploadModalOpen}
+        onClose={() => setIsUploadModalOpen(false)}
+        title="上传申报数据"
+        width="max-w-md"
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setIsUploadModalOpen(false)}>
+              取消
+            </Button>
+            <Button variant="primary" onClick={handleConfirmUpload}>
+              确认上传
+            </Button>
+          </>
+        }
+      >
+        <div className="flex flex-col gap-4 text-sm py-3">
+          <div className="border border-slate-200 bg-slate-50/80 rounded-lg p-3.5 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3 overflow-hidden">
+              <div className="w-10 h-10 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0 border border-emerald-200">
+                <FileSpreadsheet className="w-5 h-5" />
+              </div>
+              <div className="text-left truncate">
+                <div className="text-xs font-semibold text-slate-800 truncate" title={uploadFile?.name || "申报明细及佐证材料.xlsx"}>
+                  {uploadFile?.name || "申报明细及佐证材料.xlsx"}
+                </div>
+                <div className="text-[11px] text-slate-500 mt-1">
+                  512 KB
+                </div>
+              </div>
+            </div>
+            <Button size="sm" variant="outline" className="shrink-0 h-8 px-2.5 text-xs text-slate-600 hover:bg-white" onClick={() => fileInputRef.current?.click()}>
+              更换文件
+            </Button>
+          </div>
+
+          <div className="text-slate-400 text-xs text-left">
+            <p>支持格式：.xls, .xlsx，单个文件不超过 20MB</p>
           </div>
         </div>
       </Modal>

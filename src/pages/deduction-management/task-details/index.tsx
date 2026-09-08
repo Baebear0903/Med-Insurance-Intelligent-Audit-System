@@ -9,6 +9,7 @@ import { exportToExcel } from "@/src/lib/exportUtils";
 import { ColumnSettingsModal, ColumnItem } from "@/src/components/ColumnSettingsModal";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { getInsuranceCategories } from "@/src/lib/insuranceCategoryStore";
+import { generateManualDeductionRecords, getAvailableManualScenarios } from "@/src/lib/manualDeductionHelper";
 
 // --- Helper Functions ---
 
@@ -105,31 +106,53 @@ export default function DeductionTaskDetails() {
 
       let validDetails: any[] = [];
       matchedTasks.forEach(t => {
-        const details = mockApi.getTaskDetailRecords(t.id, false)
-          .filter(d => d.data && (d.data.IS_APPEAL === "否" || d.data._PROJECT_CLASS))
+        let details = mockApi.getTaskDetailRecords(t.id, false);
+        // 如果是手动新增或扣减明细任务且暂无明细数据，自动补全演示数据
+        if ((!details || details.length === 0) && (t.isManual || t.isDeductionOnly || t.templateId === "TPL_DED_CUSTOM" || t.id.startsWith("T_CUSTOM_"))) {
+          details = generateManualDeductionRecords(t.businessCategory || bc || "手动新增", t.belongingMonth || month || "2026-09", 6);
+          mockApi.updateTaskDetails(t.id, details);
+        }
+
+        const filtered = details
+          .filter(d => d.data && (
+            d.data.IS_APPEAL === "否" || 
+            d.data.IS_APPEAL === "不申诉" || 
+            d.data._PROJECT_CLASS || 
+            t.isManual || 
+            t.isDeductionOnly
+          ))
           .map(d => ({...d.data, id: d.id, taskId: t.id}));
-        validDetails = validDetails.concat(details);
+        validDetails = validDetails.concat(filtered);
       });
       
       validDetails.sort((a,b) => (a.ADMIT_DATE > b.ADMIT_DATE ? -1 : 1));
       
       const configs = getInsuranceCategories();
       const matchedConfig = configs.find(c => c.categoryName === bc);
-      const personCategory = matchedConfig ? matchedConfig.personnelCategory : (bc.includes("异地") ? "异地医保" : "广州医保");
-      const onlineOffline = matchedConfig ? matchedConfig.onlineOffline : (bc.includes("线上") ? "线上" : "线下");
+      const availableScenarios = getAvailableManualScenarios();
+      const fallbackScenario = availableScenarios[0] || { personnelCategory: "城乡居民医保", onlineOffline: "线下" };
+
+      const isManualTask = matchedTasks.some(t => t.isManual || t.templateId === "TPL_DED_CUSTOM" || t.id.startsWith("T_CUSTOM_"));
+      const personCategory = matchedConfig ? matchedConfig.personnelCategory : (bc.includes("异地") ? "异地医保" : (isManualTask ? fallbackScenario.personnelCategory : "广州医保"));
+      const onlineOffline = matchedConfig ? matchedConfig.onlineOffline : (bc.includes("线上") ? "线上" : (isManualTask ? fallbackScenario.onlineOffline : "线下"));
       
       let sumViolation = 0;
       let sumDeduction = 0;
-      validDetails = validDetails.map(d => {
+      validDetails = validDetails.map((d, idx) => {
          const dMedCom = d._DEDUCTION_MED_COM || (Number(d.VIOLATION_AMOUNT) || 0) * 0.6;
          const dOther = d._DEDUCTION_OTHER || (Number(d.VIOLATION_AMOUNT) || 0) * 0.4;
          sumViolation += Number(d.VIOLATION_AMOUNT) || 0;
          sumDeduction += (Number(dMedCom) || 0) + (Number(dOther) || 0);
          
+         // 手动任务如果记录缺少人员类别或线上线下，从不重复的医保场景库中分配
+         const scenario = isManualTask && (!d._PERSON_CATEGORY || !d._IS_ONLINE)
+           ? availableScenarios[idx % availableScenarios.length]
+           : null;
+
          return {
            ...d,
-           _PERSON_CATEGORY: d._PERSON_CATEGORY || personCategory,
-           _IS_ONLINE: d._IS_ONLINE || onlineOffline,
+           _PERSON_CATEGORY: d._PERSON_CATEGORY || (scenario ? scenario.personnelCategory : personCategory),
+           _IS_ONLINE: d._IS_ONLINE || (scenario ? scenario.onlineOffline : onlineOffline),
            _DEDUCTION_MED_COM: dMedCom,
            _DEDUCTION_OTHER: dOther,
            _DEDUCTION_AMOUNT: d._DEDUCTION_AMOUNT || (Number(dMedCom) + Number(dOther))
@@ -142,9 +165,11 @@ export default function DeductionTaskDetails() {
 
       setTaskSummary({
         id: taskId,
-        name: taskId.startsWith("T_CUSTOM_") && matchedTasks[0] ? matchedTasks[0].name : `${bc} ${month} 扣减明细`,
-        businessCategory: bc,
-        belongingMonth: month,
+        name: (matchedTasks[0]?.isManual || taskId.startsWith("T_CUSTOM_") || taskId.startsWith("T_MANUAL_")) && matchedTasks[0] 
+          ? matchedTasks[0].name 
+          : `${bc} ${month} 扣减明细`,
+        businessCategory: bc || matchedTasks[0]?.businessCategory || "手动新增",
+        belongingMonth: month || matchedTasks[0]?.belongingMonth || "-",
         deductibleCount: validDetails.length,
         totalViolationAmount: sumViolation,
         totalDeductionAmount: sumDeduction,
@@ -176,7 +201,13 @@ export default function DeductionTaskDetails() {
     let allDetails: any[] = [];
     matchedTasks.forEach(t => {
       const details = mockApi.getTaskDetailRecords(t.id, false)
-        .filter(d => d.data && (d.data.IS_APPEAL === "否" || d.data._PROJECT_CLASS))
+        .filter(d => d.data && (
+          d.data.IS_APPEAL === "否" || 
+          d.data.IS_APPEAL === "不申诉" || 
+          d.data._PROJECT_CLASS || 
+          t.isManual || 
+          t.isDeductionOnly
+        ))
         .map(d => d.data);
       allDetails = allDetails.concat(details);
     });

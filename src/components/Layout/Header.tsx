@@ -48,7 +48,7 @@ export function Header() {
           
           {showConfirm && (
             <div className="absolute top-12 right-0 w-64 bg-white rounded-lg shadow-xl border border-slate-200 p-4 z-50 text-slate-800 text-sm">
-              <p className="mb-3 font-medium text-slate-700">确定要清空本地缓存并重置所有演示数据吗？</p>
+              <p className="mb-3 font-medium text-slate-700">确定要清空本地缓存并重置数据吗？</p>
               <div className="flex justify-end gap-2">
                 <button 
                   className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 rounded text-slate-600 transition-colors"

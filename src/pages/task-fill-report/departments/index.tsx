@@ -11,7 +11,8 @@ import {
   Clock,
   AlertTriangle,
   FileSearch,
-  MessageSquare} from "lucide-react";
+  MessageSquare,
+  FileSpreadsheet} from "lucide-react";
 import { Table, Column } from "@/src/components/ui/Table";
 import { Badge } from "@/src/components/ui/Badge";
 import { Button } from "@/src/components/ui/Button";
@@ -27,6 +28,7 @@ import { cn } from "@/src/lib/utils";
 import { downloadZipWithExcel } from "@/src/lib/exportUtils";
 
 import { useUser } from "@/src/lib/userContext";
+import { setTaskParsing } from "@/src/lib/taskParsingStore";
 
 // ... scroll down to TaskFillReport component
 export function TaskFillReport() {
@@ -57,7 +59,13 @@ export function TaskFillReport() {
     type: "submit" | "withdraw" | "read" | null;
     taskId: string | null;
   }>({ show: false, type: null, taskId: null });
+  const [uploadModal, setUploadModal] = useState<{
+    show: boolean;
+    task: Task | null;
+    file: File | null;
+  }>({ show: false, task: null, file: null });
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const currentUploadTaskIdRef = useRef<string | null>(null);
 
   const fetchData = () => {
     
@@ -153,25 +161,53 @@ export function TaskFillReport() {
     fetchData();
   };
 
-  const handleUpload = () => {
-    fileInputRef.current?.click();
+  const handleUpload = (taskId: string) => {
+    currentUploadTaskIdRef.current = taskId;
+    const targetTask = tasks.find(t => t.id === taskId) || null;
+    const defaultFile = new File(["demo-binary-data"], `【${targetTask?.name || "任务"}】科室申报明细及佐证材料.xlsx`, {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    });
+    setUploadModal({
+      show: true,
+      task: targetTask,
+      file: defaultFile
+    });
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
-      toast("正在解析文件并匹配数据...", "info");
-      setTimeout(() => {
-        const success = Math.random() > 0.3;
-        if (success) {
-          toast("成功匹配数据并上传", "success");
-        } else {
-          toast("上传失败，文件格式不正确或缺少必要字段", "error");
-        }
-      }, 1000);
+      setUploadModal(prev => ({ ...prev, file: e.target.files![0] }));
     }
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
+  };
+
+  const handleConfirmUpload = () => {
+    const targetId = uploadModal.task?.id || currentUploadTaskIdRef.current;
+    if (targetId) {
+      const allRecords = mockApi.getTaskDetailRecords(targetId, false);
+      if (allRecords && allRecords.length > 0) {
+        allRecords.forEach((r: any, idx: number) => {
+          mockApi.saveTaskDetailRecord(targetId, {
+            ...r,
+            fillStatus: 1,
+            auditStatus: 8,
+            evidence: r.evidence && r.evidence.length > 0 ? r.evidence : ["出院小结_核实证明.pdf"],
+            submitter: "当前用户",
+            data: {
+              ...r.data,
+              IS_APPEAL: idx % 2 === 0 ? "申诉" : "不申诉",
+              APPEAL_REASON: "经科室核实，该诊疗项目及耗材使用合规，已附相关诊疗佐证材料。"
+            }
+          });
+        });
+      }
+      setTaskParsing(targetId, true);
+      toast("上传申报成功，当前数据解析更新中，请稍候", "warning");
+    }
+    setUploadModal({ show: false, task: null, file: null });
+    fetchData();
   };
 
   const handleDownloadTask = async (t: Task) => {
@@ -355,7 +391,7 @@ export function TaskFillReport() {
             {common}
             {t.status === "PUBLISH" && t.templateId !== "TPL_DED" && (
               <>
-                <Button variant="ghost" size="sm" onClick={handleUpload} className="text-blue-600 h-7 px-2">上传申报</Button>
+                <Button variant="ghost" size="sm" onClick={() => handleUpload(t.id)} className="text-blue-600 h-7 px-2">上传申报</Button>
                 <Button variant="ghost" size="sm" onClick={() => handleAction("submit", t.id)} className="text-blue-600 h-7 px-2">提交审核</Button>
               </>
             )}
@@ -367,7 +403,7 @@ export function TaskFillReport() {
             )}
             {t.status === "WITHDRAWN" && t.templateId !== "TPL_DED" && (
               <>
-                <Button variant="ghost" size="sm" onClick={handleUpload} className="text-blue-600 h-7 px-2">上传申报</Button>
+                <Button variant="ghost" size="sm" onClick={() => handleUpload(t.id)} className="text-blue-600 h-7 px-2">上传申报</Button>
                 <Button variant="ghost" size="sm" onClick={() => handleAction("submit", t.id)} className="text-blue-600 h-7 px-2">提交审核</Button>
                 <Button variant="ghost" size="sm" onClick={() => setRejectModalId(t.id)} className="text-orange-600 h-7 px-2">驳回意见</Button>
               </>
@@ -642,6 +678,49 @@ export function TaskFillReport() {
           </div>
           <div className="flex justify-end">
             <Button onClick={() => setRejectModalId(null)}>关闭</Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* 上传申报弹窗 */}
+      <Modal
+        isOpen={uploadModal.show}
+        onClose={() => setUploadModal({ show: false, task: null, file: null })}
+        title="上传申报数据"
+        width="max-w-md"
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setUploadModal({ show: false, task: null, file: null })}>
+              取消
+            </Button>
+            <Button variant="primary" onClick={handleConfirmUpload}>
+              确认上传
+            </Button>
+          </>
+        }
+      >
+        <div className="flex flex-col gap-4 text-sm py-3">
+          <div className="border border-slate-200 bg-slate-50/80 rounded-lg p-3.5 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3 overflow-hidden">
+              <div className="w-10 h-10 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0 border border-emerald-200">
+                <FileSpreadsheet className="w-5 h-5" />
+              </div>
+              <div className="text-left truncate">
+                <div className="text-xs font-semibold text-slate-800 truncate" title={uploadModal.file?.name || "申报明细及佐证材料.xlsx"}>
+                  {uploadModal.file?.name || "申报明细及佐证材料.xlsx"}
+                </div>
+                <div className="text-[11px] text-slate-500 mt-1">
+                  486 KB
+                </div>
+              </div>
+            </div>
+            <Button size="sm" variant="outline" className="shrink-0 h-8 px-2.5 text-xs text-slate-600 hover:bg-white" onClick={() => fileInputRef.current?.click()}>
+              更换文件
+            </Button>
+          </div>
+
+          <div className="text-slate-400 text-xs text-left">
+            <p>支持格式：.xls, .xlsx，单个文件不超过 20MB</p>
           </div>
         </div>
       </Modal>

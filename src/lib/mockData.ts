@@ -1,9 +1,10 @@
 import { TASK_STATUS, AUDIT_STATUS, FILL_STATUS, DEPARTMENTS } from "./constants";
+import { generateManualDeductionRecords } from "./manualDeductionHelper";
 
 if (typeof window !== 'undefined') {
-  if (localStorage.getItem("mock_data_version") !== "v29") {
+  if (localStorage.getItem("mock_data_version") !== "v30") {
       localStorage.clear();
-      localStorage.setItem("mock_data_version", "v29");
+      localStorage.setItem("mock_data_version", "v30");
   }
 }
 
@@ -102,6 +103,23 @@ const INITIAL_TASKS: Task[] = [
   { id: "T_2024_05_GZ_1", parentId: "T_2024_05_GZ", name: "2024年05月广州医保线下反馈核查 - 内科", year: "2024", departmentId: 4, templateId: "TPL_GZ_YB", templateName: "广州医保（线下）反馈", belongingMonth: "2024-05", status: "PUBLISH", creator: "管理员", createTime: "2024-05-01 09:00", updateTime: "2024-05-10 09:00", dueDate: "2024-05-31" },
   
   { id: "T_2024_06_GZ", name: "2024年06月广州医保线下反馈核查", year: "2024", departmentId: 1, templateId: "TPL_GZ_YB", templateName: "广州医保（线下）反馈", belongingMonth: "2024-06", status: "CREATE", creator: "管理员", createTime: "2024-06-01 09:00", updateTime: "2024-06-10 09:00", dueDate: "2024-06-30" },
+  { 
+    id: "T_MANUAL_DEFAULT_01", 
+    name: "城乡居民补充 2024-03 手动新增明细", 
+    year: "2024", 
+    departmentId: 1, 
+    templateId: "TPL_DED_CUSTOM", 
+    templateName: "自定义", 
+    belongingMonth: "2024-03", 
+    status: "END", 
+    creator: "管理员", 
+    createTime: "2024-03-25 10:00", 
+    updateTime: "2024-03-25 10:00", 
+    dueDate: "2024-03-31", 
+    businessCategory: "城乡居民补充", 
+    isManual: true, 
+    isDeductionOnly: true 
+  },
 ];
 
 const INITIAL_REPORTS: ReviewRecord[] = INITIAL_TASKS.filter(t => t.parentId).map(t => ({
@@ -383,6 +401,7 @@ const ALL_MOCK_DETAILS: Record<string, any[]> = {
 
 ALL_MOCK_DETAILS["task_records_T_2024_01_DED"] = generateDEDRecords("1", true).map((r, i) => i === 11 ? { ...r, doNotIssue: true } : r);
 ALL_MOCK_DETAILS["task_records_T_2024_02_DED"] = generateDEDRecords("2", false).map((r, i) => i === 11 ? { ...r, doNotIssue: true } : r);
+ALL_MOCK_DETAILS["task_records_T_MANUAL_DEFAULT_01"] = generateManualDeductionRecords("城乡居民补充", "2024-03", 6);
 
 let activeIntervals: Record<string, NodeJS.Timeout> = {};
 
@@ -545,6 +564,16 @@ export const mockApi = {
          const newKey = key.replace("task_records_", "task_records_v26_");
          localStorage.setItem(newKey, JSON.stringify(ALL_MOCK_DETAILS[key]));
       });
+    } else if (!tasks.some((t: Task) => t.isManual)) {
+      const manualDemo = INITIAL_TASKS.find(t => t.id === "T_MANUAL_DEFAULT_01");
+      if (manualDemo) {
+        tasks.push(manualDemo);
+        localStorage.setItem("tasks_v27", JSON.stringify(tasks));
+        const demoKey = "task_records_v26_T_MANUAL_DEFAULT_01";
+        if (!localStorage.getItem(demoKey)) {
+          localStorage.setItem(demoKey, JSON.stringify(ALL_MOCK_DETAILS["task_records_T_MANUAL_DEFAULT_01"]));
+        }
+      }
     }
 
     // Dynamically calculate parent status based on children before filtering
@@ -724,6 +753,15 @@ export const mockApi = {
       localStorage.setItem(key, JSON.stringify(data));
     }
     
+    // If manual task has no records yet, auto-populate demo records
+    if (!data || data.length === 0) {
+      const task = tasks?.find((t: Task) => t.id === realTaskId);
+      if (task && (task.isManual || task.isDeductionOnly || task.templateId === "TPL_DED_CUSTOM" || realTaskId.startsWith("T_CUSTOM_"))) {
+        data = generateManualDeductionRecords(task.businessCategory || "手动新增", task.belongingMonth || "2026-09", 6);
+        localStorage.setItem(key, JSON.stringify(data));
+      }
+    }
+
     if (!data) data = [];
 
     if (!includeDoNotIssue) {

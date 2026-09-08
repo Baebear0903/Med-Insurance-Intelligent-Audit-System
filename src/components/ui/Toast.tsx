@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { cn } from "@/src/lib/utils";
-import { CheckCircle2, XCircle, Info, X } from "lucide-react";
+import { CheckCircle2, XCircle, Info, AlertTriangle, X } from "lucide-react";
 
-export type ToastType = "success" | "error" | "info";
+export type ToastType = "success" | "error" | "info" | "warning";
 
 interface ToastMessage {
   id: string;
@@ -38,12 +38,14 @@ export function ToastContainer() {
             "flex items-center gap-2 px-4 py-3 rounded-lg shadow-lg border text-sm font-medium animate-in fade-in slide-in-from-top-5 min-w-[280px] bg-white",
             t.type === "success" && "border-green-100 text-green-800",
             t.type === "error" && "border-red-100 text-red-800",
-            t.type === "info" && "border-blue-100 text-blue-800"
+            t.type === "info" && "border-blue-100 text-blue-800",
+            t.type === "warning" && "border-amber-200 text-amber-800"
           )}
         >
-          {t.type === "success" && <CheckCircle2 className="w-5 h-5 text-green-500" />}
-          {t.type === "error" && <XCircle className="w-5 h-5 text-red-500" />}
-          {t.type === "info" && <Info className="w-5 h-5 text-blue-500" />}
+          {t.type === "success" && <CheckCircle2 className="w-5 h-5 text-green-500 shrink-0" />}
+          {t.type === "error" && <XCircle className="w-5 h-5 text-red-500 shrink-0" />}
+          {t.type === "info" && <Info className="w-5 h-5 text-blue-500 shrink-0" />}
+          {t.type === "warning" && <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0" />}
           <span className="flex-1 text-slate-700">{t.message}</span>
           <button
             onClick={() => setToasts((prev) => prev.filter((x) => x.id !== t.id))}

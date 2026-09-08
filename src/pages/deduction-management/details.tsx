@@ -11,6 +11,7 @@ import { Modal } from "@/src/components/ui/Modal";
 import { useNavigate } from "react-router-dom";
 import { ImportDeductionModal } from "./ImportDeductionModal";
 import { getInsuranceCategories } from "@/src/lib/insuranceCategoryStore";
+import { generateManualDeductionRecords } from "@/src/lib/manualDeductionHelper";
 import { addImportRecord } from "./import-records/index";
 import { cn } from "@/src/lib/utils";
 
@@ -101,7 +102,7 @@ export default function DeductionDetails() {
         }
 
         const details = mockApi.getTaskDetailRecords(t.id, false);
-        const validDetails = details.filter(d => d.data && (d.data.IS_APPEAL === "不申诉" || d.data.IS_APPEAL === "否" || d.data._PROJECT_CLASS)).map(d => d.data);
+        const validDetails = details.filter(d => d.data && (d.data.IS_APPEAL === "不申诉" || d.data.IS_APPEAL === "否" || d.data._PROJECT_CLASS || t.isManual || t.isDeductionOnly)).map(d => d.data);
 
         let sumViolation = 0;
         let sumDeduction = 0;
@@ -239,34 +240,8 @@ export default function DeductionDetails() {
     } else if (importMode === "manual") {
       // 手动新增：医保业务分类支持手动自定义文本，只在院内扣减管理模块生效
       const customCategory = category || "自定义业务分类";
-      const recordCount = Math.floor(Math.random() * 12) + 5;
-      const fakeRecords = Array.from({ length: recordCount }).map((_, i) => {
-        const deduction = Math.floor(Math.random() * 5000) + 100;
-        const dMedCom = Math.floor(deduction * 0.6);
-        const dOther = deduction - dMedCom;
-        return {
-          id: `DED_CUSTOM_${Date.now()}_${i}`,
-          data: {
-            IS_APPEAL: "不申诉",
-            VIOLATION_AMOUNT: (deduction + Math.floor(Math.random() * 1000)).toFixed(2),
-            _DEDUCTION_AMOUNT: deduction,
-            _DEDUCTION_MED_COM: dMedCom,
-            _DEDUCTION_OTHER: dOther,
-            PATIENT_NAME: `患者${Math.floor(Math.random() * 9000) + 1000}`,
-            ID_CARD: `44010619${Math.floor(Math.random() * 30 + 70)}${month.replace("-", "")}${1000 + i}`,
-            HOSPITAL_NO: `ZY${month.replace("-", "")}${100 + i}`,
-            ADMIT_DATE: `${month}-01`,
-            DISCHARGE_DATE: `${month}-12`,
-            MEDICAL_CATEGORY: "普通门诊",
-            PROJECT_NAME: "诊疗检查",
-            DEDUCTION_REASON: "违规扣减",
-            ORDER_DEPT: "内科",
-            DOCTOR_NAME: "赵医生",
-            _DEDUCTION_TARGET: "内科",
-            _DATA_SOURCE: `${customCategory} ${month} 手动新增`
-          }
-        };
-      });
+      // 生成少量演示数据（几条即可，默认6条），人员类别和线上线下随机按照医保场景定义，且与业务分类配置启用的配置排重
+      const fakeRecords = generateManualDeductionRecords(customCategory, month, 6);
 
       const newTask = mockApi.addTask(
         taskName || `${customCategory} ${month} 手动新增明细`,

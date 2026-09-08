@@ -282,7 +282,7 @@ export default function DeductionSummary() {
       
       const recordsToDeduct = allDetails
         .map(d => ({ data: d.data, taskData: (t: any) => t.id === d.taskId }))
-        .filter(d => d.data && (d.data.IS_APPEAL === "否" || d.data._PROJECT_CLASS))
+        .filter(d => d.data && (d.data.IS_APPEAL === "否" || d.data.IS_APPEAL === "不申诉" || d.data._PROJECT_CLASS))
         .map(d => d.data)
         .map((record, i) => ensureChartData(record, i, configCategories));
 
