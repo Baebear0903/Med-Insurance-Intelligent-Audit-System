@@ -420,7 +420,7 @@ export function TaskList() {
         setTaskParsing(activeTask.id, true);
       }
       setIsImportModalOpen(false);
-      toast("导入成功，当前数据解析更新中，请稍候", "warning");
+      toast("导入成功，当前数据解析中，请稍候", "warning");
       addImportRecord({
         taskId: activeTask?.id,
         taskName: activeTask?.name,

@@ -94,7 +94,7 @@ export default function DataQuery() {
         toast("数据解析校验已完成，最新数据已更新", "success");
         fetchTaskData();
       } else {
-        toast("后台数据正在解析校验中，请稍候刷新...", "info");
+        toast("后台数据正在解析校验中，请稍候...", "info");
       }
     }, 400);
   };
@@ -300,7 +300,7 @@ export default function DataQuery() {
     if (task) {
       setTaskParsing(task.id, true);
     }
-    toast("数据导入更新成功，当前数据解析更新中，请稍候", "warning");
+    toast("当前数据解析中，请稍候", "warning");
   };
 
   useEffect(() => {
@@ -535,7 +535,7 @@ export default function DataQuery() {
             </div>
             <Link to="/task-management/task-list/index">
               <Button variant="outline" size="sm">
-                返回任务列表
+                返回列表
               </Button>
             </Link>
           </div>
@@ -551,7 +551,7 @@ export default function DataQuery() {
             <div className="flex items-center gap-3">
               <Link to="/task-management/task-list/index">
                 <Button variant="primary">
-                  返回任务列表
+                  返回列表
                 </Button>
               </Link>
               <Button
