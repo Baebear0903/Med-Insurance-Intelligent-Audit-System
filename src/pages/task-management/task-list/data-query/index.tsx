@@ -997,19 +997,8 @@ export default function DataQuery() {
                 <span>当前已选中 <strong className="text-blue-600 font-semibold">{selectedIds.length}</strong> 条记录</span>
               </div>
               {isSingle && singleRecord && (
-                <div className="flex items-center gap-3 text-slate-500 flex-wrap">
-                  <div className="flex items-center gap-1">
-                    <span className="text-slate-400">患者名称：</span>
-                    <span className="font-semibold text-slate-800">{singleRecord.PATIENT_NAME || singleRecord["患者姓名"] || singleRecord["参保人"] || "-"}</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <span className="text-slate-400">门诊住院号：</span>
-                    <span className="font-mono font-medium text-slate-800 bg-slate-100 px-1.5 py-0.5 rounded text-[11px]">{singleRecord.HOSPITAL_NO || singleRecord.VISIT_NO || singleRecord["住院号/门诊号"] || singleRecord.DOCUMENT_NO || "-"}</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <span className="text-slate-400">当前下发：</span>
-                    <span className="font-medium text-slate-800">{singleRecord.DISPATCH_DEPT || "未分配"}</span>
-                  </div>
+                <div className="text-slate-500">
+                  当前下发科室：<span className="font-medium text-slate-800">{singleRecord.DISPATCH_DEPT || "未分配"}</span>
                 </div>
               )}
             </div>
