@@ -209,6 +209,8 @@ export default function DeductionDetails() {
               PROJECT_NAME: i % 2 === 0 ? "血常规" : "CT检查",
               DEDUCTION_REASON: "违规扣减",
               ORDER_DEPT: i % 2 === 0 ? "内科" : "外科",
+              EXECUTE_DEPT: i % 2 === 0 ? "外科" : "内科",
+              DISPATCH_DEPT: i % 2 === 0 ? "内科" : "外科",
               DOCTOR_NAME: i % 2 === 0 ? "王医生" : "李医生",
               _DEDUCTION_TARGET: i % 2 === 0 ? "内科" : "外科",
               _DATA_SOURCE: `${month}批量导入扣减明细`

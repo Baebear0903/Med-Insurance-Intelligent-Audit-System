@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import {
   Search,
   Download,
@@ -9,6 +9,7 @@ import {
   Upload,
   FileText,
   AlertCircle,
+  AlertTriangle,
   FileSpreadsheet,
 } from "lucide-react";
 import { Link, useSearchParams } from "react-router-dom";
@@ -81,6 +82,14 @@ export default function DataQuery() {
   const pageSize = 20;
   const [isSwitchDeptOpen, setIsSwitchDeptOpen] = useState(false);
   const [selectedDept, setSelectedDept] = useState("内科");
+  const [switchMode, setSwitchMode] = useState<"ORDER_DEPT" | "EXECUTE_DEPT" | "MANUAL">("ORDER_DEPT");
+  const [confirmEmptyInfo, setConfirmEmptyInfo] = useState<{
+    isOpen: boolean;
+    emptyCount: number;
+    totalCount: number;
+    emptyRecords: any[];
+    modeText: string;
+  } | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   const handleRefreshPage = () => {
@@ -192,31 +201,145 @@ export default function DataQuery() {
 
   const handleOpenSwitchDeptModal = () => {
     if (selectedIds.length === 0) {
-      toast("请先勾选记录");
+      toast("请先勾选记录", "warning");
       return;
     }
+    setSwitchMode("ORDER_DEPT");
     setSelectedDept("内科");
     setIsSwitchDeptOpen(true);
   };
 
-  const handleConfirmSwitchDept = () => {
-    const records = mockApi.getTaskDetailRecords(task!.id);
+  const selectedRecords = useMemo(() => {
+    return data.filter((d) => selectedIds.includes(d.id));
+  }, [data, selectedIds]);
+
+  const isSingle = selectedRecords.length === 1;
+  const singleRecord = isSingle ? selectedRecords[0] : null;
+
+  const availableDepts = useMemo(() => {
+    const list = ["内科", "外科", "医保办"];
+    data.forEach((d) => {
+      if (d.DISPATCH_DEPT && !list.includes(d.DISPATCH_DEPT)) list.push(d.DISPATCH_DEPT);
+      if (d.ORDER_DEPT && !list.includes(d.ORDER_DEPT)) list.push(d.ORDER_DEPT);
+      if (d.EXECUTE_DEPT && !list.includes(d.EXECUTE_DEPT)) list.push(d.EXECUTE_DEPT);
+    });
+    return list;
+  }, [data]);
+
+  const executeSwitchDept = () => {
+    if (!task) return;
+    const records = mockApi.getTaskDetailRecords(task.id);
     let updatedCount = 0;
-    
+    let clearedCount = 0;
+
     records.forEach((r: any) => {
       if (selectedIds.includes(r.id)) {
-        r.data.DISPATCH_DEPT = selectedDept;
-        mockApi.saveTaskDetailRecord(task!.id, r);
-        updatedCount++;
+        let targetDept = "";
+        if (switchMode === "ORDER_DEPT") {
+          targetDept = (r.data.ORDER_DEPT || r.data.开单科室 || r.data.ORDER_DEPT_NAME || "").trim();
+          if (!targetDept) {
+            const inState = data.find((d) => d.id === r.id);
+            targetDept = (inState?.ORDER_DEPT || inState?.开单科室 || "").trim();
+          }
+        } else if (switchMode === "EXECUTE_DEPT") {
+          targetDept = (r.data.EXECUTE_DEPT || r.data.EXEC_DEPT || r.data.执行科室 || r.data.EXEC_DEPT_NAME || "").trim();
+          if (!targetDept) {
+            const inState = data.find((d) => d.id === r.id);
+            targetDept = (inState?.EXECUTE_DEPT || inState?.执行科室 || "").trim();
+          }
+        } else {
+          targetDept = selectedDept.trim();
+        }
+
+        r.data.DISPATCH_DEPT = targetDept;
+        if (!targetDept) {
+          r.manualDispatchCleared = true;
+        } else {
+          delete r.manualDispatchCleared;
+        }
+        mockApi.saveTaskDetailRecord(task.id, r);
+        if (targetDept) {
+          updatedCount++;
+        } else {
+          clearedCount++;
+        }
       }
     });
 
-    if (updatedCount > 0) {
-      toast(`已成功将 ${updatedCount} 条记录的科室切换为“${selectedDept}”`, "success");
-      const updatedRecords = mockApi.getTaskDetailRecords(task!.id);
-      setData(updatedRecords.map((rec: any) => ({ ...rec.data, id: rec.id })));
+    const modeText = switchMode === "ORDER_DEPT" ? "开单科室" : (switchMode === "EXECUTE_DEPT" ? "执行科室" : selectedDept);
+
+    if (clearedCount > 0 && updatedCount > 0) {
+      toast(`已完成切换：${updatedCount} 条记录切换为对应科室，${clearedCount} 条记录因对应【${modeText}】为空已置空`, "success");
+    } else if (clearedCount > 0) {
+      toast(`已完成切换：${clearedCount} 条记录因对应【${modeText}】为空，下发科室已置空`, "warning");
+    } else {
+      toast(`已成功按「${modeText}」切换 ${updatedCount} 条记录的下发科室`, "success");
     }
+
+    setConfirmEmptyInfo(null);
     setIsSwitchDeptOpen(false);
+    fetchTaskData();
+  };
+
+  const handleConfirmSwitchDept = () => {
+    if (!task) return;
+    if (selectedIds.length === 0) {
+      toast("请先勾选记录", "warning");
+      return;
+    }
+
+    if (switchMode === "MANUAL") {
+      executeSwitchDept();
+      return;
+    }
+
+    const records = mockApi.getTaskDetailRecords(task.id);
+    const selectedTaskRecords = records.filter((r: any) => selectedIds.includes(r.id));
+
+    // 检查按照开单或执行科室切换后，哪些记录的目标科室为空
+    const emptyRecords: any[] = [];
+    selectedTaskRecords.forEach((r: any) => {
+      let targetDept = "";
+      if (switchMode === "ORDER_DEPT") {
+        targetDept = (r.data.ORDER_DEPT || r.data.开单科室 || r.data.ORDER_DEPT_NAME || "").trim();
+        if (!targetDept) {
+          const inState = data.find((d) => d.id === r.id);
+          targetDept = (inState?.ORDER_DEPT || inState?.开单科室 || "").trim();
+        }
+      } else if (switchMode === "EXECUTE_DEPT") {
+        targetDept = (r.data.EXECUTE_DEPT || r.data.EXEC_DEPT || r.data.执行科室 || r.data.EXEC_DEPT_NAME || "").trim();
+        if (!targetDept) {
+          const inState = data.find((d) => d.id === r.id);
+          targetDept = (inState?.EXECUTE_DEPT || inState?.执行科室 || "").trim();
+        }
+      }
+
+      if (!targetDept) {
+        const inState = data.find((d) => d.id === r.id);
+        const patientName = inState?.PATIENT_NAME || r.data?.PATIENT_NAME || inState?.["患者姓名"] || r.data?.["患者姓名"] || inState?.["参保人"] || r.data?.["参保人"] || "未命名患者";
+        const hospitalNo = inState?.HOSPITAL_NO || r.data?.HOSPITAL_NO || inState?.["住院号/门诊号"] || r.data?.["住院号/门诊号"] || inState?.["住院号"] || r.data?.["住院号"] || inState?.["门诊号"] || r.data?.["门诊号"] || inState?.VISIT_NO || r.data?.VISIT_NO || inState?.DOCUMENT_NO || r.data?.DOCUMENT_NO || "-";
+        emptyRecords.push({
+          id: r.id,
+          patientName,
+          hospitalNo,
+          docNo: inState?.DOCUMENT_NO || r.data?.DOCUMENT_NO || r.id,
+        });
+      }
+    });
+
+    if (emptyRecords.length > 0) {
+      setConfirmEmptyInfo({
+        isOpen: true,
+        emptyCount: emptyRecords.length,
+        totalCount: selectedTaskRecords.length,
+        emptyRecords,
+        modeText: switchMode === "ORDER_DEPT" ? "开单科室" : "执行科室",
+      });
+      return;
+    }
+
+    // 没有为空的情况，直接执行切换
+    executeSwitchDept();
   };
 
   const isAllDoNotIssue = selectedIds.length > 0 && selectedIds.every(id => {
@@ -398,6 +521,8 @@ export default function DataQuery() {
       "PROJECT_NAME",
       "RULE_NAME",
       "DISPATCH_DEPT",
+      "ORDER_DEPT",
+      "EXECUTE_DEPT",
       "DOCTOR",
       "MEDICAL_MODE",
     ].includes(field.name);
@@ -804,7 +929,6 @@ export default function DataQuery() {
             data={currentData}
             rowKey={(r: any) => r.id}
             rowClassName={(r: any) => r.doNotIssue ? "text-slate-400 bg-slate-50/50" : ""}
-            onRowClick={(record) => setSelectedRecord(record)}
           />
         </div>
 
@@ -852,35 +976,262 @@ export default function DataQuery() {
         <Modal
           isOpen={isSwitchDeptOpen}
           onClose={() => setIsSwitchDeptOpen(false)}
-          title="选择切换科室"
+          title="切换下发科室"
+          width="max-w-[540px]"
           footer={
-            <div className="flex gap-2">
+            <div className="flex justify-end gap-2.5">
               <Button variant="outline" size="sm" onClick={() => setIsSwitchDeptOpen(false)}>
                 取消
               </Button>
               <Button variant="primary" size="sm" onClick={handleConfirmSwitchDept}>
-                确认切换
+                确定切换
               </Button>
             </div>
           }
         >
-          <div className="space-y-4">
-            <div className="text-sm text-slate-600 leading-relaxed font-sans">
-              请选择所选明细数据的下发目标科室。
+          <div className="py-2 space-y-4">
+            {/* 提示信息 / 选中状态 */}
+            <div className="flex items-center justify-between px-3.5 py-2.5 bg-slate-50 rounded-lg border border-slate-200/80 text-xs">
+              <div className="flex items-center gap-2 text-slate-700 font-medium">
+                <span className="inline-block w-2 h-2 rounded-full bg-blue-500" />
+                <span>当前已选中 <strong className="text-blue-600 font-semibold">{selectedIds.length}</strong> 条记录</span>
+              </div>
+              {isSingle && singleRecord && (
+                <div className="flex items-center gap-3 text-slate-500 flex-wrap">
+                  <div className="flex items-center gap-1">
+                    <span className="text-slate-400">患者名称：</span>
+                    <span className="font-semibold text-slate-800">{singleRecord.PATIENT_NAME || singleRecord["患者姓名"] || singleRecord["参保人"] || "-"}</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <span className="text-slate-400">门诊住院号：</span>
+                    <span className="font-mono font-medium text-slate-800 bg-slate-100 px-1.5 py-0.5 rounded text-[11px]">{singleRecord.HOSPITAL_NO || singleRecord.VISIT_NO || singleRecord["住院号/门诊号"] || singleRecord.DOCUMENT_NO || "-"}</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <span className="text-slate-400">当前下发：</span>
+                    <span className="font-medium text-slate-800">{singleRecord.DISPATCH_DEPT || "未分配"}</span>
+                  </div>
+                </div>
+              )}
             </div>
-            <div className="flex flex-col gap-1.5">
-              <label className="text-sm font-medium text-slate-700">切换目标科室</label>
-              <select
-                value={selectedDept}
-                onChange={(e) => setSelectedDept(e.target.value)}
-                className="w-full border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white"
+
+            {/* 切换模式选择 */}
+            <div className="space-y-2.5">
+              <label className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                请选择切换方式
+              </label>
+
+              {/* 选项1：按照开单科室 */}
+              <div
+                onClick={() => setSwitchMode("ORDER_DEPT")}
+                className={cn(
+                  "p-3.5 rounded-xl border transition-all cursor-pointer flex items-start gap-3",
+                  switchMode === "ORDER_DEPT"
+                    ? "bg-blue-50/70 border-blue-500 ring-1 ring-blue-500/20"
+                    : "bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50/50"
+                )}
               >
-                <option value="内科">内科</option>
-                <option value="外科">外科</option>
-                <option value="医保办">医保办</option>
-              </select>
+                <div className="mt-0.5">
+                  <input
+                    type="radio"
+                    name="switchMode"
+                    checked={switchMode === "ORDER_DEPT"}
+                    onChange={() => setSwitchMode("ORDER_DEPT")}
+                    className="w-4 h-4 text-blue-600 border-slate-300 focus:ring-blue-500 cursor-pointer"
+                  />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-semibold text-slate-900">按照开单科室</span>
+                    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-medium bg-blue-100 text-blue-700">
+                      默认
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+                    {isSingle
+                      ? singleRecord?.ORDER_DEPT
+                        ? `将该记录下发科室切换为其开单科室：${singleRecord.ORDER_DEPT}`
+                        : "该记录当前「开单科室」为空，切换后下发科室将置为空"
+                      : "批量将所选记录的下发科室切换为其各自对应的「开单科室」"}
+                  </p>
+                  {isSingle && (
+                    <div className="mt-2 text-xs font-medium bg-white/80 px-2.5 py-1 rounded border border-slate-200/60 inline-flex items-center gap-1.5">
+                      <span className="text-slate-500">目标科室：</span>
+                      {singleRecord?.ORDER_DEPT ? (
+                        <span className="font-bold text-blue-700">{singleRecord.ORDER_DEPT}</span>
+                      ) : (
+                        <span className="font-bold text-amber-600">（空 / 未分配）</span>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* 选项2：按照执行科室 */}
+              <div
+                onClick={() => setSwitchMode("EXECUTE_DEPT")}
+                className={cn(
+                  "p-3.5 rounded-xl border transition-all cursor-pointer flex items-start gap-3",
+                  switchMode === "EXECUTE_DEPT"
+                    ? "bg-blue-50/70 border-blue-500 ring-1 ring-blue-500/20"
+                    : "bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50/50"
+                )}
+              >
+                <div className="mt-0.5">
+                  <input
+                    type="radio"
+                    name="switchMode"
+                    checked={switchMode === "EXECUTE_DEPT"}
+                    onChange={() => setSwitchMode("EXECUTE_DEPT")}
+                    className="w-4 h-4 text-blue-600 border-slate-300 focus:ring-blue-500 cursor-pointer"
+                  />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-semibold text-slate-900">按照执行科室</span>
+                  </div>
+                  <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+                    {isSingle
+                      ? singleRecord?.EXECUTE_DEPT
+                        ? `将该记录下发科室切换为其执行科室：${singleRecord.EXECUTE_DEPT}`
+                        : "该记录当前「执行科室」为空，切换后下发科室将置为空"
+                      : "批量将所选记录的下发科室切换为其各自对应的「执行科室」"}
+                  </p>
+                  {isSingle && (
+                    <div className="mt-2 text-xs font-medium bg-white/80 px-2.5 py-1 rounded border border-slate-200/60 inline-flex items-center gap-1.5">
+                      <span className="text-slate-500">目标科室：</span>
+                      {singleRecord?.EXECUTE_DEPT ? (
+                        <span className="font-bold text-blue-700">{singleRecord.EXECUTE_DEPT}</span>
+                      ) : (
+                        <span className="font-bold text-amber-600">（空 / 未分配）</span>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* 选项3：手动选择科室 */}
+              <div
+                onClick={() => setSwitchMode("MANUAL")}
+                className={cn(
+                  "p-3.5 rounded-xl border transition-all cursor-pointer flex items-start gap-3",
+                  switchMode === "MANUAL"
+                    ? "bg-blue-50/70 border-blue-500 ring-1 ring-blue-500/20"
+                    : "bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50/50"
+                )}
+              >
+                <div className="mt-0.5">
+                  <input
+                    type="radio"
+                    name="switchMode"
+                    checked={switchMode === "MANUAL"}
+                    onChange={() => setSwitchMode("MANUAL")}
+                    className="w-4 h-4 text-blue-600 border-slate-300 focus:ring-blue-500 cursor-pointer"
+                  />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-semibold text-slate-900">手动选择科室</span>
+                  </div>
+                  <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+                    手动挑选目标科室，所选记录统一切换至该指定科室
+                  </p>
+
+                  {switchMode === "MANUAL" && (
+                    <div className="mt-3 pt-3 border-t border-blue-200/60 flex items-center gap-2.5" onClick={(e) => e.stopPropagation()}>
+                      <label className="text-xs font-medium text-slate-700 whitespace-nowrap">目标科室：</label>
+                      <select
+                        value={selectedDept}
+                        onChange={(e) => setSelectedDept(e.target.value)}
+                        className="w-full max-w-xs border border-slate-300 rounded-md px-3 py-1.5 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-800"
+                      >
+                        {availableDepts.map((d) => (
+                          <option key={d} value={d}>{d}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
+        </Modal>
+
+        {/* 二次确认弹窗：当按照开单/执行切换后科室为空时提示 */}
+        <Modal
+          isOpen={!!confirmEmptyInfo?.isOpen}
+          onClose={() => setConfirmEmptyInfo(null)}
+          title="提示"
+          width="max-w-[500px]"
+          zIndex="z-[130]"
+          footer={
+            <div className="flex justify-end gap-2.5">
+              <Button variant="outline" size="sm" onClick={() => setConfirmEmptyInfo(null)}>
+                取消
+              </Button>
+              <Button variant="primary" size="sm" onClick={executeSwitchDept}>
+                确定切换
+              </Button>
+            </div>
+          }
+        >
+          {confirmEmptyInfo && (
+            <div className="py-1 space-y-3.5">
+              <div className="flex items-start gap-3 p-3.5 bg-amber-50/80 border border-amber-200/80 rounded-xl">
+                <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+                <div className="text-xs text-amber-900 leading-relaxed space-y-1.5">
+                  <p className="font-semibold text-sm text-amber-950">
+                    检测到切换后的科室为空
+                  </p>
+                  <p>
+                    {confirmEmptyInfo.emptyCount === confirmEmptyInfo.totalCount
+                      ? `所选的全部 ${confirmEmptyInfo.totalCount} 条记录中，对应【${confirmEmptyInfo.modeText}】均为空。`
+                      : `所选的 ${confirmEmptyInfo.totalCount} 条记录中，有 ${confirmEmptyInfo.emptyCount} 条记录的【${confirmEmptyInfo.modeText}】为空。`}
+                  </p>
+                  <p className="font-medium text-amber-800">
+                    切换后，这些记录的「下发科室」将被更新为空（未分配状态）。是否确认继续切换？
+                  </p>
+                </div>
+              </div>
+
+              {confirmEmptyInfo.emptyRecords && confirmEmptyInfo.emptyRecords.length > 0 && (
+                <div className="border border-slate-200/80 rounded-xl p-3 bg-slate-50/70 text-xs space-y-2">
+                  <div className="text-slate-600 font-medium flex items-center justify-between pb-1.5 border-b border-slate-200/60">
+                    <span className="flex items-center gap-1.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                      <span>【{confirmEmptyInfo.modeText}】为空的记录列表：</span>
+                    </span>
+                    <span className="text-amber-700 bg-amber-100/70 px-2 py-0.5 rounded text-[11px] font-semibold">
+                      共 {confirmEmptyInfo.emptyCount} 条
+                    </span>
+                  </div>
+                  <div className="space-y-1.5 max-h-36 overflow-y-auto pr-0.5">
+                    {confirmEmptyInfo.emptyRecords.slice(0, 8).map((rec: any, idx: number) => (
+                      <div
+                        key={idx}
+                        className="flex items-center justify-between gap-2.5 bg-white px-3 py-2 rounded-lg border border-slate-200/70 shadow-xs text-slate-700"
+                      >
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <span className="text-slate-400 shrink-0 font-normal">患者名称：</span>
+                          <span className="font-semibold text-slate-900 truncate">{rec.patientName}</span>
+                        </div>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <span className="text-slate-400 font-normal">门诊住院号：</span>
+                          <span className="font-mono font-medium text-slate-800 bg-slate-100 px-1.5 py-0.5 rounded text-[11px]">
+                            {rec.hospitalNo || rec.docNo || "-"}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                    {confirmEmptyInfo.emptyRecords.length > 8 && (
+                      <div className="text-[11px] text-slate-400 text-center py-1 bg-white/60 rounded border border-dashed border-slate-200">
+                        等共 {confirmEmptyInfo.emptyCount} 条记录
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </Modal>
         {/* 导入更新弹窗 */}
         <Modal isOpen={isImportModalOpen} onClose={() => setIsImportModalOpen(false)} 
@@ -978,6 +1329,8 @@ export default function DataQuery() {
                     "PATIENT_NAME",
                     "ADMIT_DATE",
                     "DISCHARGE_DATE",
+                    "ORDER_DEPT",
+                    "EXECUTE_DEPT",
                     "HOSPITAL_ITEM_NAME",
                     "PROJECT_NAME",
                     "VIOLATION_AMOUNT",

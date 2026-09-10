@@ -2,9 +2,9 @@ import { TASK_STATUS, AUDIT_STATUS, FILL_STATUS, DEPARTMENTS } from "./constants
 import { generateManualDeductionRecords } from "./manualDeductionHelper";
 
 if (typeof window !== 'undefined') {
-  if (localStorage.getItem("mock_data_version") !== "v30") {
+  if (localStorage.getItem("mock_data_version") !== "v33") {
       localStorage.clear();
-      localStorage.setItem("mock_data_version", "v30");
+      localStorage.setItem("mock_data_version", "v33");
   }
 }
 
@@ -156,7 +156,8 @@ const INITIAL_TEMPLATES: ReviewTemplate[] = [
       { id: "F_QTY", name: "QUANTITY", comment: "数量", type: "DECIMAL", length: 500, decimal: 2, isPrimaryKey: false, isNotNull: false, isRequired: false, isQueryable: false, isFeedback: false, noUpdate: true, isShow: true, displayName: "数量" },
       { id: "F_V_DESC", name: "VIOLATION_DESC", comment: "违规描述", type: "VARCHAR", length: 2000, decimal: 0, isPrimaryKey: false, isNotNull: false, isRequired: false, isQueryable: false, isFeedback: false, noUpdate: true, isShow: true, displayName: "违规描述" },
       { id: "F_V_AMT", name: "VIOLATION_AMOUNT", comment: "违规金额", type: "VARCHAR", length: 2000, decimal: 0, isPrimaryKey: false, isNotNull: false, isRequired: false, isQueryable: false, isFeedback: false, noUpdate: true, isShow: true, displayName: "违规金额" },
-      { id: "F_ORDER_DEPT", name: "ORDER_DEPT", comment: "科室", type: "DECIMAL", length: 500, decimal: 0, isPrimaryKey: false, isNotNull: false, isRequired: false, isQueryable: false, isFeedback: false, noUpdate: true, isShow: true, displayName: "科室", mappedStandardField: "ORDER_DEPT" },
+      { id: "F_ORDER_DEPT", name: "ORDER_DEPT", comment: "开单科室", type: "VARCHAR", length: 100, decimal: 0, isPrimaryKey: false, isNotNull: false, isRequired: false, isQueryable: true, isFeedback: false, noUpdate: true, isShow: true, displayName: "开单科室", mappedStandardField: "ORDER_DEPT" },
+      { id: "F_EXECUTE_DEPT", name: "EXECUTE_DEPT", comment: "执行科室", type: "VARCHAR", length: 100, decimal: 0, isPrimaryKey: false, isNotNull: false, isRequired: false, isQueryable: true, isFeedback: false, noUpdate: true, isShow: true, displayName: "执行科室", mappedStandardField: "EXECUTE_DEPT" },
       { id: "F_DOC", name: "DOCTOR_NAME", comment: "医生", type: "VARCHAR", length: 2000, decimal: 0, isPrimaryKey: false, isNotNull: false, isRequired: false, isQueryable: false, isFeedback: false, noUpdate: true, isShow: true, displayName: "医生" },
       { id: "F_ADMIT", name: "ADMIT_DATE", comment: "入院日期", type: "VARCHAR", length: 2000, decimal: 0, isPrimaryKey: false, isNotNull: false, isRequired: false, isQueryable: false, isFeedback: false, noUpdate: true, isShow: true, displayName: "入院日期" },
       { id: "F_DISCHARGE", name: "DISCHARGE_DATE", comment: "出院日期", type: "DATETIME", length: 500, decimal: 0, isPrimaryKey: false, isNotNull: false, isRequired: false, isQueryable: false, isFeedback: false, noUpdate: true, isShow: true, displayName: "出院日期" },
@@ -235,6 +236,11 @@ function generateGZRecords(month: string, isAiCompleted: boolean = false) {
                 : "建议调取患者住院病程记录与生化检验单进行核验");
 
         const dateMonth = month.padStart(2, '0');
+        // 专门设置孙七(i=2)开单科室为空，周八(i=3)执行科室为空，以便直观测试与验证切换空科室时的二次确认流程
+        const orderDept = i === 2 ? "" : depts[i % 2];
+        const execDept = i === 3 ? "" : depts[(i + 1) % 2];
+        // 默认下发科室赋值逻辑：默认按照开单科室，如果开单科室为空取执行科室
+        const dispatchDept = (orderDept && orderDept.trim()) ? orderDept : (execDept || "");
         
         records.push({
             id: `D_${month}_${i}`,
@@ -249,9 +255,10 @@ function generateGZRecords(month: string, isAiCompleted: boolean = false) {
                 MEDICAL_CATEGORY: "住院", 
                 VIOLATION_AMOUNT: ((i + 1) * 110.5).toString(), 
                 VIOLATION_DESC: "高频检查", 
-                ORDER_DEPT: depts[i % 2], 
+                ORDER_DEPT: orderDept, 
+                EXECUTE_DEPT: execDept,
                 DOCTOR_NAME: i % 2 === 0 ? "赵医生" : "钱医生", 
-                DISPATCH_DEPT: depts[i % 2], 
+                DISPATCH_DEPT: dispatchDept, 
                 IS_APPEAL: isAiCompleted ? appealVal : "", 
                 APPEAL_REASON: isAiCompleted ? appealReason : "", 
                 APPEAL_ATTACHMENT: isAiCompleted ? appealAttachment : "", 
@@ -305,6 +312,10 @@ function generateDEDRecords(month: string, isAiCompleted: boolean = false) {
         const _PERSON_CATEGORY = "广州医保";
         const _IS_ONLINE = "线下";
         
+        const orderDept = depts[i % 2];
+        const execDept = depts[(i + 1) % 2];
+        const dispatchDept = (orderDept && orderDept.trim()) ? orderDept : (execDept || "");
+        
         records.push({
             id: `DED_${month}_${i}`,
             data: { 
@@ -318,8 +329,9 @@ function generateDEDRecords(month: string, isAiCompleted: boolean = false) {
                 PROJECT_NAME: i % 2 === 0 ? "血常规" : "CT", 
                 VIOLATION_AMOUNT: (i + 1) * 110.5, 
                 VIOLATION_DESC: "高频检查", 
-                ORDER_DEPT: depts[i % 2], 
-                DISPATCH_DEPT: depts[i % 2], 
+                ORDER_DEPT: orderDept, 
+                EXECUTE_DEPT: execDept, 
+                DISPATCH_DEPT: dispatchDept, 
                 DOCTOR_NAME: i % 2 === 0 ? "王大夫" : "李大夫", 
                 IS_APPEAL: isAiCompleted ? appealVal : "", 
                 REMARK: "",
@@ -667,6 +679,58 @@ export const mockApi = {
           t.dispatchRemark = "院内扣减公示";
           modified = true;
         }
+        if (t.templateType === "医保审核反馈") {
+          const orderField = t.fields.find(f => f.name === "ORDER_DEPT");
+          if (orderField) {
+            if (orderField.comment !== "开单科室" || orderField.displayName !== "开单科室") {
+              orderField.comment = "开单科室";
+              orderField.displayName = "开单科室";
+              orderField.isQueryable = true;
+              modified = true;
+            }
+          } else {
+            t.fields.push({
+              id: "F_ORDER_DEPT_" + t.id,
+              name: "ORDER_DEPT",
+              comment: "开单科室",
+              type: "VARCHAR",
+              length: 100,
+              decimal: 0,
+              isPrimaryKey: false,
+              isNotNull: false,
+              isRequired: false,
+              isShow: true,
+              displayName: "开单科室",
+              isQueryable: true,
+              isFeedback: false,
+              noUpdate: true,
+              mappedStandardField: "ORDER_DEPT"
+            });
+            modified = true;
+          }
+
+          const execField = t.fields.find(f => f.name === "EXECUTE_DEPT" || f.name === "EXEC_DEPT");
+          if (!execField) {
+            t.fields.push({
+              id: "F_EXECUTE_DEPT_" + t.id,
+              name: "EXECUTE_DEPT",
+              comment: "执行科室",
+              type: "VARCHAR",
+              length: 100,
+              decimal: 0,
+              isPrimaryKey: false,
+              isNotNull: false,
+              isRequired: false,
+              isShow: true,
+              displayName: "执行科室",
+              isQueryable: true,
+              isFeedback: false,
+              noUpdate: true,
+              mappedStandardField: "EXECUTE_DEPT"
+            });
+            modified = true;
+          }
+        }
       });
       if (modified) {
         localStorage.setItem("templates_v26", JSON.stringify(templates));
@@ -763,6 +827,28 @@ export const mockApi = {
     }
 
     if (!data) data = [];
+
+    // Ensure all records have valid ORDER_DEPT, EXECUTE_DEPT, and default DISPATCH_DEPT (ORDER_DEPT || EXECUTE_DEPT)
+    data.forEach((r: any, idx: number) => {
+      if (r.data) {
+        if (r.data.ORDER_DEPT === undefined) {
+          if (r.data.科室 !== undefined) {
+            r.data.ORDER_DEPT = r.data.科室;
+          } else {
+            r.data.ORDER_DEPT = idx === 2 ? "" : (idx % 2 === 0 ? "内科" : "外科");
+          }
+        }
+        if (r.data.EXECUTE_DEPT === undefined) {
+          r.data.EXECUTE_DEPT = idx === 3 ? "" : (idx % 2 === 0 ? "外科" : "内科");
+        }
+        // 默认下发科室赋值逻辑：默认按照开单科室，如果开单科室为空取执行科室
+        if (r.data.DISPATCH_DEPT === undefined || (!r.manualDispatchCleared && (r.data.DISPATCH_DEPT === "" || r.data.DISPATCH_DEPT === null))) {
+          const order = (r.data.ORDER_DEPT || r.data.开单科室 || "").trim();
+          const exec = (r.data.EXECUTE_DEPT || r.data.执行科室 || "").trim();
+          r.data.DISPATCH_DEPT = order || exec || "";
+        }
+      }
+    });
 
     if (!includeDoNotIssue) {
       data = data.filter((d: any) => !d.doNotIssue);

@@ -9,12 +9,13 @@ interface ModalProps {
   children: React.ReactNode;
   footer?: React.ReactNode;
   width?: string;
+  zIndex?: string;
 }
 
-export function Modal({ isOpen, onClose, title, children, footer, width = "max-w-lg" }: ModalProps) {
+export function Modal({ isOpen, onClose, title, children, footer, width = "max-w-lg", zIndex = "z-[110]" }: ModalProps) {
   if (!isOpen) return null;
   return (
-    <div className="fixed inset-0 z-[110] bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
+    <div className={cn("fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200", zIndex)}>
       <div className={cn("bg-white rounded-xl shadow-xl w-full flex flex-col max-h-[90vh]", width)}>
         <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
           <h2 className="text-lg font-semibold text-slate-800">{title}</h2>

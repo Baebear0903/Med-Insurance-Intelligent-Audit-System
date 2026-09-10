@@ -175,6 +175,8 @@ export function generateManualDeductionRecords(
         VIOLATION_AMOUNT: violationAmt.toFixed(2),
         VIOLATION_DESC: item.violationDesc,
         ORDER_DEPT: item.dept,
+        EXECUTE_DEPT: item.dept,
+        DISPATCH_DEPT: item.dept || "",
         DOCTOR_NAME: item.doctor,
         _DEDUCTION_TARGET: item.deductionTarget,
         VIOLATION_AMOUNT_2: violationAmt.toFixed(2),
