@@ -414,7 +414,7 @@ export function TaskList() {
         operator: "当前用户",
         uploadTime: timeStr,
         status: "全部通过"
-      }, "task_import_records_v1");
+      }, "task_import_records_v3");
     } else {
       if (activeTask?.id) {
         setTaskParsing(activeTask.id, true);
@@ -450,7 +450,7 @@ export function TaskList() {
             "校验未通过原因": "医疗类别字段为空"
           }
         ]
-      }, "task_import_records_v1");
+      }, "task_import_records_v3");
     }
     setImportFile(null);
   };

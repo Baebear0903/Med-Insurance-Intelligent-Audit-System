@@ -132,7 +132,7 @@ const VIOLATION_ITEMS = [
  * 生成手动新增扣减明细的演示数据（几条即可，默认6条）
  */
 export function generateManualDeductionRecords(
-  customCategory: string,
+  _customCategory: string,
   belongingMonth: string = "2026-09",
   count: number = 6
 ) {
@@ -157,9 +157,15 @@ export function generateManualDeductionRecords(
     const dayEnd = (i * 3 + 6).toString().padStart(2, "0");
     const mStr = belongingMonth || "2026-09";
 
+    const recId = `DED_MANUAL_${Date.now()}_${i}`;
+    const dedDetailId = `DED_REC_${monthClean}_${(1000 + i).toString()}`;
+
     records.push({
-      id: `DED_MANUAL_${Date.now()}_${i}`,
+      id: recId,
       data: {
+        DEDUCTION_DETAIL_ID: dedDetailId, // 扣减明细ID (系统生成台账唯一标识)
+        IS_INCLUDED_IN_DEDUCTION: "是", // 是否纳入扣减 (是/否)
+        ORIGIN_TASK_DETAIL_ID: "", // 原任务明细ID (任务来源数据保留，导入新增为空)
         SEQ_NO: (i + 1).toString(),
         _PERSON_CATEGORY: scenario.personnelCategory,
         _IS_ONLINE: scenario.onlineOffline,
@@ -186,7 +192,7 @@ export function generateManualDeductionRecords(
         _PROJECT_CLASS: item.projectClass,
         REMARK: "医保智能审核判定违规，科室无异议确认扣减",
         IS_APPEAL: "否",
-        _DATA_SOURCE: `${customCategory} ${mStr} 手动新增明细`
+        _DATA_SOURCE: "导入新增"
       },
       evidence: [],
       fillStatus: 2,

@@ -105,7 +105,7 @@ const INITIAL_TASKS: Task[] = [
   { id: "T_2024_06_GZ", name: "2024年06月广州医保线下反馈核查", year: "2024", departmentId: 1, templateId: "TPL_GZ_YB", templateName: "广州医保（线下）反馈", belongingMonth: "2024-06", status: "CREATE", creator: "管理员", createTime: "2024-06-01 09:00", updateTime: "2024-06-10 09:00", dueDate: "2024-06-30" },
   { 
     id: "T_MANUAL_DEFAULT_01", 
-    name: "城乡居民补充 2024-03 手动新增明细", 
+    name: "其他分类 2024-03 扣减明细", 
     year: "2024", 
     departmentId: 1, 
     templateId: "TPL_DED_CUSTOM", 
@@ -116,8 +116,8 @@ const INITIAL_TASKS: Task[] = [
     createTime: "2024-03-25 10:00", 
     updateTime: "2024-03-25 10:00", 
     dueDate: "2024-03-31", 
-    businessCategory: "城乡居民补充", 
-    isManual: true, 
+    businessCategory: "其他分类", 
+    isManual: false, 
     isDeductionOnly: true 
   },
 ];
@@ -183,8 +183,11 @@ const INITIAL_TEMPLATES: ReviewTemplate[] = [
     taskCount: 2,
     createTime: "2024-01-20 10:00:00",
     fields: [
+      { id: "F_DED_ID", name: "DEDUCTION_DETAIL_ID", comment: "扣减明细ID", type: "VARCHAR", length: 100, decimal: 0, isPrimaryKey: true, isNotNull: false, isRequired: false, isQueryable: true, isFeedback: false, noUpdate: true, isShow: true, displayName: "扣减明细ID" },
+      { id: "F_IS_INCLUDED", name: "IS_INCLUDED_IN_DEDUCTION", comment: "是否纳入扣减", type: "VARCHAR", length: 10, decimal: 0, isPrimaryKey: false, isNotNull: false, isRequired: false, isQueryable: true, isFeedback: false, noUpdate: false, isShow: true, displayName: "是否纳入扣减" },
+      { id: "F_ORIGIN_TASK_ID", name: "ORIGIN_TASK_DETAIL_ID", comment: "原任务明细ID", type: "VARCHAR", length: 100, decimal: 0, isPrimaryKey: false, isNotNull: false, isRequired: false, isQueryable: false, isFeedback: false, noUpdate: true, isShow: true, displayName: "原任务明细ID" },
       { id: "F_DEPT", name: "DISPATCH_DEPT", comment: "下发科室", type: "VARCHAR", length: 100, decimal: 0, isPrimaryKey: false, isNotNull: false, isRequired: false, isQueryable: true, isFeedback: false, noUpdate: true, isShow: true, displayName: "下发科室", mappedStandardField: "DISPATCH_DEPT" },
-      { id: "F_SEQ", name: "SEQ_NO", comment: "序号", type: "VARCHAR", length: 100, decimal: 0, isPrimaryKey: true, isNotNull: true, isRequired: true, isQueryable: false, isFeedback: false, noUpdate: true, isShow: true, displayName: "序号" },
+      { id: "F_SEQ", name: "SEQ_NO", comment: "序号", type: "VARCHAR", length: 100, decimal: 0, isPrimaryKey: false, isNotNull: true, isRequired: true, isQueryable: false, isFeedback: false, noUpdate: true, isShow: true, displayName: "序号" },
       { id: "F_PERSON_CAT", name: "_PERSON_CATEGORY", comment: "人员类别", type: "VARCHAR", length: 50, decimal: 0, isPrimaryKey: false, isNotNull: false, isRequired: false, isQueryable: false, isFeedback: false, noUpdate: true, isShow: true, displayName: "人员类别" },
       { id: "F_IS_ONLINE", name: "_IS_ONLINE", comment: "线上/线下", type: "VARCHAR", length: 50, decimal: 0, isPrimaryKey: false, isNotNull: false, isRequired: false, isQueryable: false, isFeedback: false, noUpdate: true, isShow: true, displayName: "线上/线下" },
       { id: "F_HOSP_NO", name: "HOSPITAL_NO", comment: "住院号/门诊号", type: "VARCHAR", length: 50, decimal: 0, isPrimaryKey: false, isNotNull: false, isRequired: false, isQueryable: true, isFeedback: false, noUpdate: true, isShow: true, displayName: "住院号/门诊号" },
@@ -413,7 +416,7 @@ const ALL_MOCK_DETAILS: Record<string, any[]> = {
 
 ALL_MOCK_DETAILS["task_records_T_2024_01_DED"] = generateDEDRecords("1", true).map((r, i) => i === 11 ? { ...r, doNotIssue: true } : r);
 ALL_MOCK_DETAILS["task_records_T_2024_02_DED"] = generateDEDRecords("2", false).map((r, i) => i === 11 ? { ...r, doNotIssue: true } : r);
-ALL_MOCK_DETAILS["task_records_T_MANUAL_DEFAULT_01"] = generateManualDeductionRecords("城乡居民补充", "2024-03", 6);
+ALL_MOCK_DETAILS["task_records_T_MANUAL_DEFAULT_01"] = generateManualDeductionRecords("其他分类", "2024-03", 6);
 
 let activeIntervals: Record<string, NodeJS.Timeout> = {};
 
@@ -576,15 +579,20 @@ export const mockApi = {
          const newKey = key.replace("task_records_", "task_records_v26_");
          localStorage.setItem(newKey, JSON.stringify(ALL_MOCK_DETAILS[key]));
       });
-    } else if (!tasks.some((t: Task) => t.isManual)) {
-      const manualDemo = INITIAL_TASKS.find(t => t.id === "T_MANUAL_DEFAULT_01");
-      if (manualDemo) {
-        tasks.push(manualDemo);
+    } else {
+      let tasksMigrated = false;
+      tasks.forEach((t: Task) => {
+        if (t.businessCategory === "城乡居民补充" || (t.name && t.name.includes("城乡居民补充"))) {
+          t.businessCategory = "其他分类";
+          t.name = t.name.replace("城乡居民补充", "其他分类");
+          t.isManual = false;
+          tasksMigrated = true;
+        }
+      });
+      if (tasksMigrated) {
         localStorage.setItem("tasks_v27", JSON.stringify(tasks));
         const demoKey = "task_records_v26_T_MANUAL_DEFAULT_01";
-        if (!localStorage.getItem(demoKey)) {
-          localStorage.setItem(demoKey, JSON.stringify(ALL_MOCK_DETAILS["task_records_T_MANUAL_DEFAULT_01"]));
-        }
+        localStorage.setItem(demoKey, JSON.stringify(ALL_MOCK_DETAILS["task_records_T_MANUAL_DEFAULT_01"]));
       }
     }
 
@@ -831,6 +839,20 @@ export const mockApi = {
     // Ensure all records have valid ORDER_DEPT, EXECUTE_DEPT, and default DISPATCH_DEPT (ORDER_DEPT || EXECUTE_DEPT)
     data.forEach((r: any, idx: number) => {
       if (r.data) {
+        // 扩展系统字段: 扣减明细ID、是否纳入扣减、原任务明细ID、数据来源
+        if (!r.data.DEDUCTION_DETAIL_ID) {
+          r.data.DEDUCTION_DETAIL_ID = `DED_${realTaskId.replace(/[^a-zA-Z0-9]/g, "")}_${(1000 + idx).toString()}`;
+        }
+        if (r.data.IS_INCLUDED_IN_DEDUCTION === undefined) {
+          r.data.IS_INCLUDED_IN_DEDUCTION = r.isRemoved ? "否" : "是";
+        }
+        if (r.data.ORIGIN_TASK_DETAIL_ID === undefined) {
+          r.data.ORIGIN_TASK_DETAIL_ID = r.id || "";
+        }
+        if (!r.data._DATA_SOURCE) {
+          r.data._DATA_SOURCE = "审核任务自动生成";
+        }
+
         if (r.data.ORDER_DEPT === undefined) {
           if (r.data.科室 !== undefined) {
             r.data.ORDER_DEPT = r.data.科室;

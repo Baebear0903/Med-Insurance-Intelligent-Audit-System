@@ -1,14 +1,21 @@
 import React from "react";
-import { ImportRecordsView, getStoredImportRecords, addImportRecord, ImportRecordItem } from "@/src/components/ImportRecordsView";
+import {
+  DeductionImportRecordsView,
+  getStoredDeductionImportRecords,
+  addDeductionImportRecord,
+  DeductionImportRecordItem,
+} from "./DeductionImportRecordsView";
 
-export { getStoredImportRecords, addImportRecord };
-export type { ImportRecordItem };
+export {
+  getStoredDeductionImportRecords,
+  addDeductionImportRecord,
+  // 兼容别名
+  getStoredDeductionImportRecords as getStoredImportRecords,
+  addDeductionImportRecord as addImportRecord
+};
+export type { DeductionImportRecordItem, DeductionImportRecordItem as ImportRecordItem };
 
 export default function DeductionImportRecords() {
-  return (
-    <ImportRecordsView
-      title="导入记录"
-      storageKey="deduction_import_records_v1"
-    />
-  );
+  return <DeductionImportRecordsView />;
 }
+

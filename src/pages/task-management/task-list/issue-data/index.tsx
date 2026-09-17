@@ -13,7 +13,7 @@ export default function IssueData() {
       title="导入记录"
       taskId={taskId}
       taskName={taskName}
-      storageKey="task_import_records_v1"
+      storageKey="task_import_records_v3"
       onBack={() => navigate("/task-management/task-list/index")}
     />
   );
