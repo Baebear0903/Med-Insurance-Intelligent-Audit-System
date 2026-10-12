@@ -5,6 +5,11 @@ import { Modal } from "@/src/components/ui/Modal";
 import { toast } from "@/src/components/ui/Toast";
 import { Plus, Search, ChevronDown, Check, Trash2, Edit3, HelpCircle } from "lucide-react";
 import { cn } from "@/src/lib/utils";
+import {
+  getDistinctSecretaries,
+  SECRETARY_CHANGE_EVENT,
+  SecretaryAggregate,
+} from "@/src/lib/medicalSecretaryStore";
 
 // --- Types ---
 export interface RegularMappingRule {
@@ -64,51 +69,7 @@ export const ALL_HOSPITAL_DEPARTMENTS: MasterDepartment[] = [
   { id: "TCM_001", name: "中医科" },
 ];
 
-// --- Mock Data ---
-const MOCK_REGULAR_USERS = [
-  {
-    id: "U001",
-    name: "张三",
-    identity: "医保秘书",
-    departments: [
-      { id: "TH_001", name: "心血管内科" }
-    ]
-  },
-  {
-    id: "U002",
-    name: "李四",
-    identity: "医保秘书",
-    departments: [
-      { id: "TH_002", name: "神经外科" },
-      { id: "TH_003", name: "普通外科" }
-    ]
-  },
-  {
-    id: "U003",
-    name: "王五",
-    identity: "医保秘书",
-    departments: [
-      { id: "TD_001", name: "呼吸内科" }
-    ]
-  },
-  {
-    id: "U004",
-    name: "赵六",
-    identity: "医保秘书",
-    departments: [
-      { id: "TD_002", name: "骨科" },
-      { id: "TD_004", name: "急诊科" }
-    ]
-  },
-  {
-    id: "U005",
-    name: "孙七",
-    identity: "医保秘书",
-    departments: [
-      { id: "TD_003", name: "内分泌科" }
-    ]
-  }
-];
+// --- Initial Mapping Rules ---
 
 const INITIAL_REGULAR_RULES: RegularMappingRule[] = [
   { id: "1", sourceName: "心内", targetUserId: "U001", targetUserName: "张三", targetName: "心血管内科", targetCode: "TH_001", createTime: "2024-05-15 10:00:00" },
@@ -129,6 +90,7 @@ export function MappingConfig() {
   const [activeTab, setActiveTab] = useState<"regular" | "special">("regular");
   
   // Regular mapping states
+  const [secretaries, setSecretaries] = useState<SecretaryAggregate[]>(() => getDistinctSecretaries());
   const [regularRules, setRegularRules] = useState<RegularMappingRule[]>([]);
   const [regularSearch, setRegularSearch] = useState("");
   const [regularModalOpen, setRegularModalOpen] = useState(false);
@@ -183,6 +145,12 @@ export function MappingConfig() {
       console.error(e);
     }
 
+    const refreshSecretaries = () => {
+      setSecretaries(getDistinctSecretaries());
+    };
+    window.addEventListener(SECRETARY_CHANGE_EVENT, refreshSecretaries);
+    window.addEventListener("storage", refreshSecretaries);
+
     const handleClickOutside = (event: MouseEvent) => {
       if (userDropdownRef.current && !userDropdownRef.current.contains(event.target as Node)) {
         setShowUserDropdown(false);
@@ -195,7 +163,11 @@ export function MappingConfig() {
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      window.removeEventListener(SECRETARY_CHANGE_EVENT, refreshSecretaries);
+      window.removeEventListener("storage", refreshSecretaries);
+    };
   }, []);
 
   // --- Regular Mapping Handlers ---
@@ -355,8 +327,8 @@ export function MappingConfig() {
     (r.deptCode && r.deptCode.toLowerCase().includes(specialSearch.toLowerCase()))
   );
 
-  // Selected User Object for Regular Form
-  const selectedUserObj = MOCK_REGULAR_USERS.find(u => u.id === regularForm.targetUserId);
+  // Selected Secretary Aggregate Object from 医保秘书配置
+  const selectedUserObj = secretaries.find(u => u.userId === regularForm.targetUserId || u.id === regularForm.targetUserId);
   const availableDepts = selectedUserObj ? selectedUserObj.departments : [];
 
   // Filtered Master Departments for Special Form Dropdown Search (Only display department name in options)
@@ -388,12 +360,7 @@ export function MappingConfig() {
       title: "医保秘书", 
       minWidth: "140px",
       render: (r: RegularMappingRule) => (
-        <div className="flex items-center gap-1.5">
-          <span className="w-6 h-6 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center text-xs font-semibold">
-            {r.targetUserName.slice(0, 1)}
-          </span>
-          <span className="text-slate-700 text-sm">{r.targetUserName}</span>
-        </div>
+        <span className="text-slate-700 text-sm font-medium">{r.targetUserName}</span>
       )
     },
     { 
@@ -672,6 +639,7 @@ export function MappingConfig() {
         onClose={() => setRegularModalOpen(false)} 
         title={regularForm.id ? "编辑常规映射" : "新增常规映射"}
         width="max-w-[500px]"
+        bodyClassName="overflow-visible"
       >
         <div className="py-3 space-y-4">
           <div className="space-y-1.5">
@@ -707,50 +675,64 @@ export function MappingConfig() {
             </div>
             
             {showUserDropdown && (
-              <div className="absolute top-[68px] left-0 right-0 max-h-52 overflow-y-auto bg-white border border-slate-200 shadow-xl rounded-lg z-[200] p-1 divide-y divide-slate-50">
-                {MOCK_REGULAR_USERS.map(user => (
-                  <div
-                    key={user.id}
-                    className={cn(
-                      "px-3 py-2 text-sm cursor-pointer rounded-md hover:bg-blue-50/70 transition-colors flex items-center justify-between",
-                      regularForm.targetUserId === user.id ? "bg-blue-50 text-blue-600 font-medium" : "text-slate-700"
-                    )}
-                    onClick={() => {
-                      const newDept = user.departments.length === 1 ? user.departments[0] : null;
-                      setRegularForm({ 
-                        ...regularForm, 
-                        targetUserId: user.id,
-                        targetUserName: user.name,
-                        targetName: newDept ? newDept.name : "",
-                        targetCode: newDept ? newDept.id : ""
-                      });
-                      setShowUserDropdown(false);
-                    }}
-                  >
-                    <span className="font-medium">{user.name}</span>
-                    {regularForm.targetUserId === user.id && (
-                      <Check className="w-4 h-4 text-blue-600 shrink-0" />
-                    )}
+              <div className="absolute top-[68px] left-0 right-0 max-h-56 overflow-y-auto bg-white border border-slate-200 shadow-xl rounded-lg z-[200] p-1 divide-y divide-slate-50">
+                {secretaries.length === 0 ? (
+                  <div className="py-4 text-center text-xs text-slate-400">
+                    暂无可用的医保秘书，请先在【医保秘书配置】中添加
                   </div>
-                ))}
+                ) : (
+                  secretaries.map(user => (
+                    <div
+                      key={user.userId}
+                      className={cn(
+                        "px-3 py-2 text-sm cursor-pointer rounded-md hover:bg-blue-50/70 transition-colors flex items-center justify-between",
+                        regularForm.targetUserId === user.userId ? "bg-blue-50 text-blue-600 font-medium" : "text-slate-700"
+                      )}
+                      onClick={() => {
+                        const depts = user.departments;
+                        const newDept = depts.length === 1 ? depts[0] : null;
+                        setRegularForm({ 
+                          ...regularForm, 
+                          targetUserId: user.userId,
+                          targetUserName: user.name,
+                          targetName: newDept ? newDept.name : "",
+                          targetCode: newDept ? (newDept.code || newDept.id) : ""
+                        });
+                        setShowUserDropdown(false);
+                      }}
+                    >
+                      <span className="font-medium text-slate-800">{user.name}</span>
+                      {regularForm.targetUserId === user.userId && (
+                        <Check className="w-4 h-4 text-blue-600 shrink-0" />
+                      )}
+                    </div>
+                  ))
+                )}
               </div>
             )}
           </div>
 
-          {/* Department Selection (Clean single select box without weird borders) */}
+          {/* Department Selection (Clean single select box, read from 医保秘书配置) */}
           <div className="space-y-1.5 relative" ref={regularDeptDropdownRef}>
-            <label className="text-sm font-medium text-slate-700">
-              下发映射科室 <span className="text-red-500">*</span>
-            </label>
+            <div className="flex items-center justify-between">
+              <label className="text-sm font-medium text-slate-700">
+                下发映射科室 <span className="text-red-500">*</span>
+              </label>
+              <span className="text-xs text-slate-400 font-normal">
+                根据医保秘书配置自动带出
+              </span>
+            </div>
             <div 
               id="regular-target-dept-select"
               className={cn(
                 "w-full border rounded-lg px-3 py-2 text-sm flex justify-between items-center transition-colors",
                 !regularForm.targetUserId 
                   ? "bg-slate-50 border-slate-200 text-slate-400 cursor-not-allowed opacity-70" 
-                  : (availableDepts.length > 1 
-                      ? "cursor-pointer bg-white border-slate-200 hover:border-blue-400" 
-                      : "bg-slate-50 border-slate-200 text-slate-700 cursor-default"),
+                  : (availableDepts.length === 0
+                      ? "bg-amber-50/50 border-amber-200 text-amber-700 cursor-not-allowed"
+                      : (availableDepts.length > 1 
+                          ? "cursor-pointer bg-white border-slate-200 hover:border-blue-400" 
+                          : "bg-slate-50 border-slate-200 text-slate-700 cursor-default")),
                 showRegularDeptDropdown && availableDepts.length > 1 ? "border-blue-500 ring-2 ring-blue-100" : ""
               )}
               onClick={() => {
@@ -760,7 +742,11 @@ export function MappingConfig() {
               }}
             >
               <span className={regularForm.targetName ? "text-slate-900 font-medium" : "text-slate-400"}>
-                {regularForm.targetName ? regularForm.targetName : (regularForm.targetUserId ? "请选择下发映射科室" : "请先选择医保秘书")}
+                {regularForm.targetName 
+                  ? regularForm.targetName 
+                  : (!regularForm.targetUserId 
+                      ? "请先选择医保秘书" 
+                      : (availableDepts.length === 0 ? "该秘书在配置中心暂未配置科室" : "请选择下发映射科室"))}
               </span>
               {availableDepts.length > 1 && (
                  <ChevronDown className={cn("w-4 h-4 text-slate-400 transition-transform", showRegularDeptDropdown && "rotate-180")} />
@@ -769,28 +755,31 @@ export function MappingConfig() {
             
             {showRegularDeptDropdown && availableDepts.length > 1 && (
               <div className="absolute top-[68px] left-0 right-0 max-h-48 overflow-y-auto bg-white border border-slate-200 shadow-xl rounded-lg z-[200] p-1 divide-y divide-slate-50">
-                {availableDepts.map(dept => (
-                  <div
-                    key={dept.id}
-                    className={cn(
-                      "px-3 py-2 text-sm cursor-pointer rounded-md hover:bg-blue-50/70 transition-colors flex items-center justify-between",
-                      regularForm.targetCode === dept.id ? "bg-blue-50 text-blue-600 font-medium" : "text-slate-700"
-                    )}
-                    onClick={() => {
-                      setRegularForm({ 
-                        ...regularForm, 
-                        targetName: dept.name,
-                        targetCode: dept.id
-                      });
-                      setShowRegularDeptDropdown(false);
-                    }}
-                  >
-                    <span className="font-medium">{dept.name}</span>
-                    {regularForm.targetCode === dept.id && (
-                      <Check className="w-4 h-4 text-blue-600 shrink-0" />
-                    )}
-                  </div>
-                ))}
+                {availableDepts.map(dept => {
+                  const deptCode = dept.code || dept.id;
+                  return (
+                    <div
+                      key={deptCode}
+                      className={cn(
+                        "px-3 py-2 text-sm cursor-pointer rounded-md hover:bg-blue-50/70 transition-colors flex items-center justify-between",
+                        regularForm.targetCode === deptCode ? "bg-blue-50 text-blue-600 font-medium" : "text-slate-700"
+                      )}
+                      onClick={() => {
+                        setRegularForm({ 
+                          ...regularForm, 
+                          targetName: dept.name,
+                          targetCode: deptCode
+                        });
+                        setShowRegularDeptDropdown(false);
+                      }}
+                    >
+                      <span className="font-medium text-slate-800">{dept.name}</span>
+                      {regularForm.targetCode === deptCode && (
+                        <Check className="w-4 h-4 text-blue-600 shrink-0" />
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>
@@ -821,6 +810,7 @@ export function MappingConfig() {
         onClose={() => setSpecialModalOpen(false)}
         title={specialForm.id ? "编辑特殊科室" : "新增特殊科室"}
         width="max-w-[480px]"
+        bodyClassName="overflow-visible"
       >
         <div className="py-3 space-y-5">
           {/* Department Selection (Single Select Dropdown with Search, Options without Code) */}

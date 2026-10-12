@@ -105,6 +105,11 @@ export const visibleMenuItems = [
         roles: ["ADMIN"],
       },
       {
+        path: "/medical-secretary-config/index",
+        label: "医保秘书配置",
+        roles: ["ADMIN"],
+      },
+      {
         path: "/mapping-config/index",
         label: "科室映射配置",
         roles: ["ADMIN"],
